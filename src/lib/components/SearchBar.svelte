@@ -1,10 +1,18 @@
 <script lang="ts">
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { apps } from "$lib/stores/apps.svelte";
+  import { snippets } from "$lib/stores/snippets.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
   import { activateCommand } from "$lib/commands/activate";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
+  import {
+    cancelSnippetDraft,
+    handleSnippetEnter,
+    startSnippetCreate,
+    startSnippetEdit,
+  } from "$lib/commands/snippet/actions";
+  import { parseSnippetAction } from "$lib/commands/snippet/parse";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -12,7 +20,7 @@
   $effect(() => {
     ui.showNonce;
     ui.imagePreviewSrc;
-    if (ui.focusField === "search" && !ui.imagePreviewSrc) {
+    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft) {
       requestAnimationFrame(() => inputEl?.focus());
     }
   });
@@ -20,6 +28,7 @@
   function onInput() {
     ui.selectedIndex = 0;
     clipboard.selectedIndex = 0;
+    snippets.selectedIndex = 0;
     if (ui.matchedCommand?.id !== "todo") {
       ui.todoPanelOpen = false;
     }
@@ -30,6 +39,10 @@
       event.preventDefault();
       if (ui.imagePreviewSrc) {
         ui.imagePreviewSrc = null;
+        event.stopPropagation();
+        return;
+      }
+      if (cancelSnippetDraft()) {
         event.stopPropagation();
         return;
       }
@@ -73,6 +86,56 @@
         event.preventDefault();
         const entry = items[clipboard.selectedIndex];
         if (entry) void clipboard.paste(entry.id);
+        return;
+      }
+    }
+
+    if (ui.view === "snippet") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        startSnippetCreate();
+        return;
+      }
+      if (snippets.draft) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void handleSnippetEnter();
+        }
+        return;
+      }
+      const action = parseSnippetAction(ui.commandRest);
+      if (action.type === "add") {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void handleSnippetEnter();
+        }
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "e") {
+        event.preventDefault();
+        startSnippetEdit();
+        return;
+      }
+      const items = snippets.filtered(ui.commandRest);
+      if (event.key === "ArrowDown" && items.length > 0) {
+        event.preventDefault();
+        snippets.selectedIndex = Math.min(items.length - 1, snippets.selectedIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && items.length > 0) {
+        event.preventDefault();
+        snippets.selectedIndex = Math.max(0, snippets.selectedIndex - 1);
+        return;
+      }
+      if (event.key === "Delete") {
+        event.preventDefault();
+        const snippet = items[snippets.selectedIndex];
+        if (snippet) void snippets.remove(snippet.id);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleSnippetEnter();
         return;
       }
     }

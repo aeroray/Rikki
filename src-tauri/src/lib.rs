@@ -14,6 +14,7 @@ mod tray;
 
 use commands::apps::{get_installed_apps, launch_app, AppIndex};
 use commands::calc::{get_calc_history, save_calc_history};
+use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
 use commands::system::lock_screen;
 use commands::clipboard::{
     clear_clipboard, delete_clipboard_entry, discard_clipboard_image, get_clipboard_history,
@@ -230,7 +231,11 @@ pub fn run() {
             get_foreground_app,
             get_installed_apps,
             launch_app,
-            lock_screen
+            lock_screen,
+            get_snippets,
+            create_snippet,
+            update_snippet,
+            delete_snippet
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,12 +1,15 @@
 <script lang="ts">
   import "$lib/commands/calc";
   import "$lib/commands/clip";
+  import "$lib/commands/snippet";
   import "$lib/commands/sys";
   import "$lib/commands/todo";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";
+  import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
+  import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
@@ -59,6 +62,7 @@
         ui.imagePreviewSrc = null;
         return;
       }
+      if (cancelSnippetDraft()) return;
       ui.beginHide();
       return;
     }
@@ -88,6 +92,8 @@
       <CalcResult />
     {:else if ui.view === "clip"}
       <ClipPanel />
+    {:else if ui.view === "snippet"}
+      <SnippetPanel />
     {:else}
       <ResultList />
     {/if}

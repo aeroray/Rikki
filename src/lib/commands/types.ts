@@ -4,6 +4,8 @@ export interface Command {
   title: string;
   description: string;
   icon?: string;
+  /** Extra prefixes that activate the same command, e.g. `snippet` for `sn`. */
+  aliases?: string[];
   /** action: Enter runs immediately. panel (default): Enter opens the prefix UI. */
   mode?: "panel" | "action";
   run: (input: string) => void;
@@ -21,6 +23,17 @@ export interface CalcHistoryEntry {
   expression: string;
   result: string;
   createdAt: number;
+}
+
+export interface Snippet {
+  id: string;
+  title: string;
+  content: string;
+  keyword: string;
+  tags: string[];
+  sensitive: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface ClipboardEntry {

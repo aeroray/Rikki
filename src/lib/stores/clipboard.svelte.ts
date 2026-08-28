@@ -111,6 +111,10 @@ class ClipboardStore {
     if (this.selectedIndex >= count) this.selectedIndex = count - 1;
   }
 
+  suppressNextCapture(enabled = true) {
+    this.ignoreNext = enabled;
+  }
+
   async paste(id?: string) {
     const entry = id
       ? this.entries.find((item) => item.id === id)

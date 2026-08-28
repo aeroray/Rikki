@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-08-28 - Sensitive snippets are masked, not encrypted
+Decision:
+Snippets can be marked `sensitive`. The list shows `******` instead of the body; Enter still copies. Edit shows the full text. This is peek protection, not encryption.
+Reason:
+API keys and passwords should not sit in plaintext in a Glanceable list, but a launcher should not add a password vault.
+Decision:
+Copying a snippet writes the system clipboard but does not add a clip history row.
+Reason:
+The text is a stored template, not a new copy, and recording it cluttered clip.
+
+## 2026-08-28 - Snippets are search-to-copy
+Decision:
+`sn` / `snippet` lists snippets and copies on Enter. `sn add` or Ctrl+N opens the create form, rows can edit/delete, and copy expands `{{date}}`, `{{time}}`, and `{{clipboard}}`. There is no auto-expand while typing, and no one-shot `sn add 标题 内容`.
+Reason:
+System-wide expansion needs input monitoring and misfires; clip-style search-and-copy matches the launcher.
+
 ## 2026-08-28 - System power commands
 Decision:
 `lock`, `sleep`, `shutdown`, `reboot`, and `logout` are action commands: Enter runs them and hides the palette. Power actions use `tauri-plugin-power-manager`; lock is a custom Rust command. They do not open a prefix panel.

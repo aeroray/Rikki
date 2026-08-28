@@ -1,6 +1,5 @@
-import { listCommands, match } from "$lib/commands/registry";
+import { listCommands, match, rankCommand } from "$lib/commands/registry";
 import type { RootHit } from "$lib/commands/types";
-import { rankText } from "$lib/fuzzy";
 import { apps } from "$lib/stores/apps.svelte";
 import { requestHidePalette } from "$lib/window";
 
@@ -10,7 +9,7 @@ class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
   todoPanelOpen = $state(false);
-  focusField = $state<"search" | "todo-input">("search");
+  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content">("search");
   showNonce = $state(0);
   shellOpen = $state(false);
   shellExiting = $state(false);
@@ -19,11 +18,12 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
     if (this.isCommandActive("clip")) return "clip";
+    if (this.isCommandActive("snippet")) return "snippet";
     return "suggest";
   });
   rootHits = $derived.by((): RootHit[] => {
@@ -34,7 +34,7 @@ class UiStore {
       .map((command) => ({
         kind: "command" as const,
         id: `command:${command.id}`,
-        score: rankText(query, command.prefix, command.title),
+        score: rankCommand(query, command),
         command,
       }))
       .filter((hit) => hit.score > 0);
