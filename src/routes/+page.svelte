@@ -4,6 +4,8 @@
   import "$lib/commands/todo";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
+  import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";
+  import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
@@ -41,17 +43,33 @@
     };
   });
 
+  $effect(() => {
+    if (ui.view !== "clip" && ui.imagePreviewSrc) {
+      ui.imagePreviewSrc = null;
+    }
+  });
+
   function onWindowKeydown(event: KeyboardEvent) {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    ui.beginHide();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (ui.imagePreviewSrc) {
+        ui.imagePreviewSrc = null;
+        return;
+      }
+      ui.beginHide();
+      return;
+    }
+    if (event.key === "Tab" && ui.view === "clip") {
+      event.preventDefault();
+      toggleSelectedImagePreview();
+    }
   }
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />
 
 <div
-  class="app-shell flex flex-col"
+  class="app-shell relative flex flex-col"
   class:is-open={ui.shellOpen && !ui.shellExiting}
   class:is-exiting={ui.shellExiting}
 >
@@ -71,4 +89,8 @@
       <ResultList />
     {/if}
   </div>
+
+  {#if ui.imagePreviewSrc}
+    <ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
+  {/if}
 </div>

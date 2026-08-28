@@ -2,13 +2,15 @@
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
+  import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
 
   $effect(() => {
     ui.showNonce;
-    if (ui.focusField === "search") {
+    ui.imagePreviewSrc;
+    if (ui.focusField === "search" && !ui.imagePreviewSrc) {
       requestAnimationFrame(() => inputEl?.focus());
     }
   });
@@ -32,6 +34,11 @@
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       event.preventDefault();
+      if (ui.imagePreviewSrc) {
+        ui.imagePreviewSrc = null;
+        event.stopPropagation();
+        return;
+      }
       void ui.beginHide();
       return;
     }
@@ -40,15 +47,20 @@
 
     if (ui.view === "clip") {
       const items = clipboard.filtered(ui.commandRest);
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSelectedImagePreview();
+        return;
+      }
       if (event.key === "ArrowDown" && items.length > 0) {
         event.preventDefault();
-        clipboard.selectedIndex = (clipboard.selectedIndex + 1) % items.length;
+        clipboard.selectedIndex = Math.min(items.length - 1, clipboard.selectedIndex + 1);
         return;
       }
       if (event.key === "ArrowUp" && items.length > 0) {
         event.preventDefault();
-        clipboard.selectedIndex =
-          (clipboard.selectedIndex - 1 + items.length) % items.length;
+        clipboard.selectedIndex = Math.max(0, clipboard.selectedIndex - 1);
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
@@ -61,6 +73,12 @@
         event.preventDefault();
         const entry = items[clipboard.selectedIndex];
         if (entry) clipboard.remove(entry.id);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const entry = items[clipboard.selectedIndex];
+        if (entry) void clipboard.paste(entry.id);
         return;
       }
     }

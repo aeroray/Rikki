@@ -2,6 +2,24 @@
 
 Entries are newest first.
 
+## 2026-08-28 - Clip images preview in an overlay
+Decision:
+Image rows stay compact (40px thumbs). Full-size preview is a frontend overlay (Tab or thumbnail zoom), not an inline large image or a second Tauri window.
+Reason:
+Large in-list images break scan density; a palette-sized mask is enough and needs no Rust.
+
+## 2026-08-28 - Clip records source app and dedupes
+Decision:
+A clip row stores the foreground app at copy time. Copying the same text or image again removes the old row and places one updated row at the top.
+Reason:
+Users need to see where a clip came from, and identical copies should be a single history item.
+
+## 2026-08-28 - Clip paste keeps list order
+Decision:
+Pasting a clip item writes it to the clipboard and sends Ctrl/⌘+V after the palette hides. The history row stays where it is; `createdAt` is not bumped.
+Reason:
+Reordering on paste made it look like a new copy, and Enter with an empty `clip ` rest never reached paste.
+
 ## 2026-08-28 - Tray is the quit surface
 Decision:
 A tray icon stays while the palette is hidden. Left-click opens the palette; the menu has Open and Quit.

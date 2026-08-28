@@ -34,8 +34,6 @@
   let dragOffset = 0;
   let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const thumbShown = $derived(overflow && (dragging || recentlyScrolled));
-
   function layout() {
     const el = viewport;
     if (!el) return;
@@ -132,7 +130,6 @@
 
 <div
   class="scroll-area {className}"
-  class:is-visible={thumbShown}
   class:is-dragging={dragging}
 >
   <div bind:this={viewport} class="scroll-area-viewport {viewportClass}" {...rest} id={viewportId}>
@@ -194,15 +191,6 @@
     right: 2px;
     bottom: 4px;
     width: 8px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease-out;
-  }
-
-  .scroll-area:hover .scroll-area-track,
-  .scroll-area.is-visible .scroll-area-track,
-  .scroll-area.is-dragging .scroll-area-track {
-    opacity: 1;
     pointer-events: auto;
   }
 
@@ -211,7 +199,7 @@
     left: 1px;
     width: 6px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--color-ink) 22%, transparent);
+    background: var(--color-hairline-strong);
     cursor: default;
     touch-action: none;
     transition: background-color 0.15s ease-out;
@@ -219,7 +207,7 @@
 
   .scroll-area-thumb:hover,
   .scroll-area.is-dragging .scroll-area-thumb {
-    background: color-mix(in srgb, var(--color-ink) 40%, transparent);
+    background: var(--color-ink-subtle);
   }
 
   @media (prefers-reduced-motion: reduce) {

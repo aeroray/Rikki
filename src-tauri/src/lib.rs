@@ -5,6 +5,7 @@ use tauri::{Emitter, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 mod commands;
+mod input;
 mod storage;
 #[cfg(desktop)]
 mod tray;
@@ -15,6 +16,7 @@ use commands::clipboard::{
     get_clipboard_images_dir, save_clipboard_history, search_clipboard, toggle_pin_clipboard,
 };
 use commands::todo::{get_todos, save_todos};
+use input::{get_foreground_app, simulate_paste};
 
 const PALETTE_LABEL: &str = "main";
 const BLUR_GRACE: Duration = Duration::from_millis(220);
@@ -212,7 +214,9 @@ pub fn run() {
             search_clipboard,
             toggle_pin_clipboard,
             delete_clipboard_entry,
-            clear_clipboard
+            clear_clipboard,
+            simulate_paste,
+            get_foreground_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -74,7 +74,10 @@ fn matches_query(entry: &ClipboardEntry, needle: &str) -> bool {
         if let (Some(width), Some(height)) = (entry.width, entry.height) {
             hay.push_str(&format!(" {width}x{height}"));
         }
+        hay.push(' ');
+        hay.push_str(&entry.app_name);
         return hay.to_lowercase().contains(needle);
     }
     entry.content.to_lowercase().contains(needle)
+        || entry.app_name.to_lowercase().contains(needle)
 }

@@ -9,8 +9,8 @@ export const clipCommand: Command = {
   title: "Clipboard",
   description: "文本与图片历史",
   icon: "Clipboard",
-  run(input) {
-    if (!input.trim()) {
+  run(_input) {
+    if (ui.view !== "clip") {
       ui.searchText = "clip ";
       ui.focusField = "search";
       clipboard.selectedIndex = 0;
@@ -26,7 +26,7 @@ async function pasteSelected() {
   const entry = list[clipboard.selectedIndex];
   if (!entry) return;
   const ok = await clipboard.paste(entry.id);
-  if (ok) ui.beginHide();
+  if (!ok) return;
 }
 
 register(clipCommand);

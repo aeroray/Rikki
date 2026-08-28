@@ -3,19 +3,26 @@
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { onMount } from "svelte";
 
   const items = $derived(clipboard.filtered(ui.commandRest));
   const pinned = $derived(items.filter((entry) => entry.pinned));
   const recent = $derived(items.filter((entry) => !entry.pinned));
+  let now = $state(Date.now());
 
   $effect(() => {
     clipboard.clampSelection(items.length);
   });
 
+  onMount(() => {
+    const tick = setInterval(() => {
+      now = Date.now();
+    }, 10_000);
+    return () => clearInterval(tick);
+  });
+
   function paste(id: string) {
-    void clipboard.paste(id).then((ok) => {
-      if (ok) ui.beginHide();
-    });
+    void clipboard.paste(id);
   }
 </script>
 
@@ -36,6 +43,7 @@
               <li>
                 <ClipItem
                   {entry}
+                  {now}
                   selected={clipboard.selectedIndex === index}
                   onselect={() => paste(entry.id)}
                   onpin={() => clipboard.togglePin(entry.id)}
@@ -56,6 +64,7 @@
               <li>
                 <ClipItem
                   {entry}
+                  {now}
                   selected={clipboard.selectedIndex === pinned.length + index}
                   onselect={() => paste(entry.id)}
                   onpin={() => clipboard.togglePin(entry.id)}
@@ -67,7 +76,7 @@
       {/if}
     </ScrollArea>
     <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
-      {items.length} 条 · 回车粘贴 · Delete 删除 · Ctrl+P 固定
+      {items.length} 条 · 回车粘贴 · Tab 预览 · Delete 删除 · Ctrl+P 固定
     </p>
   {/if}
 </div>

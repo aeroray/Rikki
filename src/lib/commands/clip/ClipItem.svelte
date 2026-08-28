@@ -1,33 +1,48 @@
 <script lang="ts">
   import type { ClipboardEntry } from "$lib/commands/types";
-  import { convertFileSrc } from "@tauri-apps/api/core";
-  import { Clipboard, Image as ImageIcon, Pin, SwatchBook } from "@lucide/svelte";
+  import { relativeTime } from "$lib/relativeTime";
+  import { imagePreviewSrc } from "$lib/commands/clip/preview";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { Clipboard, Image as ImageIcon, Pin, SwatchBook, ZoomIn } from "@lucide/svelte";
 
   let {
     entry,
     selected,
+    now,
     onselect,
     onpin,
   }: {
     entry: ClipboardEntry;
     selected: boolean;
+    now: number;
     onselect: () => void;
     onpin: () => void;
   } = $props();
 
+  let row: HTMLDivElement | undefined = $state();
   let broken = $state(false);
   const color = $derived(entry.type === "text" ? detectColor(entry.content) : null);
   const preview = $derived(entry.type === "text" ? truncate(entry.content) : "");
   const isUrl = $derived(entry.type === "text" && /^https?:\/\//i.test(entry.content.trim()));
-  const thumb = $derived(entry.type === "image" ? fileSrc(entry.content) : "");
+  const thumb = $derived(entry.type === "image" ? (imagePreviewSrc(entry) ?? "") : "");
   const dims = $derived(
     entry.width && entry.height ? `${entry.width}×${entry.height}` : "",
   );
   const sizeLabel = $derived(formatSize(entry.size));
+  const ago = $derived(relativeTime(entry.createdAt, now));
+  const meta = $derived(
+    buildMeta(entry.type === "image", dims, sizeLabel, isUrl, entry.appName, ago),
+  );
 
   $effect(() => {
     entry.content;
     broken = false;
+  });
+
+  $effect(() => {
+    if (selected) {
+      row?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
   });
 
   function detectColor(content: string): string | null {
@@ -47,12 +62,10 @@
     return compact.length > 60 ? `${compact.slice(0, 60)}…` : compact;
   }
 
-  function fileSrc(path: string): string {
-    try {
-      return convertFileSrc(path);
-    } catch {
-      return "";
-    }
+  function openPreview(event: MouseEvent) {
+    event.stopPropagation();
+    if (!thumb || broken) return;
+    ui.imagePreviewSrc = thumb;
   }
 
   function formatSize(bytes?: number): string {
@@ -60,48 +73,78 @@
     if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
+
+  function buildMeta(
+    image: boolean,
+    dimensions: string,
+    size: string,
+    url: boolean,
+    appName: string,
+    time: string,
+  ): string {
+    const parts: string[] = [];
+    if (appName) parts.push(appName);
+    if (image) {
+      if (dimensions) parts.push(dimensions);
+      if (size) parts.push(size);
+    } else if (url) {
+      parts.push("链接");
+    }
+    parts.push(time);
+    return parts.join(" · ");
+  }
 </script>
 
 <div
+  bind:this={row}
   class="flex items-center gap-2 rounded-md border-2 px-2 py-1.5 transition-[background-color,border-color] duration-150 ease-out {selected
     ? 'border-primary-focus/50 bg-surface-2'
     : 'border-transparent hover:bg-surface-2/70'}"
 >
+  {#if entry.type === "image"}
+    <button
+      type="button"
+      class="relative size-10 shrink-0 overflow-hidden rounded-[6px] bg-surface-1 outline outline-1 outline-white/10 active:scale-[0.96]"
+      aria-label={`预览图片${dims ? ` ${dims}` : ""}`}
+      onclick={openPreview}
+    >
+      {#key entry.content}
+        {#if thumb && !broken}
+          <img
+            src={thumb}
+            alt=""
+            width={entry.width ?? 40}
+            height={entry.height ?? 40}
+            class="size-full object-cover"
+            decoding="async"
+            onerror={() => (broken = true)}
+          />
+        {:else}
+          <span class="flex size-full items-center justify-center text-ink-subtle">
+            <ImageIcon class="size-4" strokeWidth={1.5} aria-hidden="true" />
+          </span>
+        {/if}
+      {/key}
+      <span
+        class="pointer-events-none absolute right-0.5 bottom-0.5 flex size-4 items-center justify-center rounded-[3px] bg-black/70"
+      >
+        <ZoomIn class="size-2.5 text-ink" strokeWidth={2} aria-hidden="true" />
+      </span>
+    </button>
+  {/if}
   <button
     type="button"
     class="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left active:scale-[0.96]"
-    aria-label={entry.type === "image" ? `粘贴图片${dims ? ` ${dims}` : ""}` : undefined}
+    aria-label={entry.type === "image" ? `粘贴图片${dims ? ` ${dims}` : ""}，${ago}` : undefined}
+    title={[entry.appName, new Date(entry.createdAt).toLocaleString()].filter(Boolean).join(" · ")}
     onclick={onselect}
   >
     {#if entry.type === "image"}
-      <span
-        class="relative size-10 shrink-0 overflow-hidden rounded-[6px] bg-surface-1 outline outline-1 outline-white/10"
-      >
-        {#key entry.content}
-          {#if thumb && !broken}
-            <img
-              src={thumb}
-              alt=""
-              width={entry.width ?? 40}
-              height={entry.height ?? 40}
-              class="size-full object-cover"
-              decoding="async"
-              onerror={() => (broken = true)}
-            />
-          {:else}
-            <span class="flex size-full items-center justify-center text-ink-subtle">
-              <ImageIcon class="size-4" strokeWidth={1.5} aria-hidden="true" />
-            </span>
-          {/if}
-        {/key}
-      </span>
       <span class="min-w-0 flex-1">
         <span class="block truncate text-[13px] leading-5 text-ink">图片</span>
-        {#if dims || sizeLabel}
-          <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
-            {[dims, sizeLabel].filter(Boolean).join(" · ")}
-          </span>
-        {/if}
+        <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+          {meta}
+        </span>
       </span>
     {:else if color}
       <span
@@ -112,6 +155,9 @@
       <SwatchBook class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
       <span class="min-w-0 flex-1">
         <span class="block truncate font-mono text-[13px] leading-5 text-ink">{preview}</span>
+        <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+          {meta}
+        </span>
       </span>
     {:else}
       <span class="flex size-4 shrink-0 items-center justify-center text-ink-subtle">
@@ -119,9 +165,9 @@
       </span>
       <span class="min-w-0 flex-1">
         <span class="block truncate font-mono text-[13px] leading-5 text-ink">{preview}</span>
-        {#if isUrl}
-          <span class="block text-[12px] leading-[1.4] text-ink-tertiary">链接</span>
-        {/if}
+        <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+          {meta}
+        </span>
       </span>
     {/if}
   </button>

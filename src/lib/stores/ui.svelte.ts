@@ -9,6 +9,7 @@ class UiStore {
   showNonce = $state(0);
   shellOpen = $state(false);
   shellExiting = $state(false);
+  imagePreviewSrc = $state<string | null>(null);
 
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
@@ -28,6 +29,7 @@ class UiStore {
     this.selectedIndex = 0;
     this.todoPanelOpen = false;
     this.focusField = "search";
+    this.imagePreviewSrc = null;
     this.showNonce += 1;
   }
 
@@ -55,6 +57,7 @@ class UiStore {
 
   beginHide() {
     if (this.shellExiting) return;
+    this.imagePreviewSrc = null;
     this.shellExiting = true;
     this.shellOpen = false;
     void requestHidePalette();

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { ClipboardEntry } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
+import { ui } from "$lib/stores/ui.svelte";
 import {
   hasFiles,
   hasImage,
@@ -57,7 +58,7 @@ class ClipboardStore {
     }
   }
 
-  capture(content: string) {
+  capture(content: string, appName = "") {
     const value = content.trim();
     if (!value) return;
     if (this.ignoreNext) {
@@ -65,18 +66,14 @@ class ClipboardStore {
       return;
     }
     void this.ready.then(() => {
-      const latest = this.entries[0];
-      if (latest && latest.type === "text" && latest.content === value) return;
-      const next: ClipboardEntry = {
+      this.upsert({
         id: `clip_${Date.now()}`,
         type: "text",
         content: value,
-        appName: "",
+        appName,
         createdAt: Date.now(),
         pinned: false,
-      };
-      this.entries = prune([next, ...this.entries]);
-      this.enqueueWrite();
+      });
     });
   }
 
@@ -126,11 +123,8 @@ class ClipboardStore {
       } else {
         await writeText(entry.content);
       }
-      this.entries = prune([
-        { ...entry, createdAt: Date.now() },
-        ...this.entries.filter((item) => item.id !== entry.id),
-      ]);
-      this.enqueueWrite();
+      ui.beginHide();
+      void invoke("simulate_paste").catch(() => {});
       return true;
     } catch {
       this.ignoreNext = false;
@@ -144,21 +138,22 @@ class ClipboardStore {
       return;
     }
     try {
+      const appName = await invoke<string>("get_foreground_app").catch(() => "");
       if (await hasFiles()) return;
       const text = (await hasText()) ? (await readText()).trim() : "";
       const image = await hasImage();
       const urlLike = /^https?:\/\//i.test(text);
       if (image && (!text || urlLike) && this.imagesDir) {
-        await this.captureImage();
+        await this.captureImage(appName);
         return;
       }
-      if (text) this.capture(text);
+      if (text) this.capture(text, appName);
     } catch {
       // Browser preview and unsupported clipboard payloads are ignored.
     }
   }
 
-  private async captureImage() {
+  private async captureImage(appName: string) {
     if (!this.imagesDir) return;
     const image = await readImage(this.imagesDir);
     const path = typeof image.path === "string" ? image.path : String(image.path ?? "");
@@ -169,24 +164,33 @@ class ClipboardStore {
       return;
     }
     await this.ready;
-    const existing = this.entries.find(
-      (entry) => entry.type === "image" && sameImage(entry.content, path),
-    );
-    if (existing && this.entries[0]?.id === existing.id) return;
-    const next: ClipboardEntry = existing
-      ? { ...existing, createdAt: Date.now(), width: image.width, height: image.height, size }
-      : {
-          id: `clip_${Date.now()}`,
-          type: "image",
-          content: path,
-          appName: "",
-          createdAt: Date.now(),
-          pinned: false,
-          width: image.width,
-          height: image.height,
-          size,
-        };
-    this.entries = prune([next, ...this.entries.filter((entry) => entry.id !== next.id)]);
+    this.upsert({
+      id: `clip_${Date.now()}`,
+      type: "image",
+      content: path,
+      appName,
+      createdAt: Date.now(),
+      pinned: false,
+      width: image.width,
+      height: image.height,
+      size,
+    });
+  }
+
+  private upsert(incoming: ClipboardEntry) {
+    const duplicates = this.entries.filter((entry) => sameClip(entry, incoming));
+    const pinned = duplicates.some((entry) => entry.pinned);
+    const kept = duplicates[0];
+    const next: ClipboardEntry = {
+      ...incoming,
+      id: kept?.id ?? incoming.id,
+      pinned,
+      appName: incoming.appName || kept?.appName || "",
+    };
+    this.entries = prune([
+      next,
+      ...this.entries.filter((entry) => !sameClip(entry, incoming)),
+    ]);
     this.enqueueWrite();
   }
 
@@ -217,9 +221,15 @@ function matchesQuery(entry: ClipboardEntry, query: string): boolean {
   if (entry.type === "image") {
     const dims =
       entry.width && entry.height ? `${entry.width}x${entry.height}` : "";
-    return fuzzyScore(query, `图片 image png ${dims}`) > 0;
+    return fuzzyScore(query, `图片 image png ${dims} ${entry.appName}`) > 0;
   }
-  return fuzzyScore(query, entry.content) > 0;
+  return fuzzyScore(query, entry.content) > 0 || fuzzyScore(query, entry.appName) > 0;
+}
+
+function sameClip(left: ClipboardEntry, right: ClipboardEntry): boolean {
+  if (left.type !== right.type) return false;
+  if (left.type === "image") return sameImage(left.content, right.content);
+  return left.content === right.content;
 }
 
 function sameImage(left: string, right: string): boolean {
