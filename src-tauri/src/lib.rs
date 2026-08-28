@@ -6,11 +6,13 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 mod commands;
 mod storage;
+#[cfg(desktop)]
+mod tray;
 
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::clipboard::{
-    clear_clipboard, delete_clipboard_entry, get_clipboard_history, save_clipboard_history,
-    search_clipboard, toggle_pin_clipboard,
+    clear_clipboard, delete_clipboard_entry, discard_clipboard_image, get_clipboard_history,
+    get_clipboard_images_dir, save_clipboard_history, search_clipboard, toggle_pin_clipboard,
 };
 use commands::todo::{get_todos, save_todos};
 
@@ -94,7 +96,7 @@ fn request_hide(app: &tauri::AppHandle) {
     });
 }
 
-fn show_palette(app: &tauri::AppHandle) {
+pub(crate) fn show_palette(app: &tauri::AppHandle) {
     let Some(window) = palette_window(app) else {
         return;
     };
@@ -179,6 +181,9 @@ pub fn run() {
                 app.global_shortcut().register(shortcut)?;
             }
 
+            #[cfg(desktop)]
+            tray::install(app.handle())?;
+
             if let Some(window) = palette_window(app.handle()) {
                 apply_platform_window(&window);
                 let handle = app.handle().clone();
@@ -202,6 +207,8 @@ pub fn run() {
             save_calc_history,
             get_clipboard_history,
             save_clipboard_history,
+            get_clipboard_images_dir,
+            discard_clipboard_image,
             search_clipboard,
             toggle_pin_clipboard,
             delete_clipboard_entry,

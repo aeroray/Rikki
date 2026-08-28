@@ -7,7 +7,7 @@ export const clipCommand: Command = {
   id: "clip",
   prefix: "clip",
   title: "Clipboard",
-  description: "剪贴板历史",
+  description: "文本与图片历史",
   icon: "Clipboard",
   run(input) {
     if (!input.trim()) {

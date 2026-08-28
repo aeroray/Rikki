@@ -2,9 +2,21 @@
 
 Entries are newest first.
 
+## 2026-08-28 - Tray is the quit surface
+Decision:
+A tray icon stays while the palette is hidden. Left-click opens the palette; the menu has Open and Quit.
+Reason:
+`skipTaskbar` leaves no taskbar button, so the tray is the way to reopen or exit the resident process.
+
+## 2026-08-28 - Clip images are files, text still wins
+Decision:
+Clipboard bitmaps save under `app_data_dir/clipboard/images/` (50MB cap) and preview with `convertFileSrc`. A copy with real non-URL text is stored as text, not the accompanying bitmap.
+Reason:
+Windows often attaches a DIB to formatted text; preferring text keeps ordinary copies from becoming image rows.
+
 ## 2026-08-28 - Clip is text history first
 Decision:
-`clip` listens with `tauri-plugin-clipboard-x`, stores text in `app_data_dir/clipboard/index.json`, and shows a color swatch when the copied string is hex/rgb/hsl. Images wait for a later phase.
+`clip` listens with `tauri-plugin-clipboard-x`, stores text in `app_data_dir/clipboard/index.json`, and shows a color swatch when the copied string is hex/rgb/hsl.
 Reason:
 The plugin already watches the system clipboard while the launcher stays resident; color preview is a frontend regex plus a swatch.
 

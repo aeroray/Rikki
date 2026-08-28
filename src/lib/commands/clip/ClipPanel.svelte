@@ -22,7 +22,7 @@
 <div class="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-1">
   {#if items.length === 0}
     <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">
-      {ui.commandRest.trim() ? "没有匹配的剪贴板记录" : "复制文本后会出现在这里"}
+      {ui.commandRest.trim() ? "没有匹配的剪贴板记录" : "复制文本或图片后会出现在这里"}
     </p>
   {:else}
     <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col gap-3">

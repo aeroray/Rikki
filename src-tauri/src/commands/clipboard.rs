@@ -13,6 +13,16 @@ pub fn save_clipboard_history(app: AppHandle, entries: Vec<ClipboardEntry>) -> R
 }
 
 #[tauri::command]
+pub fn get_clipboard_images_dir(app: AppHandle) -> Result<String, String> {
+    clipboard_store::images_dir(&app).map(|path| path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn discard_clipboard_image(app: AppHandle, path: String) -> Result<(), String> {
+    clipboard_store::discard_image(&app, &path)
+}
+
+#[tauri::command]
 pub fn search_clipboard(app: AppHandle, query: String) -> Result<Vec<ClipboardEntry>, String> {
     let needle = query.trim().to_lowercase();
     let entries = clipboard_store::load_entries(&app)?;
@@ -21,7 +31,7 @@ pub fn search_clipboard(app: AppHandle, query: String) -> Result<Vec<ClipboardEn
     }
     Ok(entries
         .into_iter()
-        .filter(|entry| entry.content.to_lowercase().contains(&needle))
+        .filter(|entry| matches_query(entry, &needle))
         .collect())
 }
 
@@ -56,4 +66,15 @@ pub fn clear_clipboard(app: AppHandle, keep_pinned: bool) -> Result<Vec<Clipboar
     };
     clipboard_store::save_entries(&app, &next)?;
     Ok(next)
+}
+
+fn matches_query(entry: &ClipboardEntry, needle: &str) -> bool {
+    if entry.kind == "image" {
+        let mut hay = String::from("图片 image png");
+        if let (Some(width), Some(height)) = (entry.width, entry.height) {
+            hay.push_str(&format!(" {width}x{height}"));
+        }
+        return hay.to_lowercase().contains(needle);
+    }
+    entry.content.to_lowercase().contains(needle)
 }

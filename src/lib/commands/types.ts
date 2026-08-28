@@ -23,11 +23,14 @@ export interface CalcHistoryEntry {
 
 export interface ClipboardEntry {
   id: string;
-  type: "text";
+  type: "text" | "image";
   content: string;
   appName: string;
   createdAt: number;
   pinned: boolean;
+  width?: number;
+  height?: number;
+  size?: number;
 }
 
 export interface CommandMatch {

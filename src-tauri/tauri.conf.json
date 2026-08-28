@@ -30,7 +30,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPDATA/clipboard/images/**",
+          "$APPDATA/com.rikki.app/clipboard/images/**"
+        ]
+      }
     }
   },
   "bundle": {
