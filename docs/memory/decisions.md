@@ -2,6 +2,18 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Emoji is browse-first copy
+Decision:
+`em` / `emoji` browses `@emoji-mart/data` categories, with English keyword search as a helper. Copy writes the native glyph, shows a notice, then hides after 1.2s. Search uses the palette field, not a second box.
+Reason:
+The dataset already classifies Unicode emoji; Chinese users can browse, and a second search field would fight the launcher chrome.
+
+## 2026-08-29 - Command titles are Chinese then English
+Decision:
+Command titles show Chinese, a middle dot, then the English name (`待办 · Todo`). The empty palette is only the command list; it has no instructional copy.
+Reason:
+Hints overlapped the list, and Chinese users need to see the English prefix without a language setting.
+
 ## 2026-08-28 - Settings live in the palette; unmatched queries search the web
 Decision:
 `settings` persists `app_data_dir/settings.json`. Theme is dark or light (DESIGN inverse tokens, lavender accent). The palette hotkey rebinds through global-shortcut. Custom engines are http(s) URLs with `%s`. Unmatched queries of 2+ characters open the default engine.

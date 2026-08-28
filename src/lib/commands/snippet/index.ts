@@ -8,7 +8,7 @@ export const snippetCommand: Command = {
   id: "snippet",
   prefix: "sn",
   aliases: ["snippet"],
-  title: "Snippets",
+  title: "片段 · Snippets",
   description: "搜索并复制文本片段",
   icon: "FileText",
   run(_input) {

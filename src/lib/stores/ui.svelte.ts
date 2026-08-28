@@ -18,15 +18,17 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
     if (this.isCommandActive("clip")) return "clip";
     if (this.isCommandActive("snippet")) return "snippet";
     if (this.isCommandActive("settings")) return "settings";
+    if (this.isCommandActive("emoji")) return "emoji";
     return "suggest";
   });
+  homeCommands = $derived(listCommands().filter((command) => command.mode !== "action"));
   rootHits = $derived.by((): RootHit[] => {
     if (this.view !== "suggest") return [];
     const query = this.searchText.trim();
@@ -91,7 +93,7 @@ class UiStore {
 
   clampSelection() {
     if (this.selectedIndex < 0) this.selectedIndex = 0;
-    const count = this.rootHits.length;
+    const count = this.view === "empty" ? this.homeCommands.length : this.rootHits.length;
     if (count === 0) {
       this.selectedIndex = 0;
       return;

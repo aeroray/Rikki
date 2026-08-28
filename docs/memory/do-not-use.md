@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: emoji pinyin, skins, recents, and zoom
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 is category browse plus English keywords; default skin only; no recents, favorites, or zoom preview. Date: 2026-08-29.
+
 ## Tombstone: fallback search history
 Do not reintroduce unless the user explicitly reverses this. Reason: fallback search is a shortcut; the browser keeps its own history. Date: 2026-08-28.
 

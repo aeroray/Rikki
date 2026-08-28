@@ -6,7 +6,7 @@ import { ui } from "$lib/stores/ui.svelte";
 export const clipCommand: Command = {
   id: "clip",
   prefix: "clip",
-  title: "Clipboard",
+  title: "剪贴板 · Clipboard",
   description: "文本与图片历史",
   icon: "Clipboard",
   run(_input) {

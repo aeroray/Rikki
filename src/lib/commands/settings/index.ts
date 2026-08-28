@@ -8,7 +8,7 @@ export const settingsCommand: Command = {
   id: "settings",
   prefix: "settings",
   aliases: ["设置", "配置", "preferences"],
-  title: "设置",
+  title: "设置 · Settings",
   description: "默认搜索引擎和其他选项",
   icon: "Settings",
   run() {

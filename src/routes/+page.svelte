@@ -1,6 +1,7 @@
 <script lang="ts">
   import "$lib/commands/calc";
   import "$lib/commands/clip";
+  import "$lib/commands/emoji";
   import "$lib/commands/settings";
   import "$lib/commands/snippet";
   import "$lib/commands/sys";
@@ -8,9 +9,11 @@
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";
+  import EmojiPanel from "$lib/commands/emoji/EmojiPanel.svelte";
   import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
+  import { closeEmojiDrill } from "$lib/commands/emoji/actions";
   import { closeSettingsDrill } from "$lib/commands/settings/actions";
   import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
   import EmptyState from "$lib/components/EmptyState.svelte";
@@ -66,6 +69,7 @@
         return;
       }
       if (closeSettingsDrill()) return;
+      if (closeEmojiDrill()) return;
       if (cancelSnippetDraft()) return;
       ui.beginHide();
       return;
@@ -100,6 +104,8 @@
       <SnippetPanel />
     {:else if ui.view === "settings"}
       <SettingsPanel />
+    {:else if ui.view === "emoji"}
+      <EmojiPanel />
     {:else}
       <ResultList />
     {/if}

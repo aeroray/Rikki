@@ -3,6 +3,7 @@
   import { apps } from "$lib/stores/apps.svelte";
   import { snippets } from "$lib/stores/snippets.svelte";
   import { settings } from "$lib/stores/settings.svelte";
+  import { emojis } from "$lib/stores/emojis.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
   import { activateCommand } from "$lib/commands/activate";
@@ -21,6 +22,7 @@
     startEngineCreate,
   } from "$lib/commands/settings/actions";
   import { parseSettingsScreen } from "$lib/commands/settings/parse";
+  import { closeEmojiDrill, handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -37,6 +39,7 @@
     ui.selectedIndex = 0;
     clipboard.selectedIndex = 0;
     snippets.selectedIndex = 0;
+    emojis.selectedIndex = 0;
     if (ui.matchedCommand?.id !== "todo") {
       ui.todoPanelOpen = false;
     }
@@ -51,6 +54,10 @@
         return;
       }
       if (closeSettingsDrill()) {
+        event.stopPropagation();
+        return;
+      }
+      if (closeEmojiDrill()) {
         event.stopPropagation();
         return;
       }
@@ -152,6 +159,18 @@
       }
     }
 
+    if (ui.view === "emoji") {
+      if (handleEmojiArrow(event.key)) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleEmojiEnter();
+        return;
+      }
+    }
+
     if (ui.view === "settings") {
       if (settings.recording) {
         event.preventDefault();
@@ -200,13 +219,15 @@
       }
     }
 
-    if (event.key === "ArrowDown" && ui.view === "suggest" && ui.rootHits.length > 0) {
+    const rootCount =
+      ui.view === "empty" ? ui.homeCommands.length : ui.view === "suggest" ? ui.rootHits.length : 0;
+    if (event.key === "ArrowDown" && rootCount > 0) {
       event.preventDefault();
-      ui.selectedIndex = Math.min(ui.rootHits.length - 1, ui.selectedIndex + 1);
+      ui.selectedIndex = Math.min(rootCount - 1, ui.selectedIndex + 1);
       return;
     }
 
-    if (event.key === "ArrowUp" && ui.view === "suggest" && ui.rootHits.length > 0) {
+    if (event.key === "ArrowUp" && rootCount > 0) {
       event.preventDefault();
       ui.selectedIndex = Math.max(0, ui.selectedIndex - 1);
       return;
@@ -214,6 +235,12 @@
 
     if (event.key !== "Enter") return;
     event.preventDefault();
+
+    if (ui.view === "empty") {
+      const command = ui.homeCommands[ui.selectedIndex];
+      if (command) activateCommand(command);
+      return;
+    }
 
     if (ui.view === "suggest") {
       const hit = ui.rootHits[ui.selectedIndex];
@@ -243,7 +270,7 @@
   }
 </script>
 
-<label class="search-glow m-3 flex items-center gap-3 rounded-md bg-surface-1 px-3 py-2.5">
+<label class="search-glow m-3 flex items-center gap-3 rounded-lg bg-surface-1 px-3 py-2.5">
   <Search class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
   <span class="sr-only">Search commands</span>
   <input
@@ -255,7 +282,7 @@
     spellcheck="false"
     aria-autocomplete="list"
     aria-controls="command-results"
-    aria-expanded={ui.view === "suggest"}
+    aria-expanded={ui.view === "suggest" || ui.view === "empty"}
     oninput={onInput}
     onkeydown={onKeydown}
     oncompositionstart={() => (composing = true)}
