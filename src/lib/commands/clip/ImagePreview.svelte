@@ -33,6 +33,6 @@
     {src}
     alt="剪贴板图片预览"
     draggable="false"
-    class="relative z-10 max-h-[calc(100%-40px)] max-w-[calc(100%-40px)] object-contain outline outline-1 outline-white/10"
+    class="relative z-10 max-h-[calc(100%-40px)] max-w-[calc(100%-40px)] object-contain outline outline-1 outline-hairline"
   />
 </div>

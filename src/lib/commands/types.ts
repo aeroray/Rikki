@@ -25,6 +25,22 @@ export interface CalcHistoryEntry {
   createdAt: number;
 }
 
+export type ThemeId = "dark" | "light";
+
+export type CustomSearchEngine = {
+  id: string;
+  name: string;
+  url: string;
+};
+
+export interface AppSettings {
+  defaultSearchEngine: string;
+  theme: ThemeId;
+  hotkey: string;
+  customSearchEngines: CustomSearchEngine[];
+  version: number;
+}
+
 export interface Snippet {
   id: string;
   title: string;

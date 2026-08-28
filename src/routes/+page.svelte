@@ -1,14 +1,17 @@
 <script lang="ts">
   import "$lib/commands/calc";
   import "$lib/commands/clip";
+  import "$lib/commands/settings";
   import "$lib/commands/snippet";
   import "$lib/commands/sys";
   import "$lib/commands/todo";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";
+  import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
+  import { closeSettingsDrill } from "$lib/commands/settings/actions";
   import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
@@ -62,6 +65,7 @@
         ui.imagePreviewSrc = null;
         return;
       }
+      if (closeSettingsDrill()) return;
       if (cancelSnippetDraft()) return;
       ui.beginHide();
       return;
@@ -94,6 +98,8 @@
       <ClipPanel />
     {:else if ui.view === "snippet"}
       <SnippetPanel />
+    {:else if ui.view === "settings"}
+      <SettingsPanel />
     {:else}
       <ResultList />
     {/if}

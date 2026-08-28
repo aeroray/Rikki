@@ -2,6 +2,15 @@
 
 Tombstones are newest first.
 
+## Tombstone: fallback search history
+Do not reintroduce unless the user explicitly reverses this. Reason: fallback search is a shortcut; the browser keeps its own history. Date: 2026-08-28.
+
+## Tombstone: multiple fallback engine rows
+Do not reintroduce unless the user explicitly reverses this. Reason: unmatched queries run one default engine; picking Google vs Bing belongs in settings. Date: 2026-08-28.
+
+## Tombstone: dedicated settings window
+Do not reintroduce unless the user explicitly reverses this. Reason: settings stay a prefix command so they match the rest of the palette. Date: 2026-08-28.
+
 ## Tombstone: snippet one-shot add
 Do not reintroduce unless the user explicitly reverses this. Reason: `sn add` opens the create form; typing title and content in the search bar was extra syntax to remember. Date: 2026-08-28.
 

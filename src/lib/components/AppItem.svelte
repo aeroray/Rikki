@@ -50,7 +50,7 @@
   onclick={onselect}
 >
   <span
-    class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-1 text-ink-muted outline outline-1 outline-white/10"
+    class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-1 text-ink-muted outline outline-1 outline-hairline"
   >
     {#if iconSrc && !broken}
       <img

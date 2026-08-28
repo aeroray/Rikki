@@ -104,7 +104,7 @@
   {#if entry.type === "image"}
     <button
       type="button"
-      class="relative size-10 shrink-0 overflow-hidden rounded-[6px] bg-surface-1 outline outline-1 outline-white/10 active:scale-[0.96]"
+      class="relative size-10 shrink-0 overflow-hidden rounded-[6px] bg-surface-1 outline outline-1 outline-hairline active:scale-[0.96]"
       aria-label={`预览图片${dims ? ` ${dims}` : ""}`}
       onclick={openPreview}
     >
@@ -148,13 +148,13 @@
       </span>
     {:else if color}
       <span
-        class="size-4 shrink-0 rounded-[4px] outline outline-1 outline-white/15"
+        class="size-4 shrink-0 rounded-[4px] outline outline-1 outline-hairline"
         style="background-color: {color}"
         aria-hidden="true"
       ></span>
       <SwatchBook class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-mono text-[13px] leading-5 text-ink">{preview}</span>
+        <span class="block truncate text-[13px] leading-5 text-ink">{preview}</span>
         <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
           {meta}
         </span>
@@ -164,7 +164,7 @@
         <Clipboard class="size-4" strokeWidth={1.5} aria-hidden="true" />
       </span>
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-mono text-[13px] leading-5 text-ink">{preview}</span>
+        <span class="block truncate text-[13px] leading-5 text-ink">{preview}</span>
         <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
           {meta}
         </span>

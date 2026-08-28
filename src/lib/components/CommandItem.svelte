@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Command } from "$lib/commands/types";
-  import { Calculator, Clipboard, FileText, ListTodo, Lock, LogOut, Moon, Power, RotateCw, Search } from "@lucide/svelte";
+  import { Calculator, Clipboard, FileText, ListTodo, Lock, LogOut, Moon, Power, RotateCw, Search, Settings } from "@lucide/svelte";
 
   let { command, selected, onselect, optionId }: { command: Command; selected: boolean; onselect: () => void; optionId?: string } =
     $props();
@@ -16,6 +16,7 @@
     Power,
     RotateCw,
     Search,
+    Settings,
   };
 
   const Icon = $derived(icons[command.icon as keyof typeof icons] ?? Search);
@@ -44,7 +45,7 @@
     <span class="block truncate text-[14px] font-medium leading-5 text-ink">{command.title}</span>
     <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{command.description}</span>
   </span>
-  <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-mono text-[12px] text-ink-tertiary">
+  <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans text-[12px] text-ink-tertiary">
     {command.prefix}
   </kbd>
 </button>

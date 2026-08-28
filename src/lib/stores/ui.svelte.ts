@@ -9,7 +9,7 @@ class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
   todoPanelOpen = $state(false);
-  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content">("search");
+  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content" | "engine-name" | "engine-url">("search");
   showNonce = $state(0);
   shellOpen = $state(false);
   shellExiting = $state(false);
@@ -18,12 +18,13 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
     if (this.isCommandActive("clip")) return "clip";
     if (this.isCommandActive("snippet")) return "snippet";
+    if (this.isCommandActive("settings")) return "settings";
     return "suggest";
   });
   rootHits = $derived.by((): RootHit[] => {

@@ -1,0 +1,324 @@
+use std::fs;
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
+
+const SETTINGS_FILE: &str = "settings.json";
+const DEFAULT_ENGINE: &str = "bing";
+const SETTINGS_VERSION: u32 = 2;
+const ENGINE_IDS: &[&str] = &["bing", "google", "baidu", "duckduckgo", "sogou"];
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomSearchEngine {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    #[serde(default = "default_engine")]
+    pub default_search_engine: String,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(default)]
+    pub hotkey: String,
+    #[serde(default)]
+    pub custom_search_engines: Vec<CustomSearchEngine>,
+    #[serde(default = "default_version")]
+    pub version: u32,
+}
+
+fn default_engine() -> String {
+    DEFAULT_ENGINE.into()
+}
+
+fn default_theme() -> String {
+    "dark".into()
+}
+
+fn default_version() -> u32 {
+    SETTINGS_VERSION
+}
+
+pub fn default_hotkey() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
+        "Command+K"
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        "Alt+Space"
+    }
+}
+
+fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| format!("resolve app data dir: {err}"))?;
+    fs::create_dir_all(&dir).map_err(|err| format!("create app data dir: {err}"))?;
+    Ok(dir.join(SETTINGS_FILE))
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+fn default_settings() -> Settings {
+    Settings {
+        default_search_engine: default_engine(),
+        theme: default_theme(),
+        hotkey: String::new(),
+        custom_search_engines: Vec::new(),
+        version: default_version(),
+    }
+}
+
+fn is_builtin_engine(id: &str) -> bool {
+    ENGINE_IDS.contains(&id)
+}
+
+fn is_known_engine(settings: &Settings, id: &str) -> bool {
+    is_builtin_engine(id)
+        || settings
+            .custom_search_engines
+            .iter()
+            .any(|engine| engine.id == id)
+}
+
+pub fn resolved_hotkey(settings: &Settings) -> String {
+    let hotkey = settings.hotkey.trim();
+    if hotkey.is_empty() {
+        default_hotkey().into()
+    } else {
+        hotkey.to_string()
+    }
+}
+
+pub fn valid_custom_url(url: &str) -> bool {
+    let url = url.trim();
+    if url.len() > 500 {
+        return false;
+    }
+    let lower = url.to_ascii_lowercase();
+    if lower.contains("javascript:") || lower.contains("data:") {
+        return false;
+    }
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return false;
+    }
+    url.contains("%s")
+}
+
+fn normalize_custom_url(url: &str) -> String {
+    url.trim()
+        .replace("{{query}}", "%s")
+        .replace("{q}", "%s")
+        .replace("{query}", "%s")
+}
+
+fn normalize(mut settings: Settings) -> Settings {
+    settings.custom_search_engines.retain(|engine| {
+        !engine.id.is_empty()
+            && !engine.name.trim().is_empty()
+            && valid_custom_url(&engine.url)
+            && !is_builtin_engine(&engine.id)
+    });
+    if settings.theme != "light" && settings.theme != "dark" {
+        settings.theme = default_theme();
+    }
+    if !is_known_engine(&settings, &settings.default_search_engine) {
+        settings.default_search_engine = default_engine();
+    }
+    if settings.version < SETTINGS_VERSION {
+        settings.version = default_version();
+    }
+    settings
+}
+
+pub fn load_settings(app: &AppHandle) -> Result<Settings, String> {
+    let path = settings_path(app)?;
+    if !path.exists() {
+        let settings = default_settings();
+        save_settings(app, &settings)?;
+        return Ok(settings);
+    }
+
+    let data = fs::read_to_string(&path).map_err(|err| format!("read settings: {err}"))?;
+    if data.trim().is_empty() {
+        let settings = default_settings();
+        save_settings(app, &settings)?;
+        return Ok(settings);
+    }
+
+    let parsed: Settings =
+        serde_json::from_str(&data).map_err(|err| format!("parse settings: {err}"))?;
+    Ok(normalize(parsed))
+}
+
+pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> {
+    let path = settings_path(app)?;
+    let tmp = path.with_extension("json.tmp");
+    let data =
+        serde_json::to_string_pretty(settings).map_err(|err| format!("serialize settings: {err}"))?;
+    fs::write(&tmp, data).map_err(|err| format!("write settings temp: {err}"))?;
+    if path.exists() {
+        fs::remove_file(&path).map_err(|err| format!("replace settings: {err}"))?;
+    }
+    fs::rename(&tmp, &path).map_err(|err| format!("commit settings: {err}"))?;
+    Ok(())
+}
+
+pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Settings, String> {
+    let mut settings = load_settings(app)?;
+    match key {
+        "defaultSearchEngine" | "default_search_engine" => {
+            if !is_known_engine(&settings, value) {
+                return Err(format!("unknown search engine: {value}"));
+            }
+            settings.default_search_engine = value.to_string();
+        }
+        "theme" => {
+            if value != "dark" && value != "light" {
+                return Err(format!("unknown theme: {value}"));
+            }
+            settings.theme = value.to_string();
+        }
+        "hotkey" => {
+            let hotkey = value.trim();
+            if hotkey.is_empty() {
+                return Err("hotkey is empty".into());
+            }
+            settings.hotkey = hotkey.to_string();
+        }
+        other => return Err(format!("unknown setting: {other}")),
+    }
+    save_settings(app, &settings)?;
+    Ok(settings)
+}
+
+pub fn add_custom_engine(
+    app: &AppHandle,
+    name: String,
+    url: String,
+) -> Result<Settings, String> {
+    let name = name.trim().to_string();
+    if name.is_empty() || name.len() > 40 {
+        return Err("engine name must be 1-40 characters".into());
+    }
+    let url = normalize_custom_url(&url);
+    if !valid_custom_url(&url) {
+        return Err("engine URL must be http(s) and contain %s".into());
+    }
+    let mut settings = load_settings(app)?;
+    let id = format!("custom_{}", now_ms());
+    settings.custom_search_engines.push(CustomSearchEngine { id, name, url });
+    save_settings(app, &settings)?;
+    Ok(settings)
+}
+
+pub fn delete_custom_engine(app: &AppHandle, id: &str) -> Result<Settings, String> {
+    if is_builtin_engine(id) {
+        return Err("cannot delete a built-in engine".into());
+    }
+    let mut settings = load_settings(app)?;
+    let before = settings.custom_search_engines.len();
+    settings
+        .custom_search_engines
+        .retain(|engine| engine.id != id);
+    if settings.custom_search_engines.len() == before {
+        return Err("custom engine not found".into());
+    }
+    if settings.default_search_engine == id {
+        settings.default_search_engine = default_engine();
+    }
+    save_settings(app, &settings)?;
+    Ok(settings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        normalize, valid_custom_url, CustomSearchEngine, Settings, DEFAULT_ENGINE,
+    };
+
+    fn sample() -> Settings {
+        Settings {
+            default_search_engine: "google".into(),
+            theme: "dark".into(),
+            hotkey: String::new(),
+            custom_search_engines: Vec::new(),
+            version: 2,
+        }
+    }
+
+    #[test]
+    fn settings_json_uses_camel_case_fields() {
+        let mut settings = sample();
+        settings.custom_search_engines.push(CustomSearchEngine {
+            id: "custom_1".into(),
+            name: "GitHub".into(),
+            url: "https://github.com/search?q=%s".into(),
+        });
+        let json = serde_json::to_string(&settings).expect("serialize");
+        assert!(json.contains("defaultSearchEngine"));
+        assert!(json.contains("customSearchEngines"));
+        assert!(!json.contains("default_search_engine"));
+        let parsed: Settings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed.default_search_engine, "google");
+        assert_eq!(parsed.custom_search_engines[0].name, "GitHub");
+    }
+
+    #[test]
+    fn missing_engine_defaults_to_bing() {
+        let parsed: Settings = serde_json::from_str(r#"{"version":1}"#).expect("deserialize");
+        assert_eq!(parsed.default_search_engine, DEFAULT_ENGINE);
+        assert_eq!(parsed.theme, "dark");
+        assert!(parsed.custom_search_engines.is_empty());
+    }
+
+    #[test]
+    fn unknown_engine_normalizes_to_bing() {
+        let settings = normalize(Settings {
+            default_search_engine: "yahoo".into(),
+            theme: "neon".into(),
+            hotkey: String::new(),
+            custom_search_engines: Vec::new(),
+            version: 1,
+        });
+        assert_eq!(settings.default_search_engine, DEFAULT_ENGINE);
+        assert_eq!(settings.theme, "dark");
+    }
+
+    #[test]
+    fn custom_default_engine_is_kept() {
+        let settings = normalize(Settings {
+            default_search_engine: "custom_1".into(),
+            theme: "light".into(),
+            hotkey: "Control+Space".into(),
+            custom_search_engines: vec![CustomSearchEngine {
+                id: "custom_1".into(),
+                name: "GitHub".into(),
+                url: "https://github.com/search?q=%s".into(),
+            }],
+            version: 2,
+        });
+        assert_eq!(settings.default_search_engine, "custom_1");
+        assert_eq!(settings.theme, "light");
+    }
+
+    #[test]
+    fn custom_url_requires_https_and_placeholder() {
+        assert!(valid_custom_url("https://github.com/search?q=%s"));
+        assert!(!valid_custom_url("https://github.com/search?q="));
+        assert!(!valid_custom_url("javascript:alert(%s)"));
+    }
+}

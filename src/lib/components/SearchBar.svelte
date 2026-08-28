@@ -2,9 +2,11 @@
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { apps } from "$lib/stores/apps.svelte";
   import { snippets } from "$lib/stores/snippets.svelte";
+  import { settings } from "$lib/stores/settings.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
   import { activateCommand } from "$lib/commands/activate";
+  import { canFallbackSearch, runFallbackSearch } from "$lib/commands/fallback";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
   import {
     cancelSnippetDraft,
@@ -13,6 +15,12 @@
     startSnippetEdit,
   } from "$lib/commands/snippet/actions";
   import { parseSnippetAction } from "$lib/commands/snippet/parse";
+  import {
+    closeSettingsDrill,
+    handleSettingsEnter,
+    startEngineCreate,
+  } from "$lib/commands/settings/actions";
+  import { parseSettingsScreen } from "$lib/commands/settings/parse";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -20,7 +28,7 @@
   $effect(() => {
     ui.showNonce;
     ui.imagePreviewSrc;
-    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft) {
+    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft) {
       requestAnimationFrame(() => inputEl?.focus());
     }
   });
@@ -39,6 +47,10 @@
       event.preventDefault();
       if (ui.imagePreviewSrc) {
         ui.imagePreviewSrc = null;
+        event.stopPropagation();
+        return;
+      }
+      if (closeSettingsDrill()) {
         event.stopPropagation();
         return;
       }
@@ -140,6 +152,54 @@
       }
     }
 
+    if (ui.view === "settings") {
+      if (settings.recording) {
+        event.preventDefault();
+        void settings.captureHotkey(event);
+        return;
+      }
+      if (settings.engineDraft) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void settings.saveEngineDraft();
+        }
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        startEngineCreate();
+        return;
+      }
+      const screen = parseSettingsScreen(ui.commandRest);
+      if (event.key === "Delete" && screen === "engine") {
+        event.preventDefault();
+        const engine = settings.engines[settings.selectedIndex];
+        if (engine?.custom) void settings.removeEngine(engine.id);
+        return;
+      }
+      const count =
+        screen === "engine"
+          ? settings.engines.length
+          : screen === "theme"
+            ? settings.themes.length
+            : settings.listItems.length;
+      if (event.key === "ArrowDown" && count > 0) {
+        event.preventDefault();
+        settings.selectedIndex = Math.min(count - 1, settings.selectedIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && count > 0) {
+        event.preventDefault();
+        settings.selectedIndex = Math.max(0, settings.selectedIndex - 1);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleSettingsEnter();
+        return;
+      }
+    }
+
     if (event.key === "ArrowDown" && ui.view === "suggest" && ui.rootHits.length > 0) {
       event.preventDefault();
       ui.selectedIndex = Math.min(ui.rootHits.length - 1, ui.selectedIndex + 1);
@@ -165,6 +225,10 @@
       }
       if (hit?.kind === "command") {
         activateCommand(hit.command);
+        return;
+      }
+      if (canFallbackSearch(ui.searchText, ui.rootHits.length)) {
+        void runFallbackSearch(ui.searchText);
         return;
       }
       if (ui.matchedCommand) {

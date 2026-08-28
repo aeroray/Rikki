@@ -2,6 +2,18 @@
 
 Entries are newest first.
 
+## 2026-08-28 - Settings live in the palette; unmatched queries search the web
+Decision:
+`settings` persists `app_data_dir/settings.json`. Theme is dark or light (DESIGN inverse tokens, lavender accent). The palette hotkey rebinds through global-shortcut. Custom engines are http(s) URLs with `%s`. Unmatched queries of 2+ characters open the default engine.
+Reason:
+A launcher should finish a query on Enter, and settings should stay a prefix panel rather than a nested folder or a separate window.
+
+## 2026-08-28 - User-facing text uses the UI sans font
+Decision:
+Lists, kbd chips, and other user-facing copy inherit `--font-sans`. Do not use Tailwind `font-mono` for clip bodies or labels that may contain CJK.
+Reason:
+`font-mono` has no CJK faces, so Chinese Windows falls back to SimSun.
+
 ## 2026-08-28 - Sensitive snippets are masked, not encrypted
 Decision:
 Snippets can be marked `sensitive`. The list shows `******` instead of the body; Enter still copies. Edit shows the full text. This is peek protection, not encryption.

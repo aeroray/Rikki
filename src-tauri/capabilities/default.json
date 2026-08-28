@@ -19,6 +19,7 @@
     "power-manager:allow-sleep",
     "power-manager:allow-shutdown",
     "power-manager:allow-reboot",
-    "power-manager:allow-logout"
+    "power-manager:allow-logout",
+    "opener:default"
   ]
 }

@@ -14,6 +14,11 @@ mod tray;
 
 use commands::apps::{get_installed_apps, launch_app, AppIndex};
 use commands::calc::{get_calc_history, save_calc_history};
+use commands::settings::{
+    add_custom_engine, begin_hotkey_capture, cancel_hotkey_capture, delete_custom_engine,
+    get_settings, update_setting,
+};
+use storage::settings_store;
 use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
 use commands::system::lock_screen;
 use commands::clipboard::{
@@ -34,6 +39,8 @@ struct HideGate {
 struct PaletteState {
     last_shown_at: Mutex<Option<Instant>>,
     hide: Mutex<HideGate>,
+    hotkey: Mutex<String>,
+    capturing_hotkey: Mutex<bool>,
 }
 
 fn palette_window(app: &tauri::AppHandle) -> Option<WebviewWindow> {
@@ -66,6 +73,7 @@ fn bump_hide_seq(app: &tauri::AppHandle, hiding: bool) {
 }
 
 fn hide_palette(app: &tauri::AppHandle) {
+    restore_hotkey_capture(app);
     if let Some(window) = palette_window(app) {
         let _ = window.hide();
     }
@@ -73,6 +81,7 @@ fn hide_palette(app: &tauri::AppHandle) {
 }
 
 fn request_hide(app: &tauri::AppHandle) {
+    restore_hotkey_capture(app);
     let Some(window) = palette_window(app) else {
         return;
     };
@@ -145,6 +154,98 @@ fn request_hide_window(app: tauri::AppHandle) {
     request_hide(&app);
 }
 
+fn has_hotkey_modifier(shortcut: &str) -> bool {
+    let lower = shortcut.to_ascii_lowercase();
+    lower.contains("control")
+        || lower.contains("ctrl")
+        || lower.contains("alt")
+        || lower.contains("option")
+        || lower.contains("command")
+        || lower.contains("cmd")
+        || lower.contains("super")
+        || lower.contains("meta")
+}
+
+pub(crate) fn start_hotkey_capture(app: &tauri::AppHandle) -> Result<(), String> {
+    let Some(state) = app.try_state::<PaletteState>() else {
+        return Ok(());
+    };
+    let mut capturing = state.capturing_hotkey.lock().expect("capture");
+    if *capturing {
+        return Ok(());
+    }
+    let hotkey = state.hotkey.lock().expect("hotkey").clone();
+    if !hotkey.is_empty() {
+        let _ = app.global_shortcut().unregister(hotkey.as_str());
+    }
+    *capturing = true;
+    Ok(())
+}
+
+pub(crate) fn restore_hotkey_capture(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<PaletteState>() else {
+        return;
+    };
+    let mut capturing = state.capturing_hotkey.lock().expect("capture");
+    if !*capturing {
+        return;
+    }
+    *capturing = false;
+    let hotkey = state.hotkey.lock().expect("hotkey").clone();
+    if hotkey.is_empty() {
+        return;
+    }
+    let _ = app.global_shortcut().register(hotkey.as_str());
+}
+
+pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<settings_store::Settings, String> {
+    let next = next.trim();
+    if next.is_empty() {
+        return Err("hotkey is empty".into());
+    }
+    if !has_hotkey_modifier(next) {
+        return Err("hotkey needs Control, Alt, or Command".into());
+    }
+
+    let Some(state) = app.try_state::<PaletteState>() else {
+        return settings_store::update_setting(app, "hotkey", next);
+    };
+    let old = state.hotkey.lock().expect("hotkey").clone();
+    let capturing = *state.capturing_hotkey.lock().expect("capture");
+    let gs = app.global_shortcut();
+
+    if !capturing && old == next {
+        return settings_store::update_setting(app, "hotkey", next);
+    }
+
+    if !capturing && !old.is_empty() {
+        let _ = gs.unregister(old.as_str());
+    }
+
+    if let Err(err) = gs.register(next) {
+        if !old.is_empty() {
+            let _ = gs.register(old.as_str());
+        }
+        *state.capturing_hotkey.lock().expect("capture") = false;
+        return Err(format!("register hotkey: {err}"));
+    }
+
+    *state.hotkey.lock().expect("hotkey") = next.to_string();
+    *state.capturing_hotkey.lock().expect("capture") = false;
+
+    match settings_store::update_setting(app, "hotkey", next) {
+        Ok(settings) => Ok(settings),
+        Err(err) => {
+            let _ = gs.unregister(next);
+            if !old.is_empty() {
+                let _ = gs.register(old.as_str());
+                *state.hotkey.lock().expect("hotkey") = old;
+            }
+            Err(err)
+        }
+    }
+}
+
 fn apply_platform_window(window: &WebviewWindow) {
     let _ = window.set_decorations(false);
     #[cfg(target_os = "windows")]
@@ -167,8 +268,11 @@ pub fn run() {
                 hiding: false,
                 seq: 0,
             }),
+            hotkey: Mutex::new(String::new()),
+            capturing_hotkey: Mutex::new(false),
         })
         .plugin(tauri_plugin_clipboard_x::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_power_manager::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -182,12 +286,18 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                #[cfg(target_os = "macos")]
-                let shortcut = "Command+K";
-                #[cfg(not(target_os = "macos"))]
-                let shortcut = "Alt+Space";
-
-                app.global_shortcut().register(shortcut)?;
+                let hotkey = settings_store::load_settings(app.handle())
+                    .map(|settings| settings_store::resolved_hotkey(&settings))
+                    .unwrap_or_else(|_| settings_store::default_hotkey().to_string());
+                if app.global_shortcut().register(hotkey.as_str()).is_err() {
+                    let fallback = settings_store::default_hotkey();
+                    app.global_shortcut().register(fallback)?;
+                    if let Some(state) = app.try_state::<PaletteState>() {
+                        *state.hotkey.lock().expect("hotkey") = fallback.to_string();
+                    }
+                } else if let Some(state) = app.try_state::<PaletteState>() {
+                    *state.hotkey.lock().expect("hotkey") = hotkey;
+                }
             }
 
             #[cfg(desktop)]
@@ -235,7 +345,13 @@ pub fn run() {
             get_snippets,
             create_snippet,
             update_snippet,
-            delete_snippet
+            delete_snippet,
+            get_settings,
+            update_setting,
+            add_custom_engine,
+            delete_custom_engine,
+            begin_hotkey_capture,
+            cancel_hotkey_capture
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
