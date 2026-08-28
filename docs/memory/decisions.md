@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-28 - Calc evaluates in the frontend
+Decision:
+The `calc` command evaluates expressions with mathjs in the frontend and copies the result on Enter. History is stored in `app_data_dir/calc-history.json` through Rust.
+Reason:
+Evaluation is a local string-in path; history has to survive quit, using the same app-data JSON pattern as todos.
+
 ## 2026-08-28 - Overlay ScrollArea
 Decision:
 Lists use `$lib/components/ScrollArea.svelte`: native overflow stays, the thumb is an overlay. Selected command rows use an inset 2px border, not outline.

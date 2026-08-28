@@ -7,6 +7,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 mod commands;
 mod storage;
 
+use commands::calc::{get_calc_history, save_calc_history};
 use commands::todo::{get_todos, save_todos};
 
 const PALETTE_LABEL: &str = "main";
@@ -191,7 +192,9 @@ pub fn run() {
             hide_window,
             request_hide_window,
             get_todos,
-            save_todos
+            save_todos,
+            get_calc_history,
+            save_calc_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

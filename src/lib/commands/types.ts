@@ -14,6 +14,13 @@ export interface Todo {
   createdAt: number;
 }
 
+export interface CalcHistoryEntry {
+  id: string;
+  expression: string;
+  result: string;
+  createdAt: number;
+}
+
 export interface CommandMatch {
   command: Command;
   rest: string;

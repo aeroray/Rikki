@@ -15,12 +15,10 @@ class UiStore {
   commandRest = $derived(this.matched?.rest ?? "");
   suggestions = $derived(suggest(this.searchText));
 
-  view = $derived.by((): "empty" | "suggest" | "todo" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" => {
     if (!this.searchText.trim()) return "empty";
-    const todoActive =
-      this.matchedCommand?.id === "todo" &&
-      (this.todoPanelOpen || this.commandRest.length > 0 || this.searchText.endsWith(" "));
-    if (todoActive) return "todo";
+    if (this.isCommandActive("todo")) return "todo";
+    if (this.isCommandActive("calc")) return "calc";
     return "suggest";
   });
 
@@ -30,6 +28,12 @@ class UiStore {
     this.todoPanelOpen = false;
     this.focusField = "search";
     this.showNonce += 1;
+  }
+
+  isCommandActive(id: string): boolean {
+    if (this.matchedCommand?.id !== id) return false;
+    if (this.commandRest.length > 0 || this.searchText.endsWith(" ")) return true;
+    return id === "todo" && this.todoPanelOpen;
   }
 
   beginShow() {

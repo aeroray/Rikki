@@ -1,5 +1,7 @@
 <script lang="ts">
+  import "$lib/commands/calc";
   import "$lib/commands/todo";
+  import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
@@ -57,6 +59,8 @@
     {:else if ui.view === "todo"}
       <TodoInput />
       <TodoList />
+    {:else if ui.view === "calc"}
+      <CalcResult />
     {:else}
       <ResultList />
     {/if}

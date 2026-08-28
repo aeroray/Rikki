@@ -61,7 +61,7 @@
       return;
     }
 
-    if (ui.view === "todo" && ui.matchedCommand) {
+    if (ui.matchedCommand) {
       ui.matchedCommand.run(ui.commandRest);
     }
   }
