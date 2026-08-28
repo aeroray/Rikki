@@ -6,6 +6,10 @@ export function isActionCommand(command: Command): boolean {
 }
 
 export function activateCommand(command: Command): void {
+  if (ui.matchedCommand?.id === command.id && ui.commandRest.trim()) {
+    command.run(ui.commandRest);
+    return;
+  }
   if (isActionCommand(command)) {
     command.run("");
     return;

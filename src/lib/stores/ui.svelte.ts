@@ -47,9 +47,25 @@ class UiStore {
       score,
       app,
     }));
-    return [...commands, ...appHits]
+    const hits: RootHit[] = [...commands, ...appHits]
       .sort((a, b) => b.score - a.score)
       .slice(0, ROOT_HIT_LIMIT);
+    const matched = this.matchedCommand;
+    if (matched && this.commandRest.trim()) {
+      const id = `command:${matched.id}`;
+      const existing = hits.findIndex((hit) => hit.id === id);
+      const rest = this.commandRest.trim();
+      const pinned: RootHit = {
+        kind: "command",
+        id,
+        score: Number.POSITIVE_INFINITY,
+        command: { ...matched, description: `搜索「${rest}」` },
+      };
+      if (existing >= 0) hits.splice(existing, 1);
+      hits.unshift(pinned);
+      if (hits.length > ROOT_HIT_LIMIT) hits.pop();
+    }
+    return hits;
   });
 
   resetSearch() {

@@ -6,6 +6,7 @@
   import "$lib/commands/snippet";
   import "$lib/commands/sys";
   import "$lib/commands/todo";
+  import "$lib/commands/web";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";

@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: web search history, suggestions, and in-app results
+Do not reintroduce unless the user explicitly reverses this. Reason: prefix search only opens the browser; history and results stay there. Date: 2026-08-29.
+
 ## Tombstone: emoji pinyin, skins, recents, and zoom
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 is category browse plus English keywords; default skin only; no recents, favorites, or zoom preview. Date: 2026-08-29.
 

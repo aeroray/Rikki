@@ -243,6 +243,10 @@
     }
 
     if (ui.view === "suggest") {
+      if (ui.matchedCommand && ui.commandRest.trim()) {
+        ui.matchedCommand.run(ui.commandRest);
+        return;
+      }
       const hit = ui.rootHits[ui.selectedIndex];
       if (hit?.kind === "app") {
         void apps.launch(hit.app.path).then((ok) => {
@@ -270,7 +274,7 @@
   }
 </script>
 
-<label class="search-glow m-3 flex items-center gap-3 rounded-lg bg-surface-1 px-3 py-2.5">
+<label class="search-glow m-3 flex items-center gap-3 rounded-md bg-surface-1 px-3 py-2.5">
   <Search class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
   <span class="sr-only">Search commands</span>
   <input

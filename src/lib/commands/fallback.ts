@@ -6,7 +6,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 export const FALLBACK_MIN_LENGTH = 2;
 
 export function canFallbackSearch(query: string, hitCount: number): boolean {
-  return hitCount === 0 && query.trim().length >= FALLBACK_MIN_LENGTH;
+  if (hitCount !== 0 || query.trim().length < FALLBACK_MIN_LENGTH) return false;
+  if (ui.matchedCommand && ui.commandRest.trim()) return false;
+  return true;
 }
 
 export async function runFallbackSearch(query: string): Promise<boolean> {

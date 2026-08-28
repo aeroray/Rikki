@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Web search prefixes open the browser
+Decision:
+`gg`, `bd`, `bing`, `ddg`, and `sogou` search that engine in the default browser and hide. Unmatched queries still use the one default engine from settings. There is no search history, suggestions, or in-app results.
+Reason:
+Picking an engine is a prefix, not extra fallback rows; the browser already does search well.
+
 ## 2026-08-29 - Emoji is browse-first copy
 Decision:
 `em` / `emoji` browses `@emoji-mart/data` categories, with English keyword search as a helper. Copy writes the native glyph, shows a notice, then hides after 1.2s. Search uses the palette field, not a second box.
