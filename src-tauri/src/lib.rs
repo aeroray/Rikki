@@ -14,6 +14,7 @@ mod tray;
 
 use commands::apps::{get_installed_apps, launch_app, AppIndex};
 use commands::calc::{get_calc_history, save_calc_history};
+use commands::system::lock_screen;
 use commands::clipboard::{
     clear_clipboard, delete_clipboard_entry, discard_clipboard_image, get_clipboard_history,
     get_clipboard_images_dir, save_clipboard_history, search_clipboard, toggle_pin_clipboard,
@@ -167,6 +168,7 @@ pub fn run() {
             }),
         })
         .plugin(tauri_plugin_clipboard_x::init())
+        .plugin(tauri_plugin_power_manager::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -227,7 +229,8 @@ pub fn run() {
             simulate_paste,
             get_foreground_app,
             get_installed_apps,
-            launch_app
+            launch_app,
+            lock_screen
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

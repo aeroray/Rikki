@@ -15,6 +15,10 @@
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered",
-    "clipboard-x:default"
+    "clipboard-x:default",
+    "power-manager:allow-sleep",
+    "power-manager:allow-shutdown",
+    "power-manager:allow-reboot",
+    "power-manager:allow-logout"
   ]
 }

@@ -17,7 +17,8 @@
     "@tauri-apps/api": "^2",
     "mathjs": "^15.2.0",
     "pinyin-pro": "^3.29.3",
-    "tauri-plugin-clipboard-x-api": "^2.0.2"
+    "tauri-plugin-clipboard-x-api": "^2.0.2",
+    "tauri-plugin-power-manager-api": "^0.1.1"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

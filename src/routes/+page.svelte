@@ -1,6 +1,7 @@
 <script lang="ts">
   import "$lib/commands/calc";
   import "$lib/commands/clip";
+  import "$lib/commands/sys";
   import "$lib/commands/todo";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";

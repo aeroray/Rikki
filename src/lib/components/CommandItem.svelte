@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Command } from "$lib/commands/types";
-  import { Calculator, Clipboard, ListTodo, Search } from "@lucide/svelte";
+  import { Calculator, Clipboard, ListTodo, Lock, LogOut, Moon, Power, RotateCw, Search } from "@lucide/svelte";
 
   let { command, selected, onselect, optionId }: { command: Command; selected: boolean; onselect: () => void; optionId?: string } =
     $props();
@@ -9,6 +9,11 @@
     Calculator,
     Clipboard,
     ListTodo,
+    Lock,
+    LogOut,
+    Moon,
+    Power,
+    RotateCw,
     Search,
   };
 

@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-28 - System power commands
+Decision:
+`lock`, `sleep`, `shutdown`, `reboot`, and `logout` are action commands: Enter runs them and hides the palette. Power actions use `tauri-plugin-power-manager`; lock is a custom Rust command. They do not open a prefix panel.
+Reason:
+The plugin already covers the four power APIs, and a panel would add a step the launcher does not use.
+
 ## 2026-08-28 - App ranking uses icons, usage, and pinyin
 Decision:
 Root-search apps show extracted icons, rank by fuzzy match then launch count (`usage_count.json`), and match Chinese names with `pinyin-pro` (`wx` → 微信).

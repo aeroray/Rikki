@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { activateCommand } from "$lib/commands/activate";
   import AppItem from "$lib/components/AppItem.svelte";
   import CommandItem from "$lib/components/CommandItem.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
@@ -14,9 +15,7 @@
     if (!hit) return;
     ui.selectedIndex = index;
     if (hit.kind === "command") {
-      ui.searchText = `${hit.command.prefix} `;
-      ui.todoPanelOpen = hit.command.id === "todo";
-      ui.focusField = hit.command.id === "todo" ? "todo-input" : "search";
+      activateCommand(hit.command);
       return;
     }
     void apps.launch(hit.app.path).then((ok) => {

@@ -3,8 +3,8 @@
   import { apps } from "$lib/stores/apps.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
+  import { activateCommand } from "$lib/commands/activate";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
-  import type { Command } from "$lib/commands/types";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -23,12 +23,6 @@
     if (ui.matchedCommand?.id !== "todo") {
       ui.todoPanelOpen = false;
     }
-  }
-
-  function activateCommand(command: Command) {
-    ui.searchText = `${command.prefix} `;
-    ui.todoPanelOpen = command.id === "todo";
-    ui.focusField = command.id === "todo" ? "todo-input" : "search";
   }
 
   function onKeydown(event: KeyboardEvent) {

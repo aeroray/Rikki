@@ -4,6 +4,8 @@ export interface Command {
   title: string;
   description: string;
   icon?: string;
+  /** action: Enter runs immediately. panel (default): Enter opens the prefix UI. */
+  mode?: "panel" | "action";
   run: (input: string) => void;
 }
 
