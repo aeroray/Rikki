@@ -37,3 +37,16 @@ export interface CommandMatch {
   command: Command;
   rest: string;
 }
+
+export interface InstalledApp {
+  id: string;
+  name: string;
+  path: string;
+  alias: string;
+  icon: string;
+  usageCount: number;
+}
+
+export type RootHit =
+  | { kind: "command"; id: string; score: number; command: Command }
+  | { kind: "app"; id: string; score: number; app: InstalledApp };

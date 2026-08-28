@@ -4,12 +4,15 @@ use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
+mod apps;
+mod apps_icons;
 mod commands;
 mod input;
 mod storage;
 #[cfg(desktop)]
 mod tray;
 
+use commands::apps::{get_installed_apps, launch_app, AppIndex};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::clipboard::{
     clear_clipboard, delete_clipboard_entry, discard_clipboard_image, get_clipboard_history,
@@ -155,6 +158,7 @@ fn apply_platform_window(window: &WebviewWindow) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppIndex::default())
         .manage(PaletteState {
             last_shown_at: Mutex::new(None),
             hide: Mutex::new(HideGate {
@@ -186,6 +190,11 @@ pub fn run() {
             #[cfg(desktop)]
             tray::install(app.handle())?;
 
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let _ = commands::apps::warm(&handle);
+            });
+
             if let Some(window) = palette_window(app.handle()) {
                 apply_platform_window(&window);
                 let handle = app.handle().clone();
@@ -216,7 +225,9 @@ pub fn run() {
             delete_clipboard_entry,
             clear_clipboard,
             simulate_paste,
-            get_foreground_app
+            get_foreground_app,
+            get_installed_apps,
+            launch_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

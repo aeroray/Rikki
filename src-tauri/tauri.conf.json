@@ -35,7 +35,9 @@
         "enable": true,
         "scope": [
           "$APPDATA/clipboard/images/**",
-          "$APPDATA/com.rikki.app/clipboard/images/**"
+          "$APPDATA/com.rikki.app/clipboard/images/**",
+          "$APPDATA/apps/icons/**",
+          "$APPDATA/com.rikki.app/apps/icons/**"
         ]
       }
     }

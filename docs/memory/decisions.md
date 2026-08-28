@@ -2,6 +2,18 @@
 
 Entries are newest first.
 
+## 2026-08-28 - App ranking uses icons, usage, and pinyin
+Decision:
+Root-search apps show extracted icons, rank by fuzzy match then launch count (`usage_count.json`), and match Chinese names with `pinyin-pro` (`wx` → 微信).
+Reason:
+The library has a full pinyin dictionary, so a hand-maintained alias table is unnecessary.
+
+## 2026-08-28 - Apps launch from root search
+Decision:
+Installed apps appear in the palette root search. Typing matches names with existing fuzzy scoring; Enter launches. There is no `open` prefix command.
+Reason:
+Opening an app should be the default launcher action, without a prefix to remember.
+
 ## 2026-08-28 - Clip images preview in an overlay
 Decision:
 Image rows stay compact (40px thumbs). Full-size preview is a frontend overlay (Tab or thumbnail zoom), not an inline large image or a second Tauri window.

@@ -2,7 +2,7 @@
   import type { Command } from "$lib/commands/types";
   import { Calculator, Clipboard, ListTodo, Search } from "@lucide/svelte";
 
-  let { command, selected, onselect }: { command: Command; selected: boolean; onselect: () => void } =
+  let { command, selected, onselect, optionId }: { command: Command; selected: boolean; onselect: () => void; optionId?: string } =
     $props();
 
   const icons = {
@@ -13,10 +13,16 @@
   };
 
   const Icon = $derived(icons[command.icon as keyof typeof icons] ?? Search);
+  let row: HTMLButtonElement | undefined = $state();
+
+  $effect(() => {
+    if (selected) row?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
 </script>
 
 <button
-  id="command-{command.id}"
+  bind:this={row}
+  id={optionId ?? `command-${command.id}`}
   type="button"
   role="option"
   aria-selected={selected}

@@ -1,8 +1,10 @@
 <script lang="ts">
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { apps } from "$lib/stores/apps.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
+  import type { Command } from "$lib/commands/types";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -23,9 +25,7 @@
     }
   }
 
-  function activateSuggestion() {
-    const command = ui.suggestions[ui.selectedIndex] ?? ui.matchedCommand;
-    if (!command) return;
+  function activateCommand(command: Command) {
     ui.searchText = `${command.prefix} `;
     ui.todoPanelOpen = command.id === "todo";
     ui.focusField = command.id === "todo" ? "todo-input" : "search";
@@ -83,16 +83,15 @@
       }
     }
 
-    if (event.key === "ArrowDown" && ui.view === "suggest" && ui.suggestions.length > 0) {
+    if (event.key === "ArrowDown" && ui.view === "suggest" && ui.rootHits.length > 0) {
       event.preventDefault();
-      ui.selectedIndex = (ui.selectedIndex + 1) % ui.suggestions.length;
+      ui.selectedIndex = Math.min(ui.rootHits.length - 1, ui.selectedIndex + 1);
       return;
     }
 
-    if (event.key === "ArrowUp" && ui.view === "suggest" && ui.suggestions.length > 0) {
+    if (event.key === "ArrowUp" && ui.view === "suggest" && ui.rootHits.length > 0) {
       event.preventDefault();
-      ui.selectedIndex =
-        (ui.selectedIndex - 1 + ui.suggestions.length) % ui.suggestions.length;
+      ui.selectedIndex = Math.max(0, ui.selectedIndex - 1);
       return;
     }
 
@@ -100,11 +99,20 @@
     event.preventDefault();
 
     if (ui.view === "suggest") {
-      if (ui.matchedCommand) {
-        ui.matchedCommand.run(ui.commandRest);
+      const hit = ui.rootHits[ui.selectedIndex];
+      if (hit?.kind === "app") {
+        void apps.launch(hit.app.path).then((ok) => {
+          if (ok) ui.beginHide();
+        });
         return;
       }
-      activateSuggestion();
+      if (hit?.kind === "command") {
+        activateCommand(hit.command);
+        return;
+      }
+      if (ui.matchedCommand) {
+        ui.matchedCommand.run(ui.commandRest);
+      }
       return;
     }
 
@@ -121,7 +129,7 @@
     bind:this={inputEl}
     bind:value={ui.searchText}
     class="w-full bg-transparent text-[16px] leading-6 tracking-[-0.05px] text-ink outline-none placeholder:text-ink-tertiary"
-    placeholder="Search or type a command…"
+    placeholder="Search apps or type a command…"
     autocomplete="off"
     spellcheck="false"
     aria-autocomplete="list"

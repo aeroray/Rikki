@@ -1,5 +1,10 @@
-import { match, suggest } from "$lib/commands/registry";
+import { listCommands, match } from "$lib/commands/registry";
+import type { RootHit } from "$lib/commands/types";
+import { rankText } from "$lib/fuzzy";
+import { apps } from "$lib/stores/apps.svelte";
 import { requestHidePalette } from "$lib/window";
+
+const ROOT_HIT_LIMIT = 20;
 
 class UiStore {
   searchText = $state("");
@@ -14,14 +19,34 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  suggestions = $derived(suggest(this.searchText));
-
   view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
     if (this.isCommandActive("clip")) return "clip";
     return "suggest";
+  });
+  rootHits = $derived.by((): RootHit[] => {
+    if (this.view !== "suggest") return [];
+    const query = this.searchText.trim();
+    if (!query) return [];
+    const commands = listCommands()
+      .map((command) => ({
+        kind: "command" as const,
+        id: `command:${command.id}`,
+        score: rankText(query, command.prefix, command.title),
+        command,
+      }))
+      .filter((hit) => hit.score > 0);
+    const appHits = apps.ranked(query).map(({ app, score }) => ({
+      kind: "app" as const,
+      id: `app:${app.id}`,
+      score,
+      app,
+    }));
+    return [...commands, ...appHits]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, ROOT_HIT_LIMIT);
   });
 
   resetSearch() {
@@ -65,12 +90,13 @@ class UiStore {
 
   clampSelection() {
     if (this.selectedIndex < 0) this.selectedIndex = 0;
-    if (this.suggestions.length === 0) {
+    const count = this.rootHits.length;
+    if (count === 0) {
       this.selectedIndex = 0;
       return;
     }
-    if (this.selectedIndex >= this.suggestions.length) {
-      this.selectedIndex = this.suggestions.length - 1;
+    if (this.selectedIndex >= count) {
+      this.selectedIndex = count - 1;
     }
   }
 }

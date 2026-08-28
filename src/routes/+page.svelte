@@ -11,6 +11,7 @@
   import SearchBar from "$lib/components/SearchBar.svelte";
   import TodoInput from "$lib/commands/todo/TodoInput.svelte";
   import TodoList from "$lib/commands/todo/TodoList.svelte";
+  import { apps } from "$lib/stores/apps.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { listen } from "@tauri-apps/api/event";
@@ -24,6 +25,7 @@
     }
     ui.focusField = "search";
     void clipboard.start();
+    apps.start();
     const stops: Array<() => void> = [];
 
     void listen("palette-shown", () => {

@@ -16,6 +16,7 @@
     "@lucide/svelte": "^0.544.0",
     "@tauri-apps/api": "^2",
     "mathjs": "^15.2.0",
+    "pinyin-pro": "^3.29.3",
     "tauri-plugin-clipboard-x-api": "^2.0.2"
   },
   "devDependencies": {
