@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-28 - Clip is text history first
+Decision:
+`clip` listens with `tauri-plugin-clipboard-x`, stores text in `app_data_dir/clipboard/index.json`, and shows a color swatch when the copied string is hex/rgb/hsl. Images wait for a later phase.
+Reason:
+The plugin already watches the system clipboard while the launcher stays resident; color preview is a frontend regex plus a swatch.
+
 ## 2026-08-28 - Calc evaluates in the frontend
 Decision:
 The `calc` command evaluates expressions with mathjs in the frontend and copies the result on Enter. History is stored in `app_data_dir/calc-history.json` through Rust.

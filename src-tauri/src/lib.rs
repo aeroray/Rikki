@@ -8,6 +8,10 @@ mod commands;
 mod storage;
 
 use commands::calc::{get_calc_history, save_calc_history};
+use commands::clipboard::{
+    clear_clipboard, delete_clipboard_entry, get_clipboard_history, save_clipboard_history,
+    search_clipboard, toggle_pin_clipboard,
+};
 use commands::todo::{get_todos, save_todos};
 
 const PALETTE_LABEL: &str = "main";
@@ -154,6 +158,7 @@ pub fn run() {
                 seq: 0,
             }),
         })
+        .plugin(tauri_plugin_clipboard_x::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -194,7 +199,13 @@ pub fn run() {
             get_todos,
             save_todos,
             get_calc_history,
-            save_calc_history
+            save_calc_history,
+            get_clipboard_history,
+            save_clipboard_history,
+            search_clipboard,
+            toggle_pin_clipboard,
+            delete_clipboard_entry,
+            clear_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

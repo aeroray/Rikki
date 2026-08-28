@@ -21,6 +21,15 @@ export interface CalcHistoryEntry {
   createdAt: number;
 }
 
+export interface ClipboardEntry {
+  id: string;
+  type: "text";
+  content: string;
+  appName: string;
+  createdAt: number;
+  pinned: boolean;
+}
+
 export interface CommandMatch {
   command: Command;
   rest: string;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Search } from "@lucide/svelte";
 
@@ -14,6 +15,7 @@
 
   function onInput() {
     ui.selectedIndex = 0;
+    clipboard.selectedIndex = 0;
     if (ui.matchedCommand?.id !== "todo") {
       ui.todoPanelOpen = false;
     }
@@ -35,6 +37,33 @@
     }
 
     if (event.isComposing || composing) return;
+
+    if (ui.view === "clip") {
+      const items = clipboard.filtered(ui.commandRest);
+      if (event.key === "ArrowDown" && items.length > 0) {
+        event.preventDefault();
+        clipboard.selectedIndex = (clipboard.selectedIndex + 1) % items.length;
+        return;
+      }
+      if (event.key === "ArrowUp" && items.length > 0) {
+        event.preventDefault();
+        clipboard.selectedIndex =
+          (clipboard.selectedIndex - 1 + items.length) % items.length;
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        const entry = items[clipboard.selectedIndex];
+        if (entry) clipboard.togglePin(entry.id);
+        return;
+      }
+      if (event.key === "Delete") {
+        event.preventDefault();
+        const entry = items[clipboard.selectedIndex];
+        if (entry) clipboard.remove(entry.id);
+        return;
+      }
+    }
 
     if (event.key === "ArrowDown" && ui.view === "suggest" && ui.suggestions.length > 0) {
       event.preventDefault();

@@ -15,10 +15,11 @@ class UiStore {
   commandRest = $derived(this.matched?.rest ?? "");
   suggestions = $derived(suggest(this.searchText));
 
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
+    if (this.isCommandActive("clip")) return "clip";
     return "suggest";
   });
 

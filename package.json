@@ -15,7 +15,8 @@
   "dependencies": {
     "@lucide/svelte": "^0.544.0",
     "@tauri-apps/api": "^2",
-    "mathjs": "^15.2.0"
+    "mathjs": "^15.2.0",
+    "tauri-plugin-clipboard-x-api": "^2.0.2"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

@@ -1,12 +1,15 @@
 <script lang="ts">
   import "$lib/commands/calc";
+  import "$lib/commands/clip";
   import "$lib/commands/todo";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
+  import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
   import TodoInput from "$lib/commands/todo/TodoInput.svelte";
   import TodoList from "$lib/commands/todo/TodoList.svelte";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
@@ -18,6 +21,7 @@
       ui.shellOpen = true;
     }
     ui.focusField = "search";
+    void clipboard.start();
     const stops: Array<() => void> = [];
 
     void listen("palette-shown", () => {
@@ -61,6 +65,8 @@
       <TodoList />
     {:else if ui.view === "calc"}
       <CalcResult />
+    {:else if ui.view === "clip"}
+      <ClipPanel />
     {:else}
       <ResultList />
     {/if}

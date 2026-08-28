@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Command } from "$lib/commands/types";
-  import { Calculator, ListTodo, Search } from "@lucide/svelte";
+  import { Calculator, Clipboard, ListTodo, Search } from "@lucide/svelte";
 
   let { command, selected, onselect }: { command: Command; selected: boolean; onselect: () => void } =
     $props();
 
   const icons = {
     Calculator,
+    Clipboard,
     ListTodo,
     Search,
   };
