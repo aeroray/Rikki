@@ -18,6 +18,10 @@ class TodoStore {
     return this.todos.filter((todo) => todo.done).length;
   }
 
+  async reload() {
+    await this.hydrate();
+  }
+
   add(text: string) {
     const value = text.trim();
     if (!value) return;

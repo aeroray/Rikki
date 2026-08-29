@@ -2,6 +2,24 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Clip cleanup is a button, not a timer
+Decision:
+Settings store `clipTextRetentionDays` as 7, 30, or never (null/0, default 7). The clip panel has a cleanup button that deletes unpinned texts older than that window and extra images over 200; pinned rows stay. It is disabled when retention is off.
+Reason:
+Text has no count cap, so cleanup must be explicit, and the button copy should state the range before anything is deleted.
+
+## 2026-08-29 - Backups overwrite todos, snippets, and settings
+Decision:
+Settings can export and import a versioned JSON backup of todos, snippets, and settings. Import replaces those files in full. Clip history is not included.
+Reason:
+Those three are user-owned; clip is ephemeral, and merge or cloud sync would add UI the launcher does not need.
+
+## 2026-08-29 - Clip texts stay; images cap at 200 and 5MB
+Decision:
+Clipboard text has no count cap. Images keep at most 200 files; a copy over 5MB is skipped and not stored. Oldest images (unpinned first) are dropped with their files.
+Reason:
+Text is small enough to keep; image files are the storage risk, and 5MB covers screenshots and normal photos.
+
 ## 2026-08-29 - No list virtualization; lazy-load heavy packs
 Decision:
 Do not window emoji or clip lists. Emoji search still caps at 96. `@emoji-mart/data` and mathjs load on first use; command panels stay static imports.
@@ -160,7 +178,7 @@ Reason:
 
 ## 2026-08-28 - Clip images are files, text still wins
 Decision:
-Clipboard bitmaps save under `app_data_dir/clipboard/images/` (50MB cap) and preview with `convertFileSrc`. A copy with real non-URL text is stored as text, not the accompanying bitmap.
+Clipboard bitmaps save under `app_data_dir/clipboard/images/` and preview with `convertFileSrc`. A copy with real non-URL text is stored as text, not the accompanying bitmap. Image caps are in the 2026-08-29 200/5MB decision.
 Reason:
 Windows often attaches a DIB to formatted text; preferring text keeps ordinary copies from becoming image rows.
 

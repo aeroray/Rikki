@@ -6,11 +6,13 @@
   import SettingItem from "$lib/commands/settings/SettingItem.svelte";
   import ThemeSelector from "$lib/commands/settings/ThemeSelector.svelte";
   import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
+  import ClipRetentionSelector from "$lib/commands/settings/ClipRetentionSelector.svelte";
   import TranslateSettings from "$lib/commands/settings/TranslateSettings.svelte";
   import {
     openEngineSettings,
     openHotkeySettings,
     openLanguageSettings,
+    openRetentionSettings,
     openThemeSettings,
     openTranslateSettings,
     startEngineCreate,
@@ -23,7 +25,7 @@
   import { onDestroy, untrack } from "svelte";
 
   const screen = $derived(parseSettingsScreen(ui.commandRest));
-  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | "language" | "translate" | null>(null);
+  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | "language" | "translate" | "retention" | null>(null);
 
   onDestroy(() => {
     settings.cancelReturn();
@@ -57,6 +59,9 @@
       } else if (next === "language") {
         const index = settings.locales.findIndex((option) => option.id === settings.localePref);
         settings.selectedIndex = index >= 0 ? index : 0;
+      } else if (next === "retention") {
+        const index = settings.retentionOptions.findIndex((option) => option.id === settings.clipTextRetentionDays);
+        settings.selectedIndex = index >= 0 ? index : 0;
       } else if (next === "translate") {
         if (!settings.translateDraft) settings.openTranslateDraft();
       } else {
@@ -71,6 +76,8 @@
           ? settings.themes.length
           : next === "language"
             ? settings.locales.length
+            : next === "retention"
+              ? settings.retentionOptions.length
             : next === "translate" || next === "hotkey"
               ? 0
               : settings.listItems.length;
@@ -100,6 +107,8 @@
           {i18n.t("settings.theme")}
         {:else if screen === "language"}
           {i18n.t("settings.language")}
+        {:else if screen === "retention"}
+          {i18n.t("settings.clipRetention")}
         {:else}
           {i18n.t("settings.title")}
         {/if}
@@ -159,12 +168,25 @@
             }}
           />
         {/each}
+      {:else if screen === "retention"}
+        {#each settings.retentionOptions as option, index (option.id)}
+          <ClipRetentionSelector
+            days={option.id}
+            selected={index === settings.selectedIndex}
+            current={option.id === settings.clipTextRetentionDays}
+            onselect={() => {
+              settings.selectedIndex = index;
+              void settings.setClipRetention(option.id);
+            }}
+          />
+        {/each}
       {:else}
         {#each settings.listItems as item, index (item.id)}
           <SettingItem
             title={item.title}
             value={item.value}
             icon={item.icon}
+            current={item.current !== false}
             selected={index === settings.selectedIndex}
             onselect={() => {
               settings.selectedIndex = index;
@@ -173,6 +195,9 @@
               if (item.id === "hotkey") openHotkeySettings();
               if (item.id === "language") openLanguageSettings();
               if (item.id === "translate") openTranslateSettings();
+              if (item.id === "retention") openRetentionSettings();
+              if (item.id === "export") void settings.exportBackup();
+              if (item.id === "import") void settings.importBackup();
             }}
           />
         {/each}
@@ -183,8 +208,10 @@
         {settings.notice}
       {:else if screen === "engine"}
         {i18n.t("settings.engineHint")}
-      {:else if screen === "theme" || screen === "language"}
+      {:else if screen === "theme" || screen === "language" || screen === "retention"}
         {i18n.t("settings.confirm")}
+      {:else if settings.listItems[settings.selectedIndex]?.id === "export" || settings.listItems[settings.selectedIndex]?.id === "import"}
+        {i18n.t("settings.backup.hint")}
       {:else}
         {i18n.t("settings.open")}
       {/if}

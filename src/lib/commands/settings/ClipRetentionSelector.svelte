@@ -1,35 +1,23 @@
 <script lang="ts">
+  import type { ClipRetentionDays } from "$lib/commands/clip/cleanup";
   import { i18n } from "$lib/i18n";
-  import { Globe, Keyboard, KeyRound, Languages, Palette, Timer, Download, Upload } from "@lucide/svelte";
+  import { settings } from "$lib/stores/settings.svelte";
+  import { Check, Timer } from "@lucide/svelte";
 
   let {
-    title,
-    value,
-    icon,
+    days,
     selected,
+    current,
     onselect,
-    current = true,
   }: {
-    title: string;
-    value: string;
-    icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Download" | "Upload";
+    days: ClipRetentionDays;
     selected: boolean;
+    current: boolean;
     onselect: () => void;
-    current?: boolean;
   } = $props();
 
-  const icons = {
-    Globe,
-    Palette,
-    Keyboard,
-    Languages,
-    KeyRound,
-    Download,
-    Upload,
-    Timer,
-  };
-  const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();
+  const name = $derived(settings.retentionPrefLabel(days));
 
   $effect(() => {
     if (selected) row?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -47,10 +35,15 @@
   onclick={onselect}
 >
   <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
-    <Icon class="size-4" strokeWidth={1.5} aria-hidden="true" />
+    <Timer class="size-4" strokeWidth={1.5} aria-hidden="true" />
   </span>
-  <span class="min-w-0 flex-1">
-    <span class="block truncate text-[14px] font-medium leading-5 text-ink">{title}</span>
-        <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{current ? i18n.t("settings.current", { value }) : value}</span>
+  <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-ink">
+    {name}
+    {#if current}
+      <span class="ml-1 font-normal text-ink-subtle">{i18n.t("settings.now")}</span>
+    {/if}
   </span>
+  {#if current}
+    <Check class="size-4 shrink-0 text-primary" strokeWidth={2} aria-hidden="true" />
+  {/if}
 </button>

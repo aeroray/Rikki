@@ -8,7 +8,8 @@ use tauri::{AppHandle, Manager};
 const CLIP_DIR: &str = "clipboard";
 const INDEX_FILE: &str = "index.json";
 const IMAGES_DIR: &str = "images";
-const MAX_ENTRIES: usize = 200;
+const MAX_IMAGES: usize = 200;
+const DAY_MS: i64 = 86_400_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,7 +69,13 @@ pub fn load_entries(app: &AppHandle) -> Result<Vec<ClipboardEntry>, String> {
         return Ok(Vec::new());
     }
 
-    serde_json::from_str(&data).map_err(|err| format!("parse clipboard index: {err}"))
+    let entries: Vec<ClipboardEntry> =
+        serde_json::from_str(&data).map_err(|err| format!("parse clipboard index: {err}"))?;
+    let pruned = prune(entries.clone());
+    if pruned.len() != entries.len() {
+        let _ = save_entries(app, &pruned);
+    }
+    Ok(pruned)
 }
 
 pub fn save_entries(app: &AppHandle, entries: &[ClipboardEntry]) -> Result<(), String> {
@@ -86,16 +93,90 @@ pub fn save_entries(app: &AppHandle, entries: &[ClipboardEntry]) -> Result<(), S
 }
 
 pub fn prune(entries: Vec<ClipboardEntry>) -> Vec<ClipboardEntry> {
-    if entries.len() <= MAX_ENTRIES {
-        return entries;
+    let mut texts = Vec::new();
+    let mut images = Vec::new();
+    for entry in entries {
+        if entry.kind == "image" {
+            images.push(entry);
+        } else {
+            texts.push(entry);
+        }
     }
-    let mut pinned: Vec<_> = entries.iter().filter(|e| e.pinned).cloned().collect();
-    let mut rest: Vec<_> = entries.into_iter().filter(|e| !e.pinned).collect();
-    let keep = MAX_ENTRIES.saturating_sub(pinned.len());
-    rest.truncate(keep);
-    pinned.append(&mut rest);
-    pinned.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-    pinned
+    if images.len() > MAX_IMAGES {
+        let mut pinned: Vec<_> = images.iter().filter(|entry| entry.pinned).cloned().collect();
+        let mut rest: Vec<_> = images.into_iter().filter(|entry| !entry.pinned).collect();
+        pinned.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        rest.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        if pinned.len() > MAX_IMAGES {
+            pinned.truncate(MAX_IMAGES);
+            rest.clear();
+        } else {
+            rest.truncate(MAX_IMAGES.saturating_sub(pinned.len()));
+        }
+        images = pinned;
+        images.append(&mut rest);
+    }
+    texts.append(&mut images);
+    texts.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    texts
+}
+
+pub fn expire(entries: Vec<ClipboardEntry>, now_ms: i64, retain_days: u32) -> Vec<ClipboardEntry> {
+    let kept = if retain_days == 0 {
+        entries
+    } else {
+        let cutoff = now_ms.saturating_sub(i64::from(retain_days).saturating_mul(DAY_MS));
+        entries
+            .into_iter()
+            .filter(|entry| entry.kind == "image" || entry.pinned || entry.created_at >= cutoff)
+            .collect()
+    };
+    cap_unpinned_images(kept)
+}
+
+pub fn expire_preview(entries: &[ClipboardEntry], now_ms: i64, retain_days: u32) -> (usize, usize) {
+    if retain_days == 0 {
+        return (0, 0);
+    }
+    let cutoff = now_ms.saturating_sub(i64::from(retain_days).saturating_mul(DAY_MS));
+    let texts = entries
+        .iter()
+        .filter(|entry| entry.kind != "image" && !entry.pinned && entry.created_at < cutoff)
+        .count();
+    let kept: Vec<_> = entries
+        .iter()
+        .filter(|entry| entry.kind == "image" || entry.pinned || entry.created_at >= cutoff)
+        .cloned()
+        .collect();
+    let before_images = kept.iter().filter(|entry| entry.kind == "image").count();
+    let after_images = cap_unpinned_images(kept)
+        .iter()
+        .filter(|entry| entry.kind == "image")
+        .count();
+    (texts, before_images.saturating_sub(after_images))
+}
+
+fn cap_unpinned_images(entries: Vec<ClipboardEntry>) -> Vec<ClipboardEntry> {
+    let mut texts = Vec::new();
+    let mut images = Vec::new();
+    for entry in entries {
+        if entry.kind == "image" {
+            images.push(entry);
+        } else {
+            texts.push(entry);
+        }
+    }
+    if images.len() > MAX_IMAGES {
+        let pinned: Vec<_> = images.iter().filter(|entry| entry.pinned).cloned().collect();
+        let mut rest: Vec<_> = images.into_iter().filter(|entry| !entry.pinned).collect();
+        rest.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        rest.truncate(MAX_IMAGES.saturating_sub(pinned.len()));
+        images = pinned;
+        images.append(&mut rest);
+    }
+    texts.append(&mut images);
+    texts.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    texts
 }
 
 pub fn discard_image(app: &AppHandle, path: &str) -> Result<(), String> {
@@ -228,5 +309,113 @@ mod tests {
         assert!(names.contains("xyz.png"));
         assert_eq!(names.len(), 2);
         assert_eq!(image_file_name(r"D:\other\abc.png").as_deref(), Some("abc.png"));
+    }
+
+    #[test]
+    fn prune_keeps_unlimited_text_and_caps_images() {
+        let mut entries = Vec::new();
+        for i in 0..30 {
+            let mut item = entry("text", &format!("t{i}"));
+            item.id = format!("t{i}");
+            item.created_at = i;
+            entries.push(item);
+        }
+        for i in 0..210 {
+            let mut item = entry("image", &format!("img{i}.png"));
+            item.id = format!("i{i}");
+            item.created_at = 1000 + i;
+            entries.push(item);
+        }
+        let pruned = super::prune(entries);
+        let texts = pruned.iter().filter(|e| e.kind == "text").count();
+        let images = pruned.iter().filter(|e| e.kind == "image").count();
+        assert_eq!(texts, 30);
+        assert_eq!(images, 200);
+        let newest_image = pruned
+            .iter()
+            .filter(|e| e.kind == "image")
+            .map(|e| e.created_at)
+            .max()
+            .unwrap();
+        let oldest_kept = pruned
+            .iter()
+            .filter(|e| e.kind == "image")
+            .map(|e| e.created_at)
+            .min()
+            .unwrap();
+        assert_eq!(newest_image, 1000 + 209);
+        assert_eq!(oldest_kept, 1000 + 10);
+    }
+
+    #[test]
+    fn prune_drops_unpinned_images_before_pinned() {
+        let mut entries = Vec::new();
+        for i in 0..50 {
+            let mut item = entry("image", &format!("pin{i}.png"));
+            item.id = format!("p{i}");
+            item.created_at = i;
+            item.pinned = true;
+            entries.push(item);
+        }
+        for i in 0..200 {
+            let mut item = entry("image", &format!("old{i}.png"));
+            item.id = format!("u{i}");
+            item.created_at = 100 + i;
+            entries.push(item);
+        }
+        let pruned = super::prune(entries);
+        let images: Vec<_> = pruned.into_iter().filter(|e| e.kind == "image").collect();
+        assert_eq!(images.len(), 200);
+        assert_eq!(images.iter().filter(|e| e.pinned).count(), 50);
+        assert_eq!(images.iter().filter(|e| !e.pinned).count(), 150);
+    }
+
+    #[test]
+    fn expire_drops_old_unpinned_text_and_keeps_pinned() {
+        let now = 10 * 86_400_000;
+        let mut old = entry("text", "old");
+        old.id = "old".into();
+        old.created_at = 0;
+        let mut pinned = entry("text", "keep");
+        pinned.id = "pin".into();
+        pinned.created_at = 0;
+        pinned.pinned = true;
+        let mut fresh = entry("text", "fresh");
+        fresh.id = "fresh".into();
+        fresh.created_at = now;
+        let pruned = super::expire(vec![old, pinned, fresh], now, 7);
+        let texts: Vec<_> = pruned.into_iter().map(|e| e.id).collect();
+        assert_eq!(texts, vec!["fresh".to_string(), "pin".to_string()]);
+    }
+
+    #[test]
+    fn expire_preview_counts_old_text_and_excess_unpinned_images() {
+        let now = 10 * 86_400_000;
+        let mut entries = Vec::new();
+        for i in 0..3 {
+            let mut item = entry("text", &format!("old{i}"));
+            item.id = format!("t{i}");
+            item.created_at = 0;
+            entries.push(item);
+        }
+        for i in 0..205 {
+            let mut item = entry("image", &format!("img{i}.png"));
+            item.id = format!("i{i}");
+            item.created_at = now;
+            entries.push(item);
+        }
+        let (texts, images) = super::expire_preview(&entries, now, 7);
+        assert_eq!(texts, 3);
+        assert_eq!(images, 5);
+    }
+
+    #[test]
+    fn expire_never_when_retention_is_zero() {
+        let mut old = entry("text", "old");
+        old.created_at = 0;
+        let (texts, images) = super::expire_preview(&[old.clone()], 10 * 86_400_000, 0);
+        assert_eq!((texts, images), (0, 0));
+        let kept = super::expire(vec![old], 10 * 86_400_000, 0);
+        assert_eq!(kept.len(), 1);
     }
 }

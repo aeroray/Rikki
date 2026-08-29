@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager};
 
 const SETTINGS_FILE: &str = "settings.json";
 const DEFAULT_ENGINE: &str = "bing";
-const SETTINGS_VERSION: u32 = 5;
+const SETTINGS_VERSION: u32 = 6;
 const DEFAULT_TRANSLATE_URL: &str = "https://api.fanyi.baidu.com/api/trans/vip/translate";
 const ENGINE_IDS: &[&str] = &["bing", "google", "baidu", "duckduckgo", "sogou"];
 
@@ -42,6 +42,8 @@ pub struct Settings {
     pub translate_second_target: String,
     #[serde(default)]
     pub custom_search_engines: Vec<CustomSearchEngine>,
+    #[serde(default = "default_clip_text_retention_days")]
+    pub clip_text_retention_days: Option<u32>,
     #[serde(default = "default_version")]
     pub version: u32,
 }
@@ -70,6 +72,10 @@ const TRANSLATE_LANGS: &[&str] = &["zh", "en", "ja", "ko", "fr", "de", "es", "ru
 
 fn valid_translate_lang(code: &str) -> bool {
     TRANSLATE_LANGS.contains(&code)
+}
+
+fn default_clip_text_retention_days() -> Option<u32> {
+    Some(7)
 }
 
 fn default_version() -> u32 {
@@ -115,6 +121,7 @@ fn default_settings() -> Settings {
         translate_default_target: String::new(),
         translate_second_target: default_translate_second_target(),
         custom_search_engines: Vec::new(),
+        clip_text_retention_days: default_clip_text_retention_days(),
         version: default_version(),
     }
 }
@@ -215,10 +222,22 @@ fn normalize(mut settings: Settings) -> Settings {
     if !is_known_engine(&settings, &settings.default_search_engine) {
         settings.default_search_engine = default_engine();
     }
+    settings.clip_text_retention_days = match settings.clip_text_retention_days {
+        None => None,
+        Some(0) => None,
+        Some(7) | Some(30) => settings.clip_text_retention_days,
+        Some(_) => Some(7),
+    };
     if settings.version < SETTINGS_VERSION {
         settings.version = default_version();
     }
     settings
+}
+
+pub fn normalize_imported(settings: Settings) -> Settings {
+    let mut settings = settings;
+    settings.version = default_version();
+    normalize(settings)
 }
 
 pub fn load_settings(app: &AppHandle) -> Result<Settings, String> {
@@ -312,6 +331,15 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
             }
             settings.translate_second_target = code;
         }
+        "clipTextRetentionDays" | "clip_text_retention_days" => {
+            let days = value.trim();
+            settings.clip_text_retention_days = match days {
+                "0" | "never" => None,
+                "7" => Some(7),
+                "30" => Some(30),
+                _ => return Err(format!("unknown clip retention: {value}")),
+            };
+        }
         other => return Err(format!("unknown setting: {other}")),
     }
     save_settings(app, &settings)?;
@@ -384,6 +412,7 @@ mod tests {
         assert!(json.contains("customSearchEngines"));
         assert!(json.contains("translateDefaultTarget"));
         assert!(json.contains("translateSecondTarget"));
+        assert!(json.contains("clipTextRetentionDays"));
         assert!(!json.contains("default_search_engine"));
         let parsed: Settings = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(parsed.default_search_engine, "google");
@@ -472,5 +501,30 @@ mod tests {
         assert!(valid_custom_url("https://github.com/search?q=%s"));
         assert!(!valid_custom_url("https://github.com/search?q="));
         assert!(!valid_custom_url("javascript:alert(%s)"));
+    }
+
+    #[test]
+    fn missing_clip_retention_defaults_to_seven_days() {
+        let parsed: Settings = serde_json::from_str(r#"{"version":5}"#).expect("deserialize");
+        assert_eq!(parsed.clip_text_retention_days, Some(7));
+    }
+
+    #[test]
+    fn null_or_zero_clip_retention_means_never() {
+        let null_parsed: Settings =
+            serde_json::from_str(r#"{"version":6,"clipTextRetentionDays":null}"#).expect("null");
+        assert_eq!(normalize(null_parsed).clip_text_retention_days, None);
+        let zero_parsed: Settings =
+            serde_json::from_str(r#"{"version":6,"clipTextRetentionDays":0}"#).expect("zero");
+        assert_eq!(normalize(zero_parsed).clip_text_retention_days, None);
+    }
+
+    #[test]
+    fn invalid_clip_retention_normalizes_to_seven() {
+        let settings = normalize(Settings {
+            clip_text_retention_days: Some(15),
+            ..default_settings()
+        });
+        assert_eq!(settings.clip_text_retention_days, Some(7));
     }
 }

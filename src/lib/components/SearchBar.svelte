@@ -61,6 +61,11 @@
         event.stopPropagation();
         return;
       }
+      if (clipboard.confirm) {
+        clipboard.closeConfirm();
+        event.stopPropagation();
+        return;
+      }
       if (closeSettingsDrill()) {
         event.stopPropagation();
         return;
@@ -84,6 +89,25 @@
     if (event.isComposing || composing) return;
 
     if (ui.view === "clip") {
+      if (clipboard.confirm) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          clipboard.closeConfirm();
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.stopPropagation();
+          clipboard.confirmAction();
+          return;
+        }
+        if (event.key === "Tab" || event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Delete") {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
       const items = clipboard.filtered(ui.commandRest);
       if (event.key === "Tab") {
         event.preventDefault();
@@ -306,6 +330,8 @@
             ? settings.themes.length
             : screen === "language"
               ? settings.locales.length
+              : screen === "retention"
+                ? settings.retentionOptions.length
               : screen === "translate" || screen === "hotkey"
                 ? 0
                 : settings.listItems.length;

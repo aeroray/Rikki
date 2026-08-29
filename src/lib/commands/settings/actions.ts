@@ -27,6 +27,11 @@ export function openTranslateSettings(): void {
   ui.focusField = "search";
 }
 
+export function openRetentionSettings(): void {
+  ui.searchText = "settings retention";
+  ui.focusField = "search";
+}
+
 export function startEngineCreate(): void {
   if (parseSettingsScreen(ui.commandRest) !== "engine") {
     openEngineSettings();
@@ -84,6 +89,11 @@ export async function handleSettingsEnter(): Promise<void> {
     if (option) await settings.setLocale(option.id);
     return;
   }
+  if (screen === "retention") {
+    const option = settings.retentionOptions[settings.selectedIndex];
+    if (option) await settings.setClipRetention(option.id);
+    return;
+  }
 
   const item = settings.listItems[settings.selectedIndex];
   if (item?.id === "engine") openEngineSettings();
@@ -91,4 +101,13 @@ export async function handleSettingsEnter(): Promise<void> {
   if (item?.id === "hotkey") openHotkeySettings();
   if (item?.id === "language") openLanguageSettings();
   if (item?.id === "translate") openTranslateSettings();
+  if (item?.id === "retention") openRetentionSettings();
+  if (item?.id === "export") {
+    await settings.exportBackup();
+    return;
+  }
+  if (item?.id === "import") {
+    await settings.importBackup();
+    return;
+  }
 }

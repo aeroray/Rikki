@@ -47,6 +47,7 @@ export interface AppSettings {
   translateDefaultTarget: string;
   translateSecondTarget: string;
   customSearchEngines: CustomSearchEngine[];
+  clipTextRetentionDays: number | null;
   version: number;
 }
 

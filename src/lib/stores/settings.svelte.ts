@@ -17,14 +17,18 @@ import {
 } from "$lib/commands/translate/parse";
 import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
+import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
 import type { AppSettings } from "$lib/commands/types";
+import { snippets } from "$lib/stores/snippets.svelte";
+import { todos } from "$lib/stores/todos.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export type SettingItem = {
-  id: "engine" | "theme" | "hotkey" | "language" | "translate";
+  id: "engine" | "theme" | "hotkey" | "language" | "translate" | "retention" | "export" | "import";
   title: string;
   value: string;
-  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound";
+  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Download" | "Upload";
+  current?: boolean;
 };
 
 export type ThemeOption = {
@@ -39,6 +43,10 @@ export type EngineDraft = {
 
 export type LocaleOption = {
   id: LocalePref;
+};
+
+export type RetentionOption = {
+  id: ClipRetentionDays;
 };
 
 export type TranslateDraft = {
@@ -59,6 +67,7 @@ class SettingsStore {
   translateApiUrl = $state(DEFAULT_TRANSLATE_URL);
   translateDefaultTarget = $state<TargetLangCode>("zh");
   translateSecondTarget = $state<TargetLangCode>("en");
+  clipTextRetentionDays = $state<ClipRetentionDays>(7);
   customEngines = $state<SearchEngine[]>([]);
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
@@ -85,6 +94,8 @@ class SettingsStore {
 
   readonly locales: LocaleOption[] = [{ id: "system" }, { id: "zh-CN" }, { id: "en" }];
 
+  readonly retentionOptions: RetentionOption[] = [{ id: 7 }, { id: 30 }, { id: 0 }];
+
   readonly engines = $derived.by((): SearchEngine[] => [
     ...SEARCH_ENGINES,
     ...this.customEngines.map((engine) => ({ ...engine, custom: true })),
@@ -97,6 +108,8 @@ class SettingsStore {
   readonly themeLabel = $derived(this.theme === "light" ? i18n.t("theme.light") : i18n.t("theme.dark"));
 
   readonly localeLabel = $derived(this.prefLabel(this.localePref));
+
+  readonly retentionLabel = $derived(this.retentionPrefLabel(this.clipTextRetentionDays));
 
   readonly translateConfigured = $derived(Boolean(this.baiduAppId.trim() && this.baiduSecret.trim()));
 
@@ -131,12 +144,37 @@ class SettingsStore {
       value: this.translateConfigured ? i18n.t("settings.translate.configured") : i18n.t("settings.translate.missing"),
       icon: "KeyRound",
     },
+    {
+      id: "retention",
+      title: i18n.t("settings.clipRetention"),
+      value: this.retentionLabel,
+      icon: "Timer",
+    },
+    {
+      id: "export",
+      title: i18n.t("settings.export"),
+      value: i18n.t("settings.backup.scope"),
+      icon: "Download",
+      current: false,
+    },
+    {
+      id: "import",
+      title: i18n.t("settings.import"),
+      value: i18n.t("settings.backup.overwrite"),
+      icon: "Upload",
+      current: false,
+    },
   ]);
 
   prefLabel(pref: LocalePref): string {
     if (pref === "zh-CN") return i18n.t("settings.language.zh");
     if (pref === "en") return i18n.t("settings.language.en");
     return i18n.t("settings.language.system");
+  }
+
+  retentionPrefLabel(days: ClipRetentionDays): string {
+    if (days === 0) return i18n.t("settings.clipRetention.never");
+    return i18n.t("settings.clipRetention.days", { days });
   }
 
   clampSelection(count: number) {
@@ -277,6 +315,14 @@ class SettingsStore {
     }
   }
 
+  async setClipRetention(days: ClipRetentionDays): Promise<boolean> {
+    return this.patch(
+      "clipTextRetentionDays",
+      String(days),
+      i18n.t("settings.clipRetention.saved", { name: this.retentionPrefLabel(days) }),
+    );
+  }
+
   async captureHotkey(event: KeyboardEvent): Promise<boolean> {
     const shortcut = eventToHotkey(event);
     if (!shortcut) return false;
@@ -353,6 +399,41 @@ class SettingsStore {
     }
   }
 
+  async exportBackup(): Promise<void> {
+    await this.ready;
+    try {
+      const ok = await invoke<boolean>("export_backup");
+      if (ok) this.flash(i18n.t("settings.export.ok"));
+    } catch {
+      this.flash(i18n.t("settings.export.fail"));
+    }
+  }
+
+  async importBackup(): Promise<void> {
+    await this.ready;
+    this.discardPendingTranslatePersist();
+    try {
+      const result = await invoke<BackupImportResult>("import_backup");
+      if (result.cancelled) return;
+      await todos.reload();
+      await snippets.reload();
+      if (result.settings && result.settingsValue) this.apply(result.settingsValue);
+      else if (result.settings) await this.reload();
+      this.flash(backupMessage(result));
+    } catch {
+      this.flash(i18n.t("settings.import.fail"));
+    }
+  }
+
+  async reload(): Promise<void> {
+    try {
+      const next = await invoke<AppSettings>("get_settings");
+      this.apply(next);
+    } catch {
+      /* keep in-memory settings */
+    }
+  }
+
   private async patch(key: string, value: string, message: string, stay = false): Promise<boolean> {
     await this.ready;
     try {
@@ -375,6 +456,12 @@ class SettingsStore {
         ui.focusField = "search";
       }
     }, 1500);
+  }
+
+  private discardPendingTranslatePersist() {
+    for (const timer of this.persistTimers.values()) clearTimeout(timer);
+    this.persistTimers.clear();
+    this.persistPending.clear();
   }
 
   private flash(message: string) {
@@ -410,6 +497,7 @@ class SettingsStore {
     this.syncLocale();
     this.translateDefaultTarget = parseTargetLangCode(next.translateDefaultTarget) ?? preferredTranslateLang();
     this.translateSecondTarget = parseTargetLangCode(next.translateSecondTarget) ?? "en";
+    this.clipTextRetentionDays = parseClipRetentionDays(next.clipTextRetentionDays);
   }
 
   private syncLocale() {
@@ -456,6 +544,7 @@ class SettingsStore {
       this.baiduSecret = "";
       this.translateApiUrl = DEFAULT_TRANSLATE_URL;
       this.customEngines = [];
+      this.clipTextRetentionDays = 7;
       applyTheme("dark");
       this.syncLocale();
       this.translateDefaultTarget = preferredTranslateLang();
@@ -465,3 +554,21 @@ class SettingsStore {
 }
 
 export const settings = new SettingsStore();
+
+type BackupImportResult = {
+  cancelled: boolean;
+  todos: boolean;
+  snippets: boolean;
+  settings: boolean;
+  settingsValue?: AppSettings | null;
+};
+
+function backupMessage(result: BackupImportResult): string {
+  const parts: string[] = [];
+  if (result.todos) parts.push(i18n.t("settings.backup.todos"));
+  if (result.snippets) parts.push(i18n.t("settings.backup.snippets"));
+  if (result.settings) parts.push(i18n.t("settings.backup.settings"));
+  if (parts.length === 3) return i18n.t("settings.import.ok");
+  if (parts.length === 0) return i18n.t("settings.import.fail");
+  return i18n.t("settings.import.partial", { parts: parts.join(i18n.t("settings.backup.join")) });
+}

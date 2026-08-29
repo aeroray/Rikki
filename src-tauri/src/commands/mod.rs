@@ -1,4 +1,5 @@
 pub mod apps;
+pub mod backup;
 pub mod calc;
 pub mod clipboard;
 pub mod qr;

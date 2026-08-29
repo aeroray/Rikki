@@ -40,7 +40,7 @@ Type the prefix and a space to open the panel. Root search (no prefix) launches 
 | `ts` | `timestamp` | Copy primary value | Seconds, millis, or `YYYY-MM-DD` |
 | `qr` | `qrcode` | Copy SVG | `Tab` saves PNG |
 | `qrd` | `qrdecode` | Copy payload | Reads a clipboard image |
-| `settings` | | Open a setting | Theme, hotkey, language, translate API |
+| `settings` | | Open a setting | Theme, hotkey, language, translate API, clipboard retention, import/export |
 | `gg` `bd` `bing` `ddg` `sogou` | | Search in the browser | |
 | `lock` `sleep` `shutdown` `reboot` `logout` | | Run immediately | |
 

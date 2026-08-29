@@ -77,6 +77,10 @@ class SnippetStore {
     ui.focusField = "search";
   }
 
+  async reload() {
+    await this.hydrate();
+  }
+
   async saveDraft(): Promise<boolean> {
     const draft = this.draft;
     if (!draft) return false;

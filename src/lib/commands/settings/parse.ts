@@ -1,4 +1,4 @@
-export type SettingsScreen = "list" | "engine" | "theme" | "hotkey" | "language" | "translate";
+export type SettingsScreen = "list" | "engine" | "theme" | "hotkey" | "language" | "translate" | "retention";
 
 const SCREENS: Array<{ screen: Exclude<SettingsScreen, "list">; aliases: string[] }> = [
   { screen: "engine", aliases: ["搜索引擎", "search engine", "search", "engine", "引擎", "搜索"] },
@@ -6,6 +6,7 @@ const SCREENS: Array<{ screen: Exclude<SettingsScreen, "list">; aliases: string[
   { screen: "hotkey", aliases: ["快捷键", "hotkey", "shortcut", "热键"] },
   { screen: "language", aliases: ["语言", "language", "lang", "locale", "国际化"] },
   { screen: "translate", aliases: ["翻译", "translate", "翻译api", "api", "baidu"] },
+  { screen: "retention", aliases: ["保留", "retention", "clipboard", "clip", "清理", "过期", "剪贴板保留"] },
 ];
 
 export function parseSettingsScreen(rest: string): SettingsScreen {

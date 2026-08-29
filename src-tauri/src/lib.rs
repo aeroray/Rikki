@@ -13,6 +13,7 @@ mod storage;
 mod tray;
 
 use commands::apps::{get_installed_apps, launch_app, AppIndex};
+use commands::backup::{export_backup, import_backup};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::qr::save_png_file;
 use commands::settings::{
@@ -370,7 +371,9 @@ pub fn run() {
             cancel_hotkey_capture,
             update_tray_menu,
             translate,
-            save_png_file
+            save_png_file,
+            export_backup,
+            import_backup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

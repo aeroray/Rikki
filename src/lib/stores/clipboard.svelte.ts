@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { isColorValue } from "$lib/commands/color/parse";
+import { applyExpire, parseClipRetentionDays, previewExpire } from "$lib/commands/clip/cleanup";
 import type { ClipboardEntry } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
 import { i18n } from "$lib/i18n";
@@ -16,13 +17,14 @@ import {
   writeText,
 } from "tauri-plugin-clipboard-x-api";
 
-const MAX_ENTRIES = 200;
-const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+const MAX_IMAGES = 200;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const CLIPBOARD_CHANGED = "plugin:clipboard-x://clipboard_changed";
 
 class ClipboardStore {
   entries = $state<ClipboardEntry[]>([]);
   selectedIndex = $state(0);
+  confirm = $state<ClipConfirm | null>(null);
   private ready: Promise<void>;
   private writes: Promise<void> = Promise.resolve();
   private ignoreNext = false;
@@ -32,6 +34,7 @@ class ClipboardStore {
 
   constructor() {
     this.ready = this.hydrate();
+    ui.onHideFlush(() => this.closeConfirm());
   }
 
   filtered(query: string): ClipboardEntry[] {
@@ -102,8 +105,51 @@ class ClipboardStore {
     void this.ready.then(() => {
       this.entries = keepPinned ? this.entries.filter((entry) => entry.pinned) : [];
       this.selectedIndex = 0;
+      this.closeConfirm();
       this.enqueueWrite();
     });
+  }
+
+  closeConfirm() {
+    this.confirm = null;
+  }
+
+  openExpireConfirm(days: number) {
+    const retention = parseClipRetentionDays(days);
+    if (retention <= 0) return;
+    const preview = previewExpire(this.entries, retention, Date.now());
+    this.confirm = { kind: "expire", days: retention, ...preview };
+  }
+
+  openClearConfirm() {
+    const count = this.entries.filter((entry) => !entry.pinned).length;
+    this.confirm = { kind: "clear", count };
+  }
+
+  confirmAction() {
+    const confirm = this.confirm;
+    if (!confirm) return;
+    if (confirm.kind === "expire") {
+      if (confirm.texts === 0 && confirm.images === 0) {
+        this.closeConfirm();
+        ui.flash(i18n.t("clip.cleanupNone"));
+        return;
+      }
+      void this.ready.then(() => {
+        this.entries = applyExpire(this.entries, confirm.days, Date.now());
+        this.selectedIndex = 0;
+        this.closeConfirm();
+        this.enqueueWrite();
+        ui.flash(i18n.t("clip.cleanupDone"));
+      });
+      return;
+    }
+    if (confirm.count === 0) {
+      this.closeConfirm();
+      return;
+    }
+    this.clear(true);
+    ui.flash(i18n.t("clip.clearDone"));
   }
 
   clampSelection(count: number) {
@@ -179,7 +225,10 @@ class ClipboardStore {
     if (!path) return;
     const size = Number(image.size) || 0;
     if (size > MAX_IMAGE_BYTES) {
-      await invoke("discard_clipboard_image", { path }).catch(() => {});
+      const referenced = this.entries.some(
+        (entry) => entry.type === "image" && sameImage(entry.content, path),
+      );
+      if (!referenced) await invoke("discard_clipboard_image", { path }).catch(() => {});
       return;
     }
     await this.ready;
@@ -215,7 +264,9 @@ class ClipboardStore {
 
   private async hydrate() {
     try {
-      this.entries = await invoke<ClipboardEntry[]>("get_clipboard_history");
+      const loaded = await invoke<ClipboardEntry[]>("get_clipboard_history");
+      this.entries = prune(loaded);
+      if (this.entries.length !== loaded.length) this.enqueueWrite();
     } catch {
       this.entries = [];
     }
@@ -257,11 +308,22 @@ function sameImage(left: string, right: string): boolean {
 }
 
 function prune(entries: ClipboardEntry[]): ClipboardEntry[] {
-  if (entries.length <= MAX_ENTRIES) return entries;
-  const pinned = entries.filter((entry) => entry.pinned);
-  const rest = entries.filter((entry) => !entry.pinned);
-  const keep = Math.max(0, MAX_ENTRIES - pinned.length);
-  return [...pinned, ...rest.slice(0, keep)].sort((a, b) => b.createdAt - a.createdAt);
+  const texts = entries.filter((entry) => entry.type !== "image");
+  let images = entries.filter((entry) => entry.type === "image");
+  if (images.length > MAX_IMAGES) {
+    const pinned = images.filter((entry) => entry.pinned).sort((a, b) => b.createdAt - a.createdAt);
+    const rest = images.filter((entry) => !entry.pinned).sort((a, b) => b.createdAt - a.createdAt);
+    if (pinned.length > MAX_IMAGES) {
+      images = pinned.slice(0, MAX_IMAGES);
+    } else {
+      images = [...pinned, ...rest.slice(0, MAX_IMAGES - pinned.length)];
+    }
+  }
+  return [...texts, ...images].sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export const clipboard = new ClipboardStore();
+
+export type ClipConfirm =
+  | { kind: "expire"; days: number; texts: number; images: number }
+  | { kind: "clear"; count: number };

@@ -87,6 +87,10 @@
         ui.imagePreviewSrc = null;
         return;
       }
+      if (clipboard.confirm) {
+        clipboard.closeConfirm();
+        return;
+      }
       if (closeSettingsDrill()) return;
       if (closeEmojiDrill()) return;
       if (closeJsonEdit()) return;
@@ -107,6 +111,10 @@
       toggleBase64Mode();
     }
     if (event.key === "Tab" && ui.view === "clip") {
+      if (clipboard.confirm) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
       toggleSelectedImagePreview();
     }
