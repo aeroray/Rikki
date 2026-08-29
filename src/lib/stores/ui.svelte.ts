@@ -11,7 +11,7 @@ class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
   todoPanelOpen = $state(false);
-  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content" | "engine-name" | "engine-url" | "translate-appid" | "translate-secret" | "translate-url">("search");
+  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content" | "engine-name" | "engine-url" | "translate-appid" | "translate-secret" | "translate-url" | "json-editor">("search");
   showNonce = $state(0);
   shellOpen = $state(false);
   shellExiting = $state(false);
@@ -22,7 +22,7 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" | "json" | "base64" | "timestamp" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
@@ -32,6 +32,9 @@ class UiStore {
     if (this.isCommandActive("emoji")) return "emoji";
     if (this.isCommandActive("translate")) return "translate";
     if (this.isCommandActive("color")) return "color";
+    if (this.isCommandActive("json")) return "json";
+    if (this.isCommandActive("base64") || this.isCommandActive("base64d")) return "base64";
+    if (this.isCommandActive("timestamp")) return "timestamp";
     if (!this.matchedCommand && parseColor(this.searchText.trim())) return "color";
     return "suggest";
   });

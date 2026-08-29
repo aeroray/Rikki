@@ -2,6 +2,12 @@
 
 Tombstones are newest first.
 
+## Tombstone: timestamp timezones, date math, format templates, and history
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 shows local and UTC and copies one primary value; pickers and arithmetic add UI the launcher does not need. Date: 2026-08-29.
+
+## Tombstone: JSON tree/diff/YAML/path/history and Base64 image/file/url-safe/auto-detect
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 is format/minify/validate and one-line UTF-8 Base64; extra views and guessing encode vs decode add UI the launcher does not need. Date: 2026-08-29.
+
 ## Tombstone: color picker, palettes, schemes, colorblind sim, and image sampling
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 is parse-and-convert plus clip recents; a screen picker needs extra permissions, and palettes or schemes add UI the launcher does not need. Date: 2026-08-29.
 

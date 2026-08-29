@@ -2,14 +2,17 @@
   import type { Command } from "$lib/commands/types";
   import { commandDescription, commandTitle } from "$lib/i18n/command";
   import { i18n } from "$lib/i18n";
-  import { Calculator, Clipboard, Droplet, FileText, Globe, Languages, ListTodo, Lock, LogOut, Moon, Power, RotateCw, Search, Settings, Smile } from "@lucide/svelte";
+  import { Binary, Braces, Calculator, Clipboard, Clock, Droplet, FileText, Globe, Languages, ListTodo, Lock, LogOut, Moon, Power, RotateCw, Search, Settings, Smile } from "@lucide/svelte";
 
   let { command, selected, onselect, optionId }: { command: Command; selected: boolean; onselect: () => void; optionId?: string } =
     $props();
 
   const icons = {
+    Binary,
+    Braces,
     Calculator,
     Clipboard,
+    Clock,
     Droplet,
     FileText,
     Globe,

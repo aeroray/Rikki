@@ -26,6 +26,10 @@
   import { parseSettingsScreen } from "$lib/commands/settings/parse";
   import { copyColorHex } from "$lib/commands/color/actions";
   import { closeEmojiDrill, handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
+  import { closeJsonEdit, handleJsonEnter } from "$lib/commands/json/actions";
+  import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
+  import { copyTimestampResult } from "$lib/commands/timestamp/actions";
+  import { json } from "$lib/stores/json.svelte";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -61,6 +65,10 @@
         return;
       }
       if (closeEmojiDrill()) {
+        event.stopPropagation();
+        return;
+      }
+      if (closeJsonEdit()) {
         event.stopPropagation();
         return;
       }
@@ -170,6 +178,48 @@
       if (event.key === "Enter") {
         event.preventDefault();
         handleEmojiEnter();
+        return;
+      }
+    }
+
+    if (ui.view === "json") {
+      if (json.editing) return;
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        json.toggleCompact();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "e") {
+        event.preventDefault();
+        json.startEdit();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleJsonEnter();
+        return;
+      }
+    }
+
+    if (ui.view === "base64") {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleBase64Mode();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void copyBase64Result();
+        return;
+      }
+    }
+
+    if (ui.view === "timestamp") {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void copyTimestampResult();
         return;
       }
     }

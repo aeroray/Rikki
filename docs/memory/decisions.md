@@ -2,6 +2,18 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Timestamp converts in the search bar
+Decision:
+`ts`/`timestamp` parses 10-digit seconds, 13-digit millis, `YYYY-MM-DD` (also `/` and optional time), and 今天/today/now. Unix input copies local time; date input copies seconds. Local and UTC only; no history.
+Reason:
+Developers convert timestamps constantly; the search field is enough, and extra timezone or date-math UI is out of scope.
+
+## 2026-08-29 - JSON and Base64 are prefix convert panels
+Decision:
+`json`/`jsonf` formats clipboard or rest, Tab minifies, Enter copies when valid else edits, Esc leaves edit. `b64`/`base64` encode and `b64d`/`base64d` decode in the search bar; Tab flips direction. Frontend only; no history.
+Reason:
+JSON needs a panel for multiline editing; Base64 is one-line in/out like calc.
+
 ## 2026-08-29 - Root search detects color values
 Decision:
 Typing `#ff6363`, `rgb()`, or `hsl()` (including alpha) opens the color panel with no prefix. `color` / `clr` is the same panel. Names come from `color-name`; recents are the last 10 unique clip colors. Enter copies HEX.
