@@ -2,6 +2,25 @@
 
 Entries are newest first.
 
+## 2026-08-29 - No list virtualization; lazy-load heavy packs
+Decision:
+Do not window emoji or clip lists. Emoji search still caps at 96. `@emoji-mart/data` and mathjs load on first use; command panels stay static imports.
+Reason:
+Estimated-height windowing left empty space when scrolling; a 400px palette already scrolled smoothly with the full DOM.
+
+## 2026-08-29 - Window emoji/clip lists; lazy-load heavy packs
+Superseded by: 2026-08-29 - No list virtualization; lazy-load heavy packs.
+Decision:
+Emoji grids and clip lists window with a tiny helper (no virtual-list lib). Emoji search caps at 96. `@emoji-mart/data` and mathjs load on first use; command panels stay static imports.
+Reason:
+Full emoji/clip DOM was the remaining jank; splitting every panel would delay first paint of the empty palette.
+
+## 2026-08-29 - Copy uses the clipboard plugin and flashes on failure
+Decision:
+Text copies go through `tauri-plugin-clipboard-x` with capture suppressed. Failures flash in the palette instead of hiding.
+Reason:
+Navigator clipboard was silent on failure and polluted clip history with converter output.
+
 ## 2026-08-29 - QR generate copies SVG; decode reads clip images
 Decision:
 `qr`/`qrcode` builds an SVG in the search bar (Enter copies SVG, Tab saves PNG). `qrd`/`qrdecode` runs jsQR on clipboard images. Black/white, error level H. No camera, logo, or color options.

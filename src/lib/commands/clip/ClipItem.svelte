@@ -87,9 +87,7 @@
 
 <div
   bind:this={row}
-  class="flex items-center gap-2 rounded-md border-2 px-2 py-1.5 transition-[background-color,border-color] duration-150 ease-out {selected
-    ? 'border-primary-focus/50 bg-surface-2'
-    : 'border-transparent hover:bg-surface-2/70'}"
+  class="clip-item flex items-center gap-2 rounded-md px-2 py-1.5 {selected ? 'is-selected' : ''}"
 >
   {#if entry.type === "image"}
     <button
@@ -106,6 +104,7 @@
             width={entry.width ?? 40}
             height={entry.height ?? 40}
             class="size-full object-cover"
+            loading="lazy"
             decoding="async"
             onerror={() => (broken = true)}
           />
@@ -173,3 +172,20 @@
     <Pin class="size-4" strokeWidth={1.5} aria-hidden="true" />
   </button>
 </div>
+
+<style>
+  .clip-item {
+    transition:
+      background-color 0.15s ease-out,
+      box-shadow 0.15s ease-out;
+  }
+
+  .clip-item:hover:not(.is-selected) {
+    background-color: color-mix(in srgb, var(--color-surface-2) 70%, transparent);
+  }
+
+  .clip-item.is-selected {
+    background-color: var(--color-surface-2);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary-focus) 50%, transparent);
+  }
+</style>

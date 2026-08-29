@@ -110,9 +110,9 @@
       event.preventDefault();
       toggleSelectedImagePreview();
     }
-    if (event.key === "Tab" && ui.view === "translate") {
+    if (event.key === "Tab" && ui.view === "translate" && translate.wordMode) {
       event.preventDefault();
-      if (translate.wordMode) translate.swap();
+      translate.swap();
     }
   }
 </script>
@@ -163,5 +163,11 @@
 
   {#if ui.imagePreviewSrc}
     <ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
+  {/if}
+
+  {#if ui.notice}
+    <p class="pointer-events-none absolute inset-x-3 bottom-3 z-30 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.4] text-ink-tertiary outline outline-1 outline-hairline">
+      {ui.notice}
+    </p>
   {/if}
 </div>

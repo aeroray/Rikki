@@ -1,11 +1,10 @@
+import { writeClipboardText } from "$lib/clipboard/write";
 import { invoke } from "@tauri-apps/api/core";
-import { writeText } from "tauri-plugin-clipboard-x-api";
 import { expandSnippetContent } from "$lib/commands/snippet/expand";
 import { snippetListQuery } from "$lib/commands/snippet/parse";
 import type { Snippet } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
 import { i18n } from "$lib/i18n";
-import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export type SnippetDraft = {
@@ -161,16 +160,15 @@ class SnippetStore {
     if (!snippet) return false;
     try {
       const text = await expandSnippetContent(snippet.content);
-      clipboard.suppressNextCapture();
-      try {
-        await writeText(text);
-      } catch (err) {
-        clipboard.suppressNextCapture(false);
-        throw err;
+      const ok = await writeClipboardText(text);
+      if (!ok) {
+        ui.flash(i18n.t("copy.failed"));
+        return false;
       }
       ui.beginHide({ reset: true });
       return true;
     } catch {
+      ui.flash(i18n.t("copy.failed"));
       return false;
     }
   }

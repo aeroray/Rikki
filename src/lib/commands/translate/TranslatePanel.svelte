@@ -37,6 +37,18 @@
     return "translate.failed";
   }
 
+  const mappedError = $derived(
+    translate.error === "not_configured" ||
+      translate.error === "too_long" ||
+      translate.error === "network" ||
+      translate.error === "quota" ||
+      translate.error === "invalid" ||
+      translate.error === "lang" ||
+      translate.error === "empty" ||
+      translate.error === "unknown" ||
+      !translate.error,
+  );
+
   const FORM_KEYS: Record<string, MessageKey> = {
     pl: "translate.form.pl",
     third: "translate.form.third",
@@ -83,6 +95,9 @@
   {:else if translate.error}
     <div class="flex flex-1 flex-col items-center justify-center px-6 text-center">
       <p class="text-[14px] font-medium leading-5 text-ink">{i18n.t(errorKey)}</p>
+      {#if !mappedError && translate.error}
+        <p class="mt-2 max-w-[22rem] text-pretty text-[13px] leading-5 text-ink-subtle">{translate.error}</p>
+      {/if}
       {#if translate.error === "not_configured"}
         <button
           type="button"

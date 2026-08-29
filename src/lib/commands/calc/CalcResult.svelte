@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { CALC_EXAMPLES, evaluateExpression } from "$lib/commands/calc/evaluate";
+  import { CALC_EXAMPLES } from "$lib/commands/calc/evaluate";
+  import { calcEngine } from "$lib/commands/calc/engine.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { calcHistory } from "$lib/stores/calcHistory.svelte";
@@ -7,7 +8,14 @@
   import { Trash2 } from "@lucide/svelte";
   import { fly } from "svelte/transition";
 
-  const outcome = $derived(evaluateExpression(ui.commandRest));
+  const outcome = $derived.by(() => {
+    calcEngine.ready;
+    return calcEngine.evaluate(ui.commandRest);
+  });
+
+  $effect(() => {
+    void calcEngine.ensure();
+  });
 
   const reduceMotion =
     typeof window !== "undefined" &&
@@ -41,7 +49,7 @@
     >
       {outcome.display}
     </p>
-    <p class="mt-2 px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("calc.copyHint")}</p>
+    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("calc.copyHint")}</p>
   {:else if outcome.reason === "empty" || outcome.reason === "pending"}
     <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.emptyHint")}</p>
     <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">

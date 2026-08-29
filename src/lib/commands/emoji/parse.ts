@@ -1,4 +1,4 @@
-import { findCategory } from "$lib/commands/emoji/data";
+import { findCategory } from "$lib/commands/emoji/categories";
 import type { EmojiCategory } from "$lib/commands/emoji/types";
 
 export type EmojiScreen =

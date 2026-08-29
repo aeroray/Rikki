@@ -30,15 +30,17 @@ const APPS_FILE: &str = "apps.json";
 
 pub fn load_or_refresh(app: &AppHandle) -> Result<Vec<InstalledApp>, String> {
     let roots = scan_roots(app);
-    let fingerprint = dir_fingerprint(&roots);
-    let (mut apps, cache_hit) = if let Some(cached) = load_cache(app)? {
+    let cached = load_cache(app)?;
+    let (mut apps, cache_hit, fingerprint) = if let Some(cached) = cached {
+        let fingerprint = dir_fingerprint(&roots);
         if cached.fingerprint == fingerprint {
-            (cached.apps, true)
+            (cached.apps, true, fingerprint)
         } else {
-            (scan_apps(&roots), false)
+            (scan_apps(&roots), false, fingerprint)
         }
     } else {
-        (scan_apps(&roots), false)
+        let apps = scan_apps(&roots);
+        (apps, false, dir_fingerprint(&roots))
     };
     crate::apps_icons::attach_icons(app, &mut apps);
     apply_usage(app, &mut apps);

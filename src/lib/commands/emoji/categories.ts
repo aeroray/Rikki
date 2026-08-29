@@ -28,3 +28,16 @@ export function categoryMatchNames(id: EmojiCategoryId): string[] {
   const key = emojiCategoryKey(id);
   return [id, zhCN[key], en[key]];
 }
+
+export function findCategory(query: string): EmojiCategory | null {
+  const raw = query.trim();
+  if (!raw) return null;
+  const q = raw.toLowerCase();
+  const exact = EMOJI_CATEGORIES.find((category) =>
+    categoryMatchNames(category.id).some((name) => name.toLowerCase() === q),
+  );
+  if (exact) return exact;
+  if (raw.length < 2) return null;
+  const prefixed = EMOJI_CATEGORIES.filter((category) => category.name.startsWith(raw));
+  return prefixed.length === 1 ? prefixed[0] : null;
+}

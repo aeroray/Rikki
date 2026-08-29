@@ -10,6 +10,8 @@
     onclose: () => void;
   } = $props();
 
+  let broken = $state(false);
+
   const reduceMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -30,10 +32,15 @@
     aria-label={i18n.t("clip.closePreview")}
     onclick={onclose}
   ></button>
-  <img
-    {src}
-    alt={i18n.t("clip.previewAlt")}
-    draggable="false"
-    class="relative z-10 max-h-[calc(100%-40px)] max-w-[calc(100%-40px)] object-contain outline outline-1 outline-hairline"
-  />
+  {#if broken}
+    <p class="relative z-10 px-4 text-[14px] leading-5 text-ink">{i18n.t("clip.previewMissing")}</p>
+  {:else}
+    <img
+      {src}
+      alt={i18n.t("clip.previewAlt")}
+      draggable="false"
+      class="relative z-10 max-h-[calc(100%-40px)] max-w-[calc(100%-40px)] object-contain outline outline-1 outline-hairline"
+      onerror={() => (broken = true)}
+    />
+  {/if}
 </div>

@@ -18,6 +18,7 @@ export const emojiCommand: Command = {
       ui.searchText = "em ";
       ui.focusField = "search";
       emojis.selectedIndex = 0;
+      void emojis.ensure();
       return;
     }
     handleEmojiEnter();

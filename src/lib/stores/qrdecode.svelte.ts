@@ -1,11 +1,11 @@
 class QrDecodeStore {
-  loading = $state(false);
+  loading = $state(true);
   data = $state("");
   reason = $state<"empty" | "none" | null>(null);
   scannedKey = $state("");
 
   reset() {
-    this.loading = false;
+    this.loading = true;
     this.data = "";
     this.reason = null;
     this.scannedKey = "";

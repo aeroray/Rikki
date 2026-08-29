@@ -1,8 +1,8 @@
+import { writeClipboardText } from "$lib/clipboard/write";
 import { invoke } from "@tauri-apps/api/core";
-import { writeText } from "tauri-plugin-clipboard-x-api";
 import { parseTranslateInput, type TranslateQuery } from "$lib/commands/translate/parse";
 import type { TranslateResponse } from "$lib/commands/translate/types";
-import { clipboard } from "$lib/stores/clipboard.svelte";
+import { i18n } from "$lib/i18n";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
@@ -18,8 +18,17 @@ class TranslateStore {
 
   preview(rest: string) {
     const query = parseQuery(rest);
+    const previous = this.query;
     this.query = query;
     if (!query.text) {
+      this.seq += 1;
+      this.loading = false;
+      this.result = null;
+      this.error = null;
+      this.done = null;
+      return;
+    }
+    if (this.loading && !sameQuery(previous, query)) {
       this.seq += 1;
       this.loading = false;
       this.result = null;
@@ -91,19 +100,13 @@ class TranslateStore {
     if (this.loading) return false;
     const text = this.result?.translatedText.trim();
     if (!text) return false;
-    try {
-      clipboard.suppressNextCapture();
-      try {
-        await writeText(text);
-      } catch (err) {
-        clipboard.suppressNextCapture(false);
-        throw err;
-      }
-      ui.beginHide({ reset: true });
-      return true;
-    } catch {
+    const ok = await writeClipboardText(text);
+    if (!ok) {
+      ui.flash(i18n.t("copy.failed"));
       return false;
     }
+    ui.beginHide({ reset: true });
+    return true;
   }
 }
 

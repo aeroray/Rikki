@@ -257,9 +257,10 @@
 
     if (ui.view === "translate") {
       if (event.key === "Tab") {
+        if (!translate.wordMode) return;
         event.preventDefault();
         event.stopPropagation();
-        if (translate.wordMode) translate.swap();
+        translate.swap();
         return;
       }
       if (event.key === "Enter") {
@@ -357,6 +358,7 @@
       if (hit?.kind === "app") {
         void apps.launch(hit.app.path).then((ok) => {
           if (ok) ui.beginHide({ reset: true });
+          else ui.flash(i18n.t("app.launchFailed"));
         });
         return;
       }

@@ -16,8 +16,10 @@ class UiStore {
   shellOpen = $state(false);
   shellExiting = $state(false);
   imagePreviewSrc = $state<string | null>(null);
+  notice = $state<string | null>(null);
   private pendingReset = false;
   private hideFlushers = new Set<() => void>();
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
@@ -86,7 +88,17 @@ class UiStore {
     this.todoPanelOpen = false;
     this.focusField = "search";
     this.imagePreviewSrc = null;
+    this.notice = null;
     this.showNonce += 1;
+  }
+
+  flash(message: string) {
+    this.notice = message;
+    if (this.noticeTimer) clearTimeout(this.noticeTimer);
+    this.noticeTimer = setTimeout(() => {
+      this.notice = null;
+      this.noticeTimer = null;
+    }, 2200);
   }
 
   isCommandActive(id: string): boolean {
@@ -127,6 +139,11 @@ class UiStore {
     if (this.shellExiting) return;
     if (options?.reset) this.pendingReset = true;
     for (const flush of this.hideFlushers) flush();
+    this.notice = null;
+    if (this.noticeTimer) {
+      clearTimeout(this.noticeTimer);
+      this.noticeTimer = null;
+    }
     this.imagePreviewSrc = null;
     this.shellExiting = true;
     this.shellOpen = false;

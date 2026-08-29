@@ -18,7 +18,9 @@
         {inspected.output}
       </p>
     </ScrollArea>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("base64.copyHint")}</p>
+    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+      {i18n.t("base64.copyHint")} · {i18n.t("base64.tabHint")}
+    </p>
   {:else if inspected.empty}
     <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">
       {inspected.mode === "decode" ? i18n.t("base64.emptyDecode") : i18n.t("base64.emptyEncode")}

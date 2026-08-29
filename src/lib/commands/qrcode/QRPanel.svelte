@@ -6,24 +6,31 @@
   const text = $derived(ui.commandRest.trim());
   let svg = $state("");
   let failed = $state(false);
+  let pending = $state(false);
 
   $effect(() => {
     const value = text;
     if (!value) {
       svg = "";
       failed = false;
+      pending = false;
       return;
     }
     let cancelled = false;
+    pending = true;
     failed = false;
     void generateQrSvg(value)
       .then((next) => {
-        if (!cancelled) svg = next;
+        if (!cancelled) {
+          svg = next;
+          pending = false;
+        }
       })
       .catch(() => {
         if (!cancelled) {
           svg = "";
           failed = true;
+          pending = false;
         }
       });
     return () => {
@@ -41,6 +48,8 @@
       <p class="mt-3 max-w-full truncate px-1 text-[13px] leading-5 text-ink">{text}</p>
     </div>
     <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("qr.copyHint")}</p>
+  {:else if pending}
+    <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("qr.loading")}</p>
   {:else if failed}
     <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("qr.invalid")}</p>
   {:else}

@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: estimated-height emoji/clip list windowing
+Do not reintroduce unless the user explicitly reverses this. Reason: spacer-and-slice windowing desynced from real row height and snapped scroll to the selection, so scrolling a category showed an empty grid. Date: 2026-08-29.
+
 ## Tombstone: QR logos, colors, batch, ECC picker, and camera scan
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 is black-and-white generate plus clipboard-image decode; camera and styling add permissions and UI the launcher does not need. Date: 2026-08-29.
 

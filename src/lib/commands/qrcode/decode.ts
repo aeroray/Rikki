@@ -1,10 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
-import jsQR from "jsqr";
+import type jsQRType from "jsqr";
 import type { ClipboardEntry } from "$lib/commands/types";
 import { imagePreviewSrc } from "$lib/commands/clip/preview";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 
 const MAX_SIDE = 1600;
+
+let jsQR: typeof jsQRType | null = null;
+
+async function loadJsQr(): Promise<typeof jsQRType> {
+  if (!jsQR) {
+    const mod = await import("jsqr");
+    jsQR = mod.default;
+  }
+  return jsQR;
+}
 
 export type DecodeOutcome =
   | { ok: true; data: string }
@@ -26,7 +36,7 @@ export async function decodeClipboardQr(): Promise<DecodeOutcome> {
 export async function decodeQrBlob(blob: Blob): Promise<DecodeOutcome> {
   try {
     const imageData = await pixelsFromBlob(blob);
-    const data = decodePixels(imageData);
+    const data = await decodePixels(imageData);
     if (data) return { ok: true, data };
     return { ok: false, reason: "none" };
   } catch {
@@ -71,8 +81,9 @@ async function decodeNavigatorClipboard(): Promise<string | null> {
   return null;
 }
 
-function decodePixels(imageData: ImageData): string | null {
-  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+async function decodePixels(imageData: ImageData): Promise<string | null> {
+  const decode = await loadJsQr();
+  const code = decode(imageData.data, imageData.width, imageData.height, {
     inversionAttempts: "attemptBoth",
   });
   const data = code?.data.trim() ?? "";

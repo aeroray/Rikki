@@ -1,6 +1,7 @@
 import { inspectJson } from "$lib/commands/json/parse";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
+import { hasText, readText } from "tauri-plugin-clipboard-x-api";
 
 class JsonStore {
   source = $state("");
@@ -20,6 +21,7 @@ class JsonStore {
     if (this.seeded) return;
     this.source = latestClipText();
     this.seeded = true;
+    if (!this.source) void this.seedFromLiveClipboard();
   }
 
   startEdit() {
@@ -49,6 +51,18 @@ class JsonStore {
     this.compact = false;
     this.editing = false;
     this.seeded = false;
+  }
+
+  private async seedFromLiveClipboard() {
+    if (this.editing || this.source || ui.commandRest.trim()) return;
+    try {
+      if (!(await hasText())) return;
+      const text = (await readText()).trim();
+      if (!text || this.editing || this.source || ui.commandRest.trim()) return;
+      this.source = text;
+    } catch {
+      // Browser preview and empty live clipboard are ignored.
+    }
   }
 }
 

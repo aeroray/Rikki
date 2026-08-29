@@ -1,8 +1,9 @@
+import { copyAndHide } from "$lib/clipboard/write";
 import { register } from "$lib/commands/registry";
 import type { Command } from "$lib/commands/types";
 import { calcHistory } from "$lib/stores/calcHistory.svelte";
 import { ui } from "$lib/stores/ui.svelte";
-import { evaluateExpression } from "./evaluate";
+import { calcEngine } from "./engine.svelte";
 
 export const calcCommand: Command = {
   id: "calc",
@@ -19,20 +20,13 @@ export const calcCommand: Command = {
       ui.focusField = "search";
       return;
     }
-    const outcome = evaluateExpression(expr);
-    if (!outcome.ok) return;
-    calcHistory.add(expr, outcome.display);
-    void copyResult(outcome.display);
+    void calcEngine.ensure().then(() => {
+      const outcome = calcEngine.evaluate(expr);
+      if (!outcome.ok) return;
+      calcHistory.add(expr, outcome.display);
+      void copyAndHide(outcome.display);
+    });
   },
 };
-
-async function copyResult(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    ui.beginHide({ reset: true });
-  } catch {
-    // Keep the palette open if the clipboard is unavailable.
-  }
-}
 
 register(calcCommand);

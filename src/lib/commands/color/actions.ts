@@ -1,16 +1,9 @@
+import { copyAndHide } from "$lib/clipboard/write";
 import { ui } from "$lib/stores/ui.svelte";
 import { colorQuery, parseColor } from "./parse";
 
 export async function copyColorValue(value: string): Promise<boolean> {
-  const text = value.trim();
-  if (!text) return false;
-  try {
-    await navigator.clipboard.writeText(text);
-    ui.beginHide({ reset: true });
-    return true;
-  } catch {
-    return false;
-  }
+  return copyAndHide(value);
 }
 
 export async function copyColorHex(): Promise<boolean> {

@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import { copyAndHide } from "$lib/clipboard/write";
 import { generateQrPngBytes, generateQrSvg } from "./generate";
 import { decodeClipboardQr, decodeQrBlob, type DecodeOutcome } from "./decode";
+import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 import { qrdecode } from "$lib/stores/qrdecode.svelte";
 
@@ -9,10 +11,9 @@ export async function copyQrSvg(): Promise<boolean> {
   if (!text) return false;
   try {
     const svg = await generateQrSvg(text);
-    await navigator.clipboard.writeText(svg);
-    ui.beginHide({ reset: true });
-    return true;
+    return copyAndHide(svg);
   } catch {
+    ui.flash(i18n.t("qr.invalid"));
     return false;
   }
 }
@@ -29,20 +30,13 @@ export async function saveQrPng(): Promise<boolean> {
     if (saved) ui.beginHide({ reset: true });
     return saved;
   } catch {
+    ui.flash(i18n.t("qr.saveFailed"));
     return false;
   }
 }
 
 export async function copyQrDecode(): Promise<boolean> {
-  const text = qrdecode.data.trim();
-  if (!text) return false;
-  try {
-    await navigator.clipboard.writeText(text);
-    ui.beginHide({ reset: true });
-    return true;
-  } catch {
-    return false;
-  }
+  return copyAndHide(qrdecode.data);
 }
 
 export async function scanQrDecode(): Promise<void> {

@@ -1,12 +1,16 @@
-import QRCode from "qrcode";
-
 const OPTIONS = {
   margin: 2,
   color: { dark: "#000000", light: "#ffffff" },
   errorCorrectionLevel: "H" as const,
 };
 
+async function qrcode() {
+  const mod = await import("qrcode");
+  return mod.default;
+}
+
 export async function generateQrSvg(text: string): Promise<string> {
+  const QRCode = await qrcode();
   return QRCode.toString(text, {
     ...OPTIONS,
     type: "svg",
@@ -15,6 +19,7 @@ export async function generateQrSvg(text: string): Promise<string> {
 }
 
 export async function generateQrPngBytes(text: string): Promise<Uint8Array> {
+  const QRCode = await qrcode();
   const dataUrl = await QRCode.toDataURL(text, {
     ...OPTIONS,
     width: 400,

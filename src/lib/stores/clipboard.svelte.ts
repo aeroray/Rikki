@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { isColorValue } from "$lib/commands/color/parse";
 import type { ClipboardEntry } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
+import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 import {
   hasFiles,
@@ -25,6 +26,7 @@ class ClipboardStore {
   private ready: Promise<void>;
   private writes: Promise<void> = Promise.resolve();
   private ignoreNext = false;
+  private ignoreTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
   private imagesDir = "";
 
@@ -63,7 +65,7 @@ class ClipboardStore {
     const value = content.trim();
     if (!value) return;
     if (this.ignoreNext) {
-      this.ignoreNext = false;
+      this.suppressNextCapture(false);
       return;
     }
     void this.ready.then(() => {
@@ -115,6 +117,16 @@ class ClipboardStore {
 
   suppressNextCapture(enabled = true) {
     this.ignoreNext = enabled;
+    if (this.ignoreTimer) {
+      clearTimeout(this.ignoreTimer);
+      this.ignoreTimer = null;
+    }
+    if (enabled) {
+      this.ignoreTimer = setTimeout(() => {
+        this.ignoreNext = false;
+        this.ignoreTimer = null;
+      }, 1500);
+    }
   }
 
   async paste(id?: string) {
@@ -122,7 +134,7 @@ class ClipboardStore {
       ? this.entries.find((item) => item.id === id)
       : this.filtered("")[this.selectedIndex];
     if (!entry) return false;
-    this.ignoreNext = true;
+    this.suppressNextCapture();
     try {
       if (entry.type === "image") {
         await writeImage(entry.content);
@@ -133,14 +145,15 @@ class ClipboardStore {
       void invoke("simulate_paste").catch(() => {});
       return true;
     } catch {
-      this.ignoreNext = false;
+      this.suppressNextCapture(false);
+      ui.flash(i18n.t("clip.pasteFailed"));
       return false;
     }
   }
 
   private async handleChange() {
     if (this.ignoreNext) {
-      this.ignoreNext = false;
+      this.suppressNextCapture(false);
       return;
     }
     try {

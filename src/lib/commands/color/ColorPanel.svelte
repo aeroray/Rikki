@@ -43,7 +43,7 @@
           </li>
         {/each}
       </ul>
-      <p class="mt-2 px-2 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("color.copyHint")}</p>
+      <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("color.copyHint")}</p>
     {:else if query}
       <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.invalid")}</p>
     {:else}
