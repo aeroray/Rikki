@@ -6,17 +6,23 @@ use crate::storage::settings_store;
 
 const MAX_CHARS: usize = 1000;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DictPart {
     pub part: String,
     pub means: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Example {
     pub orig: String,
     pub trans: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct WordForm {
+    pub kind: String,
+    pub values: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -27,6 +33,11 @@ pub struct TranslateResponse {
     pub source_text: String,
     pub translated_text: String,
     pub phonetic: Option<String>,
+    pub phonetic_uk: Option<String>,
+    pub phonetic_us: Option<String>,
+    pub tags: Vec<String>,
+    pub forms: Vec<WordForm>,
+    pub similar: Vec<String>,
     pub parts: Vec<DictPart>,
     pub sentences: Vec<Example>,
     pub has_dict: bool,
@@ -116,17 +127,37 @@ pub async fn translate(app: AppHandle, text: String, source: String, target: Str
         .ok_or_else(|| "unknown".to_string())?;
 
     let mut phonetic = None;
+    let mut phonetic_uk = None;
+    let mut phonetic_us = None;
+    let mut tags = Vec::new();
+    let mut forms = Vec::new();
+    let mut similar = Vec::new();
     let mut parts = Vec::new();
     let mut sentences = Vec::new();
     let dict_value = row.and_then(|item| item.dict.as_ref()).or(body.dict.as_ref());
     if let Some(dict) = dict_value {
-        extract_dict(dict, &mut phonetic, &mut parts, &mut sentences);
+        extract_dict(
+            dict,
+            &mut phonetic,
+            &mut phonetic_uk,
+            &mut phonetic_us,
+            &mut tags,
+            &mut forms,
+            &mut similar,
+            &mut parts,
+            &mut sentences,
+        );
     }
     if let Some(examples) = row.and_then(|item| item.sentences.as_ref()) {
         extract_sentences(examples, &mut sentences);
     }
     let has_dict = dict_value.is_some()
         || phonetic.is_some()
+        || phonetic_uk.is_some()
+        || phonetic_us.is_some()
+        || !tags.is_empty()
+        || !forms.is_empty()
+        || !similar.is_empty()
         || !parts.is_empty()
         || !sentences.is_empty();
 
@@ -136,6 +167,11 @@ pub async fn translate(app: AppHandle, text: String, source: String, target: Str
         source_text,
         translated_text,
         phonetic,
+        phonetic_uk,
+        phonetic_us,
+        tags,
+        forms,
+        similar,
         parts,
         sentences,
         has_dict,
@@ -191,40 +227,150 @@ fn map_baidu_error(code: &str, message: Option<&str>) -> String {
     }
 }
 
-fn extract_dict(raw: &Value, phonetic: &mut Option<String>, parts: &mut Vec<DictPart>, sentences: &mut Vec<Example>) {
+fn extract_dict(
+    raw: &Value,
+    phonetic: &mut Option<String>,
+    phonetic_uk: &mut Option<String>,
+    phonetic_us: &mut Option<String>,
+    tags: &mut Vec<String>,
+    forms: &mut Vec<WordForm>,
+    similar: &mut Vec<String>,
+    parts: &mut Vec<DictPart>,
+    sentences: &mut Vec<Example>,
+) {
+    let value = dict_root(raw);
+    if let Some(simple) = value.get("simple_means") {
+        collect_phonetics(simple, phonetic, phonetic_uk, phonetic_us);
+        collect_tags(simple, tags);
+        collect_forms(simple, forms);
+        collect_parts(simple, parts);
+        collect_word_means(simple, parts);
+    }
+    collect_phonetics(&value, phonetic, phonetic_uk, phonetic_us);
+    collect_parts(&value, parts);
+    extract_edict(&value, similar, sentences);
+    if let Some(examples) = value.get("sentences") {
+        extract_sentences(examples, sentences);
+    }
+}
+
+fn dict_root(raw: &Value) -> Value {
     let value = parse_maybe_json(raw);
-    if let Some(name) = value.get("word_name").and_then(Value::as_str) {
-        let _ = name;
+    value
+        .get("word_result")
+        .cloned()
+        .map(|inner| parse_maybe_json(&inner))
+        .unwrap_or(value)
+}
+
+fn collect_phonetics(
+    value: &Value,
+    phonetic: &mut Option<String>,
+    phonetic_uk: &mut Option<String>,
+    phonetic_us: &mut Option<String>,
+) {
+    if phonetic_uk.is_none() {
+        *phonetic_uk = first_string(value, &["ph_en"]);
+    }
+    if phonetic_us.is_none() {
+        *phonetic_us = first_string(value, &["ph_am"]);
     }
     if phonetic.is_none() {
-        *phonetic = first_phonetic(&value);
+        *phonetic = first_string(value, &["word_symbol", "phone", "ph_other", "ph_en", "ph_am"]);
     }
-    collect_parts(&value, parts);
-    if let Some(simple) = value.get("simple_means") {
-        if phonetic.is_none() {
-            *phonetic = first_phonetic(simple);
-        }
-        collect_parts(simple, parts);
-        if let Some(symbols) = simple.get("symbols") {
-            collect_parts(symbols, parts);
-        }
-    }
-    if let Some(symbols) = value.get("symbols") {
-        collect_parts(symbols, parts);
-        if phonetic.is_none() {
-            *phonetic = first_phonetic(symbols);
+}
+
+fn collect_tags(value: &Value, out: &mut Vec<String>) {
+    let Some(tags) = value.get("tags") else {
+        return;
+    };
+    for key in ["core", "other"] {
+        for tag in flatten_strings(tags.get(key).unwrap_or(&Value::Null)) {
+            if !tag.is_empty() && !out.iter().any(|item| item == &tag) {
+                out.push(tag);
+            }
         }
     }
-    if let Some(spec_parts) = value.get("parts") {
-        collect_parts(spec_parts, parts);
+}
+
+fn collect_word_means(value: &Value, parts: &mut Vec<DictPart>) {
+    let means = flatten_strings(value.get("word_means").unwrap_or(&Value::Null));
+    if means.is_empty() {
+        return;
     }
-    if let Some(phone) = value.get("phone").and_then(Value::as_str) {
-        if phonetic.is_none() && !phone.is_empty() {
-            *phonetic = Some(phone.to_string());
+    if parts
+        .iter()
+        .any(|part| part.means.iter().any(|item| means.contains(item)))
+    {
+        return;
+    }
+    parts.push(DictPart {
+        part: String::new(),
+        means,
+    });
+}
+
+fn collect_forms(value: &Value, out: &mut Vec<WordForm>) {
+    let Some(exchange) = value.get("exchange") else {
+        return;
+    };
+    const KINDS: [(&str, &str); 7] = [
+        ("word_pl", "pl"),
+        ("word_third", "third"),
+        ("word_past", "past"),
+        ("word_done", "done"),
+        ("word_ing", "ing"),
+        ("word_er", "er"),
+        ("word_est", "est"),
+    ];
+    for (key, kind) in KINDS {
+        let values = flatten_strings(exchange.get(key).unwrap_or(&Value::Null));
+        if !values.is_empty() && !out.iter().any(|item| item.kind == kind) {
+            out.push(WordForm {
+                kind: kind.into(),
+                values,
+            });
         }
     }
-    if let Some(examples) = value.get("sentences").or_else(|| value.get("exchange")) {
-        extract_sentences(examples, sentences);
+}
+
+fn extract_edict(value: &Value, similar: &mut Vec<String>, sentences: &mut Vec<Example>) {
+    let Some(edict) = value.get("edict") else {
+        return;
+    };
+    if edict.as_str().is_some_and(|text| text.is_empty()) {
+        return;
+    }
+    let edict = parse_maybe_json(edict);
+    let items = edict.get("item").cloned().unwrap_or(edict);
+    for item in value_items(&items) {
+        for group in value_items(item.get("tr_group").unwrap_or(&Value::Null)) {
+            for word in flatten_strings(group.get("similar_word").unwrap_or(&Value::Null)) {
+                if !word.is_empty() && !similar.iter().any(|item| item == &word) {
+                    similar.push(word);
+                }
+            }
+            let defs = flatten_strings(group.get("tr").unwrap_or(&Value::Null));
+            let examples = flatten_strings(group.get("example").unwrap_or(&Value::Null));
+            for example in examples {
+                let trans = defs.first().cloned().unwrap_or_default();
+                if sentences.iter().any(|row| row.orig == example) {
+                    continue;
+                }
+                sentences.push(Example {
+                    orig: example,
+                    trans,
+                });
+            }
+        }
+    }
+}
+
+fn value_items(value: &Value) -> Vec<Value> {
+    match value {
+        Value::Array(items) => items.clone(),
+        Value::Object(_) => vec![value.clone()],
+        _ => Vec::new(),
     }
 }
 
@@ -236,23 +382,27 @@ fn parse_maybe_json(raw: &Value) -> Value {
     }
 }
 
-fn first_phonetic(value: &Value) -> Option<String> {
-    const KEYS: [&str; 4] = ["phone", "ph_am", "ph_en", "ph_other"];
+fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
     match value {
         Value::Object(map) => {
-            for key in KEYS {
-                if let Some(text) = map.get(key).and_then(Value::as_str).filter(|item| !item.is_empty()) {
+            for key in keys {
+                if let Some(text) = map
+                    .get(*key)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|item| !item.is_empty())
+                {
                     return Some(text.to_string());
                 }
             }
             for nested in map.values() {
-                if let Some(found) = first_phonetic(nested) {
+                if let Some(found) = first_string(nested, keys) {
                     return Some(found);
                 }
             }
             None
         }
-        Value::Array(items) => items.iter().find_map(first_phonetic),
+        Value::Array(items) => items.iter().find_map(|item| first_string(item, keys)),
         _ => None,
     }
 }
@@ -346,19 +496,35 @@ fn flatten_strings(value: &Value) -> Vec<String> {
             }
         }
         Value::Array(items) => items.iter().flat_map(flatten_strings).collect(),
-        _ => value
-            .as_str()
-            .map(|text| vec![text.trim().to_string()])
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|text| !text.is_empty())
-            .collect(),
+        Value::Object(map) => {
+            if let Some(text) = map
+                .get("text")
+                .or_else(|| map.get("word_mean"))
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+            {
+                let mut out = vec![text.to_string()];
+                if let Some(means) = map.get("means") {
+                    out.extend(flatten_strings(means));
+                }
+                out
+            } else if let Some(means) = map.get("means") {
+                flatten_strings(means)
+            } else {
+                Vec::new()
+            }
+        }
+        _ => Vec::new(),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{from_baidu, to_baidu};
+    use super::{
+        extract_dict, from_baidu, to_baidu, DictPart, Example, WordForm,
+    };
+    use serde_json::json;
 
     #[test]
     fn maps_iso_codes_to_baidu() {
@@ -373,5 +539,106 @@ mod tests {
         assert_eq!(from_baidu("jp"), "ja");
         assert_eq!(from_baidu("kor"), "ko");
         assert_eq!(from_baidu("zh"), "zh");
+    }
+
+    #[test]
+    fn extracts_nested_word_result_dict() {
+        let dict = json!({
+            "lang": "1",
+            "word_result": {
+                "edict": {
+                    "item": [{
+                        "pos": "noun",
+                        "tr_group": [{
+                            "tr": ["an expression of greeting"],
+                            "example": ["every morning they exchanged polite hellos"],
+                            "similar_word": ["hullo", "hi"]
+                        }]
+                    }],
+                    "word": "hello"
+                },
+                "simple_means": {
+                    "word_name": "hello",
+                    "word_means": ["哈罗，喂，你好"],
+                    "tags": { "core": ["高考", "CET4"], "other": [""] },
+                    "exchange": { "word_pl": ["hellos"] },
+                    "symbols": [{
+                        "ph_en": "həˈləʊ",
+                        "ph_am": "həˈloʊ",
+                        "parts": [{ "part": "int./n.", "means": ["哈罗，喂，你好"] }]
+                    }]
+                }
+            }
+        });
+        let mut phonetic = None;
+        let mut phonetic_uk = None;
+        let mut phonetic_us = None;
+        let mut tags = Vec::new();
+        let mut forms = Vec::new();
+        let mut similar = Vec::new();
+        let mut parts = Vec::new();
+        let mut sentences = Vec::new();
+        extract_dict(
+            &dict,
+            &mut phonetic,
+            &mut phonetic_uk,
+            &mut phonetic_us,
+            &mut tags,
+            &mut forms,
+            &mut similar,
+            &mut parts,
+            &mut sentences,
+        );
+        assert_eq!(phonetic_uk.as_deref(), Some("həˈləʊ"));
+        assert_eq!(phonetic_us.as_deref(), Some("həˈloʊ"));
+        assert!(tags.contains(&"高考".into()));
+        assert!(tags.contains(&"CET4".into()));
+        assert_eq!(
+            forms,
+            vec![WordForm {
+                kind: "pl".into(),
+                values: vec!["hellos".into()]
+            }]
+        );
+        assert_eq!(similar, vec!["hullo".to_string(), "hi".into()]);
+        assert!(parts.iter().any(|part: &DictPart| part.part == "int./n."));
+        assert!(sentences.iter().any(|row: &Example| row.orig.contains("exchanged")));
+    }
+
+    #[test]
+    fn extracts_dict_when_wrapped_as_json_string() {
+        let inner = serde_json::json!({
+            "word_result": {
+                "simple_means": {
+                    "symbols": [{
+                        "ph_en": "test",
+                        "ph_am": "test",
+                        "parts": [{ "part": "n.", "means": ["测试"] }]
+                    }]
+                }
+            }
+        });
+        let dict = serde_json::Value::String(inner.to_string());
+        let mut phonetic = None;
+        let mut phonetic_uk = None;
+        let mut phonetic_us = None;
+        let mut tags = Vec::new();
+        let mut forms = Vec::new();
+        let mut similar = Vec::new();
+        let mut parts = Vec::new();
+        let mut sentences = Vec::new();
+        extract_dict(
+            &dict,
+            &mut phonetic,
+            &mut phonetic_uk,
+            &mut phonetic_us,
+            &mut tags,
+            &mut forms,
+            &mut similar,
+            &mut parts,
+            &mut sentences,
+        );
+        assert_eq!(phonetic_uk.as_deref(), Some("test"));
+        assert!(parts.iter().any(|part| part.part == "n."));
     }
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { openTranslateSettings } from "$lib/commands/settings/actions";
   import { langLabel, parseTranslateInput } from "$lib/commands/translate/parse";
+  import type { WordForm } from "$lib/commands/translate/types";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import type { MessageKey } from "$lib/i18n/zh-CN";
@@ -22,7 +23,7 @@
   $effect(() => {
     if (ui.view !== "translate") return;
     const rest = ui.commandRest;
-    untrack(() => translate.schedule(rest));
+    untrack(() => translate.preview(rest));
   });
 
   function translateErrorKey(error: string | null): MessageKey {
@@ -34,6 +35,21 @@
     if (error === "lang") return "translate.lang";
     if (error === "empty") return "translate.emptyHint";
     return "translate.failed";
+  }
+
+  const FORM_KEYS: Record<string, MessageKey> = {
+    pl: "translate.form.pl",
+    third: "translate.form.third",
+    past: "translate.form.past",
+    done: "translate.form.done",
+    ing: "translate.form.ing",
+    er: "translate.form.er",
+    est: "translate.form.est",
+  };
+
+  function formLabel(form: WordForm): string {
+    const key = FORM_KEYS[form.kind];
+    return key ? i18n.t(key) : form.kind;
   }
 </script>
 
@@ -86,8 +102,27 @@
       {#if translate.wordMode}
         <div class="px-1">
           <p class="font-medium text-[24px] leading-8 tracking-[-0.05px] text-pretty text-ink">{result.sourceText}</p>
-          {#if result.phonetic}
+          {#if result.phoneticUk || result.phoneticUs}
+            <p class="mt-1 text-[13px] leading-5 text-ink-subtle">
+              {#if result.phoneticUk}
+                <span>{i18n.t("translate.phonetic.uk")} /{result.phoneticUk}/</span>
+              {/if}
+              {#if result.phoneticUk && result.phoneticUs}
+                <span class="text-ink-tertiary"> · </span>
+              {/if}
+              {#if result.phoneticUs}
+                <span>{i18n.t("translate.phonetic.us")} /{result.phoneticUs}/</span>
+              {/if}
+            </p>
+          {:else if result.phonetic}
             <p class="mt-1 text-[13px] leading-5 text-ink-subtle">/{result.phonetic}/</p>
+          {/if}
+          {#if result.tags.length > 0}
+            <p class="mt-2 flex flex-wrap gap-1">
+              {#each result.tags as tag (tag)}
+                <span class="rounded-md bg-surface-1 px-1.5 py-0.5 text-[11px] leading-4 text-ink-subtle">{tag}</span>
+              {/each}
+            </p>
           {/if}
         </div>
         {#if result.parts.length > 0}
@@ -105,6 +140,23 @@
         {:else}
           <p class="px-1 text-[18px] font-medium leading-6 text-pretty text-ink">{result.translatedText}</p>
         {/if}
+        {#if result.forms.length > 0}
+          <ul class="flex flex-col gap-1 px-1">
+            {#each result.forms as form (form.kind)}
+              <li class="text-[13px] leading-5 text-ink">
+                <span class="text-ink-subtle">{formLabel(form)}</span>
+                {" "}
+                {form.values.join(" / ")}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+        {#if result.similar.length > 0}
+          <div class="px-1">
+            <p class="mb-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("translate.similar")}</p>
+            <p class="text-[13px] leading-5 text-ink">{result.similar.join(" · ")}</p>
+          </div>
+        {/if}
         {#if result.sentences.length > 0}
           <div class="px-1">
             <p class="mb-2 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("translate.examples")}</p>
@@ -112,7 +164,9 @@
               {#each result.sentences as example, index (`${example.orig}-${index}`)}
                 <li>
                   <p class="text-[13px] leading-5 text-ink">{example.orig}</p>
-                  <p class="text-[13px] leading-5 text-ink-subtle">{example.trans}</p>
+                  {#if example.trans}
+                    <p class="text-[13px] leading-5 text-ink-subtle">{example.trans}</p>
+                  {/if}
                 </li>
               {/each}
             </ul>
@@ -126,7 +180,7 @@
     </ScrollArea>
   {:else}
     <p class="px-1 text-[13px] leading-5 text-ink-tertiary">
-      {translate.loading ? i18n.t("translate.loading") : i18n.t("translate.emptyHint")}
+      {translate.loading ? i18n.t("translate.loading") : i18n.t("translate.enterHint")}
     </p>
   {/if}
 
@@ -137,6 +191,10 @@
       {i18n.t("translate.wordHint")}
     {:else if translate.result}
       {i18n.t("translate.copyHint")}
+    {:else if translate.loading}
+      {i18n.t("translate.loading")}
+    {:else if query.text}
+      {i18n.t("translate.enterHint")}
     {:else}
       {i18n.t("translate.hint")}
     {/if}

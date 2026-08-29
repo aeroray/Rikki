@@ -13,7 +13,7 @@ function action(
     mode: "action",
     run() {
       void run()
-        .then(() => ui.beginHide())
+        .then(() => ui.beginHide({ reset: true }))
         .catch(() => {});
     },
   };

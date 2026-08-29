@@ -18,7 +18,7 @@ export const translateCommand: Command = {
       ui.focusField = "search";
       return;
     }
-    void translate.copy();
+    void translate.submit();
   },
 };
 

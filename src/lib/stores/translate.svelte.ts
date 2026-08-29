@@ -6,38 +6,42 @@ import { clipboard } from "$lib/stores/clipboard.svelte";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
-const DEBOUNCE_MS = 400;
-
 class TranslateStore {
   result = $state<TranslateResponse | null>(null);
   query = $state<TranslateQuery>({ source: "auto", target: "zh", text: "" });
   loading = $state(false);
   error = $state<string | null>(null);
-  private timer: ReturnType<typeof setTimeout> | null = null;
   private seq = 0;
+  private done: TranslateQuery | null = null;
 
   readonly wordMode = $derived(Boolean(this.result?.hasDict));
 
-  schedule(rest: string) {
-    const query = parseTranslateInput(rest, {
-      defaultTarget: settings.translateDefaultTarget,
-      secondTarget: settings.translateSecondTarget,
-    });
+  preview(rest: string) {
+    const query = parseQuery(rest);
     this.query = query;
-    if (this.timer) clearTimeout(this.timer);
     if (!query.text) {
       this.seq += 1;
       this.loading = false;
       this.result = null;
       this.error = null;
+      this.done = null;
       return;
     }
-    this.loading = true;
-    this.error = null;
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      void this.run(query);
-    }, DEBOUNCE_MS);
+    if (this.done && !sameQuery(this.done, query)) {
+      this.result = null;
+      this.error = null;
+      this.done = null;
+    }
+  }
+
+  async submit(): Promise<boolean> {
+    const query = parseQuery(ui.commandRest);
+    this.query = query;
+    if (!query.text || this.loading) return false;
+    if (this.result && this.done && sameQuery(this.done, query)) {
+      return this.copy();
+    }
+    return this.run(query);
   }
 
   async run(query: TranslateQuery): Promise<boolean> {
@@ -51,13 +55,22 @@ class TranslateStore {
         target: query.target,
       });
       if (seq !== this.seq) return false;
-      this.result = next;
+      this.result = {
+        ...next,
+        tags: next.tags ?? [],
+        forms: next.forms ?? [],
+        similar: next.similar ?? [],
+        parts: next.parts ?? [],
+        sentences: next.sentences ?? [],
+      };
+      this.done = query;
       this.error = null;
       this.loading = false;
       return true;
     } catch (err) {
       if (seq !== this.seq) return false;
       this.result = null;
+      this.done = null;
       this.error = invokeError(err);
       this.loading = false;
       return false;
@@ -86,7 +99,7 @@ class TranslateStore {
         clipboard.suppressNextCapture(false);
         throw err;
       }
-      ui.beginHide();
+      ui.beginHide({ reset: true });
       return true;
     } catch {
       return false;
@@ -95,6 +108,17 @@ class TranslateStore {
 }
 
 export const translate = new TranslateStore();
+
+function parseQuery(rest: string): TranslateQuery {
+  return parseTranslateInput(rest, {
+    defaultTarget: settings.translateDefaultTarget,
+    secondTarget: settings.translateSecondTarget,
+  });
+}
+
+function sameQuery(a: TranslateQuery, b: TranslateQuery): boolean {
+  return a.text === b.text && a.source === b.source && a.target === b.target;
+}
 
 function invokeError(err: unknown): string {
   if (typeof err === "string" && err.trim()) return err.trim();

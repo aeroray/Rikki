@@ -2,11 +2,17 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Palette restores last query after a casual hide
+Decision:
+Blur, Escape, or hotkey hide keeps the last query and page. Launching, copying, or opening a web search resets on the next show.
+Reason:
+Leaving to copy a setting must not dump the user back to an empty palette.
+
 ## 2026-08-29 - Translate uses Baidu's free API
 Decision:
-`tr` calls Baidu Translate with credentials only in Rust. Bare `tr` uses a persisted default target (seeded once from the UI locale) and a second target (default English) when the guessed source matches the default. Word layout follows API dictionary data.
+`tr` calls Baidu Translate with credentials only in Rust; AppID, secret, and URL save as you type. Bare `tr` uses persisted default/second targets. Enter submits the request; a second Enter copies. Dictionary extras appear only when Baidu returns `dict` (console dictionary resource). Not TTS.
 Reason:
-The target pair is user-configured; later UI-language changes must not rewrite it.
+Credentials must survive switching away to copy a key, and the API already returns dictionary fields the UI was dropping.
 
 ## 2026-08-29 - UI language follows the system
 Decision:

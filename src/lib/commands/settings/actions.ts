@@ -63,7 +63,6 @@ export async function handleSettingsEnter(): Promise<void> {
     return;
   }
   if (settings.translateDraft) {
-    await settings.saveTranslateDraft();
     return;
   }
 
@@ -79,10 +78,7 @@ export async function handleSettingsEnter(): Promise<void> {
     return;
   }
   if (screen === "hotkey") return;
-  if (screen === "translate") {
-    await settings.saveTranslateDraft();
-    return;
-  }
+  if (screen === "translate") return;
   if (screen === "language") {
     const option = settings.locales[settings.selectedIndex];
     if (option) await settings.setLocale(option.id);

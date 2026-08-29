@@ -16,7 +16,7 @@ export async function runFallbackSearch(query: string): Promise<boolean> {
   if (text.length < FALLBACK_MIN_LENGTH) return false;
   try {
     await openUrl(searchUrl(settings.engine, text));
-    ui.beginHide();
+    ui.beginHide({ reset: true });
     return true;
   } catch {
     return false;

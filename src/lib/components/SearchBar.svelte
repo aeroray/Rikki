@@ -180,6 +180,11 @@
         if (translate.wordMode) translate.swap();
         return;
       }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void translate.submit();
+        return;
+      }
     }
 
     if (ui.view === "settings") {
@@ -196,10 +201,7 @@
         return;
       }
       if (settings.translateDraft) {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          void settings.saveTranslateDraft();
-        }
+        if (event.key === "Enter") event.preventDefault();
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
@@ -272,7 +274,7 @@
       const hit = ui.rootHits[ui.selectedIndex];
       if (hit?.kind === "app") {
         void apps.launch(hit.app.path).then((ok) => {
-          if (ok) ui.beginHide();
+          if (ok) ui.beginHide({ reset: true });
         });
         return;
       }

@@ -24,9 +24,9 @@
       activateCommand(hit.command);
       return;
     }
-    void apps.launch(hit.app.path).then((ok) => {
-      if (ok) ui.beginHide();
-    });
+        void apps.launch(hit.app.path).then((ok) => {
+          if (ok) ui.beginHide({ reset: true });
+        });
   }
 </script>
 

@@ -30,7 +30,7 @@ for (const item of WEB_SEARCH) {
         return;
       }
       void openUrl(searchUrl(engine, query))
-        .then(() => ui.beginHide())
+        .then(() => ui.beginHide({ reset: true }))
         .catch(() => {});
     },
   };

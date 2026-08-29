@@ -29,7 +29,7 @@ export const calcCommand: Command = {
 async function copyResult(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
-    ui.beginHide();
+    ui.beginHide({ reset: true });
   } catch {
     // Keep the palette open if the clipboard is unavailable.
   }

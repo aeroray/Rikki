@@ -15,6 +15,8 @@ class UiStore {
   shellOpen = $state(false);
   shellExiting = $state(false);
   imagePreviewSrc = $state<string | null>(null);
+  private pendingReset = false;
+  private hideFlushers = new Set<() => void>();
 
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
@@ -85,10 +87,22 @@ class UiStore {
     return id === "todo" && this.todoPanelOpen;
   }
 
+  onHideFlush(fn: () => void): () => void {
+    this.hideFlushers.add(fn);
+    return () => {
+      this.hideFlushers.delete(fn);
+    };
+  }
+
   beginShow() {
     const reversing = this.shellExiting;
     this.shellExiting = false;
-    this.resetSearch();
+    if (this.pendingReset) {
+      this.pendingReset = false;
+      this.resetSearch();
+    } else {
+      this.showNonce += 1;
+    }
     if (reversing) {
       this.shellOpen = true;
       return;
@@ -101,8 +115,10 @@ class UiStore {
     });
   }
 
-  beginHide() {
+  beginHide(options?: { reset?: boolean }) {
     if (this.shellExiting) return;
+    if (options?.reset) this.pendingReset = true;
+    for (const flush of this.hideFlushers) flush();
     this.imagePreviewSrc = null;
     this.shellExiting = true;
     this.shellOpen = false;

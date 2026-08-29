@@ -68,9 +68,14 @@ class SettingsStore {
   private ready: Promise<void>;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private returnTimer: ReturnType<typeof setTimeout> | null = null;
+  private persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private persistPending = new Map<string, string>();
 
   constructor() {
     this.ready = this.hydrate();
+    ui.onHideFlush(() => {
+      void this.flushTranslatePersist();
+    });
   }
 
   readonly themes = $derived<ThemeOption[]>([
@@ -169,33 +174,59 @@ class SettingsStore {
       secret: this.baiduSecret,
       url: this.translateApiUrl || DEFAULT_TRANSLATE_URL,
     };
-    ui.focusField = "translate-appid";
+    if (!this.baiduAppId.trim()) ui.focusField = "translate-appid";
+    else if (!this.baiduSecret.trim()) ui.focusField = "translate-secret";
+    else ui.focusField = "translate-appid";
   }
 
   closeTranslateDraft() {
+    void this.flushTranslatePersist();
     this.translateDraft = null;
     ui.focusField = "search";
   }
 
-  async saveTranslateDraft(): Promise<boolean> {
-    const draft = this.translateDraft;
-    if (!draft) return false;
-    const appId = draft.appId.trim();
-    const secret = draft.secret.trim();
-    if (!appId || !secret) return false;
-    const url = draft.url.trim() || DEFAULT_TRANSLATE_URL;
+  queueTranslateField(
+    key: "baiduTranslateAppId" | "baiduTranslateSecretKey" | "translationApiUrl",
+    value: string,
+  ) {
+    if (key === "baiduTranslateAppId") this.baiduAppId = value;
+    else if (key === "baiduTranslateSecretKey") this.baiduSecret = value;
+    else this.translateApiUrl = value;
+    this.persistPending.set(key, value);
+    const previous = this.persistTimers.get(key);
+    if (previous) clearTimeout(previous);
+    this.persistTimers.set(
+      key,
+      setTimeout(() => {
+        this.persistTimers.delete(key);
+        void this.flushTranslateKey(key);
+      }, 280),
+    );
+  }
+
+  async flushTranslatePersist(): Promise<void> {
+    const keys = [...this.persistPending.keys()];
+    for (const key of keys) await this.flushTranslateKey(key);
+  }
+
+  private async flushTranslateKey(key: string): Promise<void> {
+    const value = this.persistPending.get(key);
+    if (value === undefined) return;
+    this.persistPending.delete(key);
+    const timer = this.persistTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      this.persistTimers.delete(key);
+    }
+    const persistValue = key === "translationApiUrl" ? value.trim() || DEFAULT_TRANSLATE_URL : value.trim();
+    if (key === "translationApiUrl" && persistValue && !persistValue.startsWith("https://api.fanyi.baidu.com/")) {
+      return;
+    }
     await this.ready;
     try {
-      await invoke<AppSettings>("update_setting", { key: "baiduTranslateAppId", value: appId });
-      await invoke<AppSettings>("update_setting", { key: "baiduTranslateSecretKey", value: secret });
-      const next = await invoke<AppSettings>("update_setting", { key: "translationApiUrl", value: url });
-      this.apply(next);
-      this.flash(i18n.t("settings.translate.saved"));
-      this.scheduleReturn();
-      return true;
+      await invoke<AppSettings>("update_setting", { key, value: persistValue });
     } catch {
       this.flash(i18n.t("settings.translate.saveFail"));
-      return false;
     }
   }
 
@@ -360,9 +391,15 @@ class SettingsStore {
     this.theme = next.theme === "light" ? "light" : "dark";
     this.hotkey = next.hotkey?.trim() ?? "";
     this.localePref = parseLocalePref(next.locale);
-    this.baiduAppId = next.baiduTranslateAppId?.trim() ?? "";
-    this.baiduSecret = next.baiduTranslateSecretKey?.trim() ?? "";
-    this.translateApiUrl = next.translationApiUrl?.trim() || DEFAULT_TRANSLATE_URL;
+    if (!this.persistPending.has("baiduTranslateAppId")) {
+      this.baiduAppId = next.baiduTranslateAppId?.trim() ?? "";
+    }
+    if (!this.persistPending.has("baiduTranslateSecretKey")) {
+      this.baiduSecret = next.baiduTranslateSecretKey?.trim() ?? "";
+    }
+    if (!this.persistPending.has("translationApiUrl")) {
+      this.translateApiUrl = next.translationApiUrl?.trim() || DEFAULT_TRANSLATE_URL;
+    }
     this.customEngines = (next.customSearchEngines ?? []).map((engine) => ({
       id: engine.id,
       name: engine.name,

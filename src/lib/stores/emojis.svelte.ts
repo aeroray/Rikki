@@ -47,7 +47,7 @@ class EmojiStore {
       if (this.hideTimer) clearTimeout(this.hideTimer);
       this.hideTimer = setTimeout(() => {
         this.hideTimer = null;
-        if (ui.showNonce === nonce) ui.beginHide();
+        if (ui.showNonce === nonce) ui.beginHide({ reset: true });
       }, 1200);
       return true;
     } catch {

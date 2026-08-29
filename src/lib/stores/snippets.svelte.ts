@@ -168,7 +168,7 @@ class SnippetStore {
         clipboard.suppressNextCapture(false);
         throw err;
       }
-      ui.beginHide();
+      ui.beginHide({ reset: true });
       return true;
     } catch {
       return false;

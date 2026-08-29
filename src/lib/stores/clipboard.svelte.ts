@@ -127,7 +127,7 @@ class ClipboardStore {
       } else {
         await writeText(entry.content);
       }
-      ui.beginHide();
+      ui.beginHide({ reset: true });
       void invoke("simulate_paste").catch(() => {});
       return true;
     } catch {
