@@ -6,8 +6,10 @@ import { ui } from "$lib/stores/ui.svelte";
 export const todoCommand: Command = {
   id: "todo",
   prefix: "todo",
-  title: "待办 · Todo",
-  description: "快速记录待办事项",
+  title: "Todo",
+  titleZh: "待办",
+  description: "Quick todos",
+  descriptionZh: "快速记录待办事项",
   icon: "ListTodo",
   run(input) {
     const text = input.trim();

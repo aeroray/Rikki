@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { SearchEngine } from "$lib/commands/settings/engines";
+  import { engineDisplayName, type SearchEngine } from "$lib/commands/settings/engines";
+  import { i18n } from "$lib/i18n";
   import { Check, Globe, Trash2 } from "@lucide/svelte";
 
   let {
@@ -40,9 +41,9 @@
       <Globe class="size-4" strokeWidth={1.5} aria-hidden="true" />
     </span>
     <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-ink">
-      {engine.name}
+      {engineDisplayName(engine)}
       {#if current}
-        <span class="ml-1 font-normal text-ink-subtle">（当前）</span>
+        <span class="ml-1 font-normal text-ink-subtle">{i18n.t("settings.now")}</span>
       {/if}
     </span>
     {#if current}
@@ -53,7 +54,7 @@
     <button
       type="button"
       class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-      aria-label={`删除 ${engine.name}`}
+      aria-label={i18n.t("engine.delete", { name: engine.name })}
       onclick={(event) => {
         event.stopPropagation();
         onremove();

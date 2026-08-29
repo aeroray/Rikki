@@ -1,4 +1,6 @@
 import { rankText } from "$lib/fuzzy";
+import { i18n } from "$lib/i18n";
+import type { Locale } from "$lib/i18n/locale";
 import type { Command, CommandMatch } from "./types";
 
 const commands = new Map<string, Command>();
@@ -15,9 +17,16 @@ export function commandPrefixes(command: Command): string[] {
   return [command.prefix, ...(command.aliases ?? [])];
 }
 
-export function rankCommand(query: string, command: Command): number {
+export function rankCommand(query: string, command: Command, locale: Locale): number {
+  const titles =
+    locale === "zh-CN"
+      ? [command.title, command.titleZh, command.titleZh ? `${command.titleZh} · ${command.title}` : ""]
+      : [command.title];
   return Math.max(
-    ...commandPrefixes(command).map((prefix) => rankText(query, prefix, command.title)),
+    0,
+    ...commandPrefixes(command).flatMap((prefix) =>
+      titles.filter((title): title is string => Boolean(title)).map((title) => rankText(query, prefix, title)),
+    ),
   );
 }
 
@@ -56,7 +65,7 @@ export function suggest(input: string): Command[] {
   return listCommands()
     .map((command) => ({
       command,
-      score: rankCommand(query, command),
+      score: rankCommand(query, command, i18n.locale),
     }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score)

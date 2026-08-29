@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager};
 
 const SETTINGS_FILE: &str = "settings.json";
 const DEFAULT_ENGINE: &str = "bing";
-const SETTINGS_VERSION: u32 = 2;
+const SETTINGS_VERSION: u32 = 3;
 const ENGINE_IDS: &[&str] = &["bing", "google", "baidu", "duckduckgo", "sogou"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +27,8 @@ pub struct Settings {
     pub theme: String,
     #[serde(default)]
     pub hotkey: String,
+    #[serde(default = "default_locale")]
+    pub locale: String,
     #[serde(default)]
     pub custom_search_engines: Vec<CustomSearchEngine>,
     #[serde(default = "default_version")]
@@ -39,6 +41,10 @@ fn default_engine() -> String {
 
 fn default_theme() -> String {
     "dark".into()
+}
+
+fn default_locale() -> String {
+    "system".into()
 }
 
 fn default_version() -> u32 {
@@ -77,6 +83,7 @@ fn default_settings() -> Settings {
         default_search_engine: default_engine(),
         theme: default_theme(),
         hotkey: String::new(),
+        locale: default_locale(),
         custom_search_engines: Vec::new(),
         version: default_version(),
     }
@@ -134,6 +141,9 @@ fn normalize(mut settings: Settings) -> Settings {
     });
     if settings.theme != "light" && settings.theme != "dark" {
         settings.theme = default_theme();
+    }
+    if settings.locale != "system" && settings.locale != "zh-CN" && settings.locale != "en" {
+        settings.locale = default_locale();
     }
     if !is_known_engine(&settings, &settings.default_search_engine) {
         settings.default_search_engine = default_engine();
@@ -199,6 +209,12 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
             }
             settings.hotkey = hotkey.to_string();
         }
+        "locale" | "language" => {
+            if value != "system" && value != "zh-CN" && value != "en" {
+                return Err(format!("unknown locale: {value}"));
+            }
+            settings.locale = value.to_string();
+        }
         other => return Err(format!("unknown setting: {other}")),
     }
     save_settings(app, &settings)?;
@@ -255,8 +271,9 @@ mod tests {
             default_search_engine: "google".into(),
             theme: "dark".into(),
             hotkey: String::new(),
+            locale: "system".into(),
             custom_search_engines: Vec::new(),
-            version: 2,
+            version: 3,
         }
     }
 
@@ -291,6 +308,7 @@ mod tests {
             default_search_engine: "yahoo".into(),
             theme: "neon".into(),
             hotkey: String::new(),
+            locale: "system".into(),
             custom_search_engines: Vec::new(),
             version: 1,
         });
@@ -299,11 +317,25 @@ mod tests {
     }
 
     #[test]
+    fn unknown_locale_normalizes_to_system() {
+        let settings = normalize(Settings {
+            default_search_engine: "bing".into(),
+            theme: "dark".into(),
+            hotkey: String::new(),
+            locale: "fr".into(),
+            custom_search_engines: Vec::new(),
+            version: 2,
+        });
+        assert_eq!(settings.locale, "system");
+    }
+
+    #[test]
     fn custom_default_engine_is_kept() {
         let settings = normalize(Settings {
             default_search_engine: "custom_1".into(),
             theme: "light".into(),
             hotkey: "Control+Space".into(),
+            locale: "en".into(),
             custom_search_engines: vec![CustomSearchEngine {
                 id: "custom_1".into(),
                 name: "GitHub".into(),
@@ -313,6 +345,7 @@ mod tests {
         });
         assert_eq!(settings.default_search_engine, "custom_1");
         assert_eq!(settings.theme, "light");
+        assert_eq!(settings.locale, "en");
     }
 
     #[test]

@@ -4,6 +4,8 @@
   import AppItem from "$lib/components/AppItem.svelte";
   import CommandItem from "$lib/components/CommandItem.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import { engineDisplayName } from "$lib/commands/settings/engines";
+  import { i18n } from "$lib/i18n";
   import { apps } from "$lib/stores/apps.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { ui } from "$lib/stores/ui.svelte";
@@ -34,13 +36,13 @@
     viewportClass="flex flex-col gap-1 px-3 pb-3 pt-1"
     role="listbox"
     tabindex={-1}
-    aria-label="Apps and commands"
+    aria-label={i18n.t("search.list")}
     aria-activedescendant={ui.rootHits[ui.selectedIndex]
       ? `hit-${ui.selectedIndex}`
       : undefined}
   >
     {#if ui.rootHits.length === 0}
-      <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">没有匹配的应用或命令</p>
+      <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">{i18n.t("result.empty")}</p>
     {:else}
       {#each ui.rootHits as hit, index (hit.id)}
         {#if hit.kind === "command"}
@@ -63,7 +65,7 @@
   </ScrollArea>
   {#if fallback}
     <p class="px-4 pb-3 text-[12px] leading-[1.4] text-ink-tertiary">
-      未找到匹配结果，按 Enter 使用{settings.engine.name}搜索
+      {i18n.t("result.fallback", { engine: engineDisplayName(settings.engine) })}
     </p>
   {/if}
 </div>

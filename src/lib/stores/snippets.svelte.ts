@@ -4,6 +4,7 @@ import { expandSnippetContent } from "$lib/commands/snippet/expand";
 import { snippetListQuery } from "$lib/commands/snippet/parse";
 import type { Snippet } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
+import { i18n } from "$lib/i18n";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
@@ -108,7 +109,7 @@ class SnippetStore {
       });
       this.items = [snippet, ...this.items.filter((item) => item.id !== snippet.id)];
       this.selectedIndex = 0;
-      this.flash(`已创建「${snippet.title}」`);
+      this.flash(i18n.t("snippet.created", { title: snippet.title }));
       ui.searchText = "sn ";
       return true;
     } catch {
@@ -133,7 +134,7 @@ class SnippetStore {
         sensitive,
       });
       this.items = this.items.map((item) => (item.id === id ? snippet : item));
-      this.flash(`已更新「${snippet.title}」`);
+      this.flash(i18n.t("snippet.updated", { title: snippet.title }));
       return true;
     } catch {
       return false;
@@ -147,7 +148,7 @@ class SnippetStore {
       await invoke("delete_snippet", { id });
       this.items = this.items.filter((item) => item.id !== id);
       if (this.draft?.id === id) this.closeDraft();
-      this.flash(current ? `已删除「${current.title}」` : "已删除");
+      this.flash(current ? i18n.t("snippet.deleted", { title: current.title }) : i18n.t("snippet.deletedGeneric"));
       return true;
     } catch {
       return false;

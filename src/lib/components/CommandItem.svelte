@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Command } from "$lib/commands/types";
+  import { commandDescription, commandTitle } from "$lib/i18n/command";
+  import { i18n } from "$lib/i18n";
   import { Calculator, Clipboard, FileText, Globe, ListTodo, Lock, LogOut, Moon, Power, RotateCw, Search, Settings, Smile } from "@lucide/svelte";
 
   let { command, selected, onselect, optionId }: { command: Command; selected: boolean; onselect: () => void; optionId?: string } =
@@ -44,8 +46,8 @@
     <Icon class="size-4" strokeWidth={1.5} aria-hidden="true" />
   </span>
   <span class="min-w-0 flex-1">
-    <span class="block truncate text-[14px] font-medium leading-5 text-ink">{command.title}</span>
-    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{command.description}</span>
+    <span class="block truncate text-[14px] font-medium leading-5 text-ink">{commandTitle(command, i18n.locale)}</span>
+    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{commandDescription(command, i18n.locale)}</span>
   </span>
   <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans text-[12px] text-ink-tertiary">
     {command.prefix}

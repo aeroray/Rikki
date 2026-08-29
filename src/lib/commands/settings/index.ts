@@ -8,8 +8,10 @@ export const settingsCommand: Command = {
   id: "settings",
   prefix: "settings",
   aliases: ["设置", "配置", "preferences"],
-  title: "设置 · Settings",
-  description: "默认搜索引擎和其他选项",
+  title: "Settings",
+  titleZh: "设置",
+  description: "Search engine and other options",
+  descriptionZh: "默认搜索引擎和其他选项",
   icon: "Settings",
   run() {
     if (ui.view !== "settings") {

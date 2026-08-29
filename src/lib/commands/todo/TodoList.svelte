@@ -1,5 +1,6 @@
 <script lang="ts">
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import { i18n } from "$lib/i18n";
   import { todos } from "$lib/stores/todos.svelte";
   import { Check, Circle, Trash2 } from "@lucide/svelte";
   import { fly } from "svelte/transition";
@@ -28,14 +29,14 @@
 
 <div class="flex min-h-0 flex-1 flex-col px-3 pb-3">
   <div class="mb-2 flex items-baseline justify-between px-1 text-[12px] leading-[1.4] text-ink-subtle">
-    <span>待办</span>
+    <span>{i18n.t("todo.title")}</span>
     <span class="tabular-nums">
-      {todos.completed}/{todos.total} 已完成
+      {i18n.t("todo.doneCount", { done: todos.completed, total: todos.total })}
     </span>
   </div>
 
   {#if todos.todos.length === 0}
-    <p class="px-1 text-[13px] leading-5 text-ink-tertiary">还没有待办。输入内容后按回车添加。</p>
+    <p class="px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("todo.empty")}</p>
   {:else}
     <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col">
       <ul class="flex flex-col gap-1 pr-1">
@@ -48,7 +49,7 @@
             <button
               type="button"
               class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-              aria-label={todo.done ? "标记为未完成" : "标记为已完成"}
+              aria-label={todo.done ? i18n.t("todo.markUndone") : i18n.t("todo.markDone")}
               aria-pressed={todo.done}
               onclick={() => onToggle(todo.id)}
             >
@@ -68,7 +69,7 @@
             <button
               type="button"
               class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-              aria-label="删除待办"
+              aria-label={i18n.t("todo.delete")}
               onclick={() => onRemove(todo.id)}
             >
               <Trash2 class="size-4" strokeWidth={1.5} aria-hidden="true" />

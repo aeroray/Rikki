@@ -1,22 +1,29 @@
 <script lang="ts">
-  import type { ThemeOption } from "$lib/stores/settings.svelte";
+  import type { LocalePref } from "$lib/i18n/locale";
   import { i18n } from "$lib/i18n";
-  import { Check, Moon, Sun } from "@lucide/svelte";
+  import { Check, Languages, Monitor } from "@lucide/svelte";
 
   let {
-    option,
+    pref,
     selected,
     current,
     onselect,
   }: {
-    option: ThemeOption;
+    pref: LocalePref;
     selected: boolean;
     current: boolean;
     onselect: () => void;
   } = $props();
 
   let row: HTMLButtonElement | undefined = $state();
-  const Icon = $derived(option.id === "light" ? Sun : Moon);
+  const Icon = $derived(pref === "system" ? Monitor : Languages);
+  const name = $derived(
+    pref === "zh-CN"
+      ? i18n.t("settings.language.zh")
+      : pref === "en"
+        ? i18n.t("settings.language.en")
+        : i18n.t("settings.language.system"),
+  );
 
   $effect(() => {
     if (selected) row?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -37,7 +44,7 @@
     <Icon class="size-4" strokeWidth={1.5} aria-hidden="true" />
   </span>
   <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-ink">
-    {option.name}
+    {name}
     {#if current}
       <span class="ml-1 font-normal text-ink-subtle">{i18n.t("settings.now")}</span>
     {/if}

@@ -2,6 +2,19 @@
 
 Entries are newest first.
 
+## 2026-08-29 - UI language follows the system
+Decision:
+Settings persist `locale` as `system` | `zh-CN` | `en` (default system). Any OS `zh*` locale becomes Simplified Chinese; everything else is English. zh-CN command titles stay `中文 · English`; English UI shows the English title only.
+Reason:
+English users cannot use Chinese labels or pinyin; following the OS avoids a first-launch language prompt.
+
+## 2026-08-29 - Command titles are Chinese then English
+Superseded by: 2026-08-29 - UI language follows the system.
+Decision:
+Command titles show Chinese, a middle dot, then the English name (`待办 · Todo`). The empty palette is only the command list; it has no instructional copy.
+Reason:
+Hints overlapped the list, and Chinese users need to see the English prefix without a language setting.
+
 ## 2026-08-29 - Web search prefixes open the browser
 Decision:
 `gg`, `bd`, `bing`, `ddg`, and `sogou` search that engine in the default browser and hide. Unmatched queries still use the one default engine from settings. There is no search history, suggestions, or in-app results.

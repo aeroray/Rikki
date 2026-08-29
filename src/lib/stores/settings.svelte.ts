@@ -3,19 +3,22 @@ import {
   applyTheme,
   defaultHotkey,
   getSearchEngine,
+  engineDisplayName,
   SEARCH_ENGINES,
   type SearchEngine,
   type ThemeId,
 } from "$lib/commands/settings/engines";
 import { eventToHotkey, formatHotkey } from "$lib/commands/settings/hotkey";
+import { i18n } from "$lib/i18n";
+import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import type { AppSettings } from "$lib/commands/types";
 import { ui } from "$lib/stores/ui.svelte";
 
 export type SettingItem = {
-  id: "engine" | "theme" | "hotkey";
+  id: "engine" | "theme" | "hotkey" | "language";
   title: string;
   value: string;
-  icon: "Globe" | "Palette" | "Keyboard";
+  icon: "Globe" | "Palette" | "Keyboard" | "Languages";
 };
 
 export type ThemeOption = {
@@ -28,15 +31,15 @@ export type EngineDraft = {
   url: string;
 };
 
-const THEMES: ThemeOption[] = [
-  { id: "dark", name: "暗色" },
-  { id: "light", name: "亮色" },
-];
+export type LocaleOption = {
+  id: LocalePref;
+};
 
 class SettingsStore {
   engineId = $state("bing");
   theme = $state<ThemeId>("dark");
   hotkey = $state("");
+  localePref = $state<LocalePref>("system");
   customEngines = $state<SearchEngine[]>([]);
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
@@ -50,7 +53,12 @@ class SettingsStore {
     this.ready = this.hydrate();
   }
 
-  readonly themes = THEMES;
+  readonly themes = $derived<ThemeOption[]>([
+    { id: "dark", name: i18n.t("theme.dark") },
+    { id: "light", name: i18n.t("theme.light") },
+  ]);
+
+  readonly locales: LocaleOption[] = [{ id: "system" }, { id: "zh-CN" }, { id: "en" }];
 
   readonly engines = $derived.by((): SearchEngine[] => [
     ...SEARCH_ENGINES,
@@ -61,28 +69,42 @@ class SettingsStore {
 
   readonly hotkeyLabel = $derived(formatHotkey(this.hotkey || defaultHotkey()));
 
-  readonly themeLabel = $derived(this.theme === "light" ? "亮色" : "暗色");
+  readonly themeLabel = $derived(this.theme === "light" ? i18n.t("theme.light") : i18n.t("theme.dark"));
+
+  readonly localeLabel = $derived(this.prefLabel(this.localePref));
 
   readonly listItems = $derived.by((): SettingItem[] => [
     {
       id: "engine",
-      title: "默认搜索引擎",
-      value: this.engine.name,
+      title: i18n.t("settings.engine"),
+      value: engineDisplayName(this.engine),
       icon: "Globe",
     },
     {
       id: "theme",
-      title: "主题",
+      title: i18n.t("settings.theme"),
       value: this.themeLabel,
       icon: "Palette",
     },
     {
       id: "hotkey",
-      title: "快捷键",
+      title: i18n.t("settings.hotkey"),
       value: this.hotkeyLabel,
       icon: "Keyboard",
     },
+    {
+      id: "language",
+      title: i18n.t("settings.language"),
+      value: this.localeLabel,
+      icon: "Languages",
+    },
   ]);
+
+  prefLabel(pref: LocalePref): string {
+    if (pref === "zh-CN") return i18n.t("settings.language.zh");
+    if (pref === "en") return i18n.t("settings.language.en");
+    return i18n.t("settings.language.system");
+  }
 
   clampSelection(count: number) {
     if (this.selectedIndex < 0) this.selectedIndex = 0;
@@ -114,13 +136,26 @@ class SettingsStore {
   }
 
   async setEngine(id: string): Promise<boolean> {
-    return this.patch("defaultSearchEngine", id, `已切换到 ${getSearchEngine(id, this.customEngines).name}`);
+    return this.patch("defaultSearchEngine", id, i18n.t("engine.switched", { name: engineDisplayName(getSearchEngine(id, this.customEngines)) }));
   }
 
   async setTheme(id: ThemeId): Promise<boolean> {
-    const ok = await this.patch("theme", id, `已切换到${id === "light" ? "亮色" : "暗色"}`);
+    const ok = await this.patch("theme", id, i18n.t("theme.switched", { name: id === "light" ? i18n.t("theme.light") : i18n.t("theme.dark") }));
     if (ok) applyTheme(id);
     return ok;
+  }
+
+  async setLocale(id: LocalePref): Promise<boolean> {
+    await this.ready;
+    try {
+      const next = await invoke<AppSettings>("update_setting", { key: "locale", value: id });
+      this.apply(next);
+      this.flash(i18n.t("settings.language.switched", { name: this.prefLabel(id) }));
+      this.scheduleReturn();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async captureHotkey(event: KeyboardEvent): Promise<boolean> {
@@ -136,11 +171,11 @@ class SettingsStore {
       });
       this.apply(next);
       this.recording = false;
-      this.flash(`已设为 ${formatHotkey(shortcut)}`);
+      this.flash(i18n.t("hotkey.set", { value: formatHotkey(shortcut) }));
       this.scheduleReturn();
       return true;
     } catch {
-      this.flash("该快捷键无法注册，可能已被占用");
+      this.flash(i18n.t("hotkey.taken"));
       return false;
     }
   }
@@ -152,7 +187,7 @@ class SettingsStore {
       await invoke("begin_hotkey_capture");
       this.recording = true;
     } catch {
-      this.flash("无法开始录制快捷键");
+      this.flash(i18n.t("hotkey.recordFail"));
     }
   }
 
@@ -177,10 +212,10 @@ class SettingsStore {
       const next = await invoke<AppSettings>("add_custom_engine", { name, url });
       this.apply(next);
       this.closeEngineDraft();
-      this.flash(`已添加「${name}」`);
+      this.flash(i18n.t("engine.added", { name }));
       return true;
     } catch {
-      this.flash("无法添加，URL 需为 http(s) 且包含 %s");
+      this.flash(i18n.t("engine.addFail"));
       return false;
     }
   }
@@ -192,7 +227,7 @@ class SettingsStore {
     try {
       const next = await invoke<AppSettings>("delete_custom_engine", { id });
       this.apply(next);
-      this.flash(`已删除「${current.name}」`);
+      this.flash(i18n.t("engine.removed", { name: current.name }));
       return true;
     } catch {
       return false;
@@ -236,6 +271,7 @@ class SettingsStore {
     this.engineId = next.defaultSearchEngine || "bing";
     this.theme = next.theme === "light" ? "light" : "dark";
     this.hotkey = next.hotkey?.trim() ?? "";
+    this.localePref = parseLocalePref(next.locale);
     this.customEngines = (next.customSearchEngines ?? []).map((engine) => ({
       id: engine.id,
       name: engine.name,
@@ -243,6 +279,18 @@ class SettingsStore {
       custom: true,
     }));
     applyTheme(this.theme);
+    this.syncLocale();
+  }
+
+  private syncLocale() {
+    i18n.locale = resolveLocale(this.localePref);
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = i18n.locale;
+    }
+    void invoke("update_tray_menu", {
+      show: i18n.t("tray.show"),
+      quit: i18n.t("tray.quit"),
+    }).catch(() => {});
   }
 
   private async hydrate() {
@@ -252,8 +300,10 @@ class SettingsStore {
       this.engineId = "bing";
       this.theme = "dark";
       this.hotkey = "";
+      this.localePref = "system";
       this.customEngines = [];
       applyTheme("dark");
+      this.syncLocale();
     }
   }
 }

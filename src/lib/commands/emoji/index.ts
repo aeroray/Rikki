@@ -8,8 +8,10 @@ export const emojiCommand: Command = {
   id: "emoji",
   prefix: "em",
   aliases: ["emoji", "表情"],
-  title: "表情 · Emoji",
-  description: "浏览分类并复制表情",
+  title: "Emoji",
+  titleZh: "表情",
+  description: "Browse and copy emoji",
+  descriptionZh: "浏览分类并复制表情",
   icon: "Smile",
   run() {
     if (ui.view !== "emoji") {

@@ -5,20 +5,23 @@
   import { parseSettingsScreen } from "$lib/commands/settings/parse";
   import SettingItem from "$lib/commands/settings/SettingItem.svelte";
   import ThemeSelector from "$lib/commands/settings/ThemeSelector.svelte";
+  import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
   import {
     openEngineSettings,
     openHotkeySettings,
+    openLanguageSettings,
     openThemeSettings,
     startEngineCreate,
   } from "$lib/commands/settings/actions";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n";
   import { Plus } from "@lucide/svelte";
   import { untrack } from "svelte";
 
   const screen = $derived(parseSettingsScreen(ui.commandRest));
-  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | null>(null);
+  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | "language" | null>(null);
 
   $effect(() => {
     if (ui.view !== "settings") {
@@ -36,12 +39,21 @@
       } else if (next === "theme") {
         const index = settings.themes.findIndex((theme) => theme.id === settings.theme);
         settings.selectedIndex = index >= 0 ? index : 0;
+      } else if (next === "language") {
+        const index = settings.locales.findIndex((option) => option.id === settings.localePref);
+        settings.selectedIndex = index >= 0 ? index : 0;
       } else {
         settings.selectedIndex = 0;
       }
     }
     const count =
-      next === "engine" ? settings.engines.length : next === "theme" ? settings.themes.length : settings.listItems.length;
+      next === "engine"
+        ? settings.engines.length
+        : next === "theme"
+          ? settings.themes.length
+          : next === "language"
+            ? settings.locales.length
+            : settings.listItems.length;
     settings.clampSelection(count);
   });
 
@@ -61,18 +73,20 @@
     <div class="mb-1 flex items-center justify-between px-1">
       <p class="text-[12px] leading-[1.4] text-ink-subtle">
         {#if screen === "engine"}
-          搜索引擎
+          {i18n.t("settings.engine")}
         {:else if screen === "theme"}
-          主题
+          {i18n.t("settings.theme")}
+        {:else if screen === "language"}
+          {i18n.t("settings.language")}
         {:else}
-          设置
+          {i18n.t("settings.title")}
         {/if}
       </p>
       {#if screen === "engine"}
         <button
           type="button"
           class="flex size-8 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-          aria-label="添加自定义引擎"
+          aria-label={i18n.t("settings.addEngine")}
           onclick={() => startEngineCreate()}
         >
           <Plus class="size-4" strokeWidth={1.5} aria-hidden="true" />
@@ -84,7 +98,7 @@
       viewportClass="flex flex-col gap-1"
       role="listbox"
       tabindex={-1}
-      aria-label="Settings"
+      aria-label={i18n.t("settings.title")}
     >
       {#if screen === "engine"}
         {#each settings.engines as engine, index (engine.id)}
@@ -111,6 +125,18 @@
             }}
           />
         {/each}
+      {:else if screen === "language"}
+        {#each settings.locales as option, index (option.id)}
+          <LanguageSelector
+            pref={option.id}
+            selected={index === settings.selectedIndex}
+            current={option.id === settings.localePref}
+            onselect={() => {
+              settings.selectedIndex = index;
+              void settings.setLocale(option.id);
+            }}
+          />
+        {/each}
       {:else}
         {#each settings.listItems as item, index (item.id)}
           <SettingItem
@@ -123,6 +149,7 @@
               if (item.id === "engine") openEngineSettings();
               if (item.id === "theme") openThemeSettings();
               if (item.id === "hotkey") openHotkeySettings();
+              if (item.id === "language") openLanguageSettings();
             }}
           />
         {/each}
@@ -132,11 +159,11 @@
       {#if settings.notice}
         {settings.notice}
       {:else if screen === "engine"}
-        Enter 设为默认 · Ctrl+N 添加 · Delete 删除自定义
-      {:else if screen === "theme"}
-        Enter 确认 · Esc 返回
+        {i18n.t("settings.engineHint")}
+      {:else if screen === "theme" || screen === "language"}
+        {i18n.t("settings.confirm")}
       {:else}
-        Enter 打开
+        {i18n.t("settings.open")}
       {/if}
     </p>
   </div>

@@ -16,7 +16,7 @@ use commands::apps::{get_installed_apps, launch_app, AppIndex};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::settings::{
     add_custom_engine, begin_hotkey_capture, cancel_hotkey_capture, delete_custom_engine,
-    get_settings, update_setting,
+    get_settings, update_setting, update_tray_menu,
 };
 use storage::settings_store;
 use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
@@ -351,7 +351,8 @@ pub fn run() {
             add_custom_engine,
             delete_custom_engine,
             begin_hotkey_capture,
-            cancel_hotkey_capture
+            cancel_hotkey_capture,
+            update_tray_menu
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

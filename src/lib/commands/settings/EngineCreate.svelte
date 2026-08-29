@@ -1,6 +1,7 @@
 <script lang="ts">
   import { settings } from "$lib/stores/settings.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n";
   import { closeSettingsDrill } from "$lib/commands/settings/actions";
 
   const canSave = $derived(
@@ -40,14 +41,14 @@
       void settings.saveEngineDraft();
     }}
   >
-    <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">添加搜索引擎</p>
+    <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("engine.addTitle")}</p>
     <label class="flex items-center rounded-md bg-surface-1 px-3 py-2">
-      <span class="sr-only">名称</span>
+      <span class="sr-only">{i18n.t("engine.name")}</span>
       <input
         bind:this={nameEl}
         bind:value={settings.engineDraft.name}
         class="w-full bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
-        placeholder="名称，如 GitHub"
+        placeholder={i18n.t("engine.namePlaceholder")}
         autocomplete="off"
         spellcheck="false"
         onfocus={() => (ui.focusField = "engine-name")}
@@ -57,7 +58,7 @@
       />
     </label>
     <label class="flex items-center rounded-md bg-surface-1 px-3 py-2">
-      <span class="sr-only">搜索地址</span>
+      <span class="sr-only">{i18n.t("engine.url")}</span>
       <input
         bind:value={settings.engineDraft.url}
         class="w-full bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
@@ -70,9 +71,9 @@
         oncompositionend={() => (composing = false)}
       />
     </label>
-    <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">用 %s 标记关键词位置</p>
+    <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("engine.urlHint")}</p>
     <div class="mt-auto flex items-center justify-between px-1">
-      <p class="text-[12px] leading-[1.4] text-ink-tertiary">Ctrl+Enter 保存 · Esc 取消</p>
+      <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("engine.saveHint")}</p>
       <button
         type="submit"
         class="rounded-md px-2 py-1 text-[12px] leading-[1.4] transition-colors duration-150 ease-out {canSave
@@ -80,7 +81,7 @@
           : 'text-ink-tertiary'}"
         disabled={!canSave}
       >
-        保存
+        {i18n.t("engine.save")}
       </button>
     </div>
   </form>

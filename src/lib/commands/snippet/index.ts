@@ -8,8 +8,10 @@ export const snippetCommand: Command = {
   id: "snippet",
   prefix: "sn",
   aliases: ["snippet"],
-  title: "片段 · Snippets",
-  description: "搜索并复制文本片段",
+  title: "Snippets",
+  titleZh: "片段",
+  description: "Search and copy text snippets",
+  descriptionZh: "搜索并复制文本片段",
   icon: "FileText",
   run(_input) {
     if (ui.view !== "snippet") {

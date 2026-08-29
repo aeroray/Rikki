@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ClipboardEntry } from "$lib/commands/types";
+  import { i18n } from "$lib/i18n";
   import { relativeTime } from "$lib/relativeTime";
   import { imagePreviewSrc } from "$lib/commands/clip/preview";
   import { ui } from "$lib/stores/ui.svelte";
@@ -88,7 +89,7 @@
       if (dimensions) parts.push(dimensions);
       if (size) parts.push(size);
     } else if (url) {
-      parts.push("链接");
+      parts.push(i18n.t("clip.link"));
     }
     parts.push(time);
     return parts.join(" · ");
@@ -105,7 +106,7 @@
     <button
       type="button"
       class="relative size-10 shrink-0 overflow-hidden rounded-[6px] bg-surface-1 outline outline-1 outline-hairline active:scale-[0.96]"
-      aria-label={`预览图片${dims ? ` ${dims}` : ""}`}
+      aria-label={i18n.t("clip.preview", { dims: dims ? ` ${dims}` : "" })}
       onclick={openPreview}
     >
       {#key entry.content}
@@ -135,13 +136,13 @@
   <button
     type="button"
     class="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left active:scale-[0.96]"
-    aria-label={entry.type === "image" ? `粘贴图片${dims ? ` ${dims}` : ""}，${ago}` : undefined}
+    aria-label={entry.type === "image" ? i18n.t("clip.pasteImage", { dims: dims ? ` ${dims}` : "", ago }) : undefined}
     title={[entry.appName, new Date(entry.createdAt).toLocaleString()].filter(Boolean).join(" · ")}
     onclick={onselect}
   >
     {#if entry.type === "image"}
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13px] leading-5 text-ink">图片</span>
+        <span class="block truncate text-[13px] leading-5 text-ink">{i18n.t("clip.image")}</span>
         <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
           {meta}
         </span>
@@ -176,7 +177,7 @@
     class="flex size-10 shrink-0 items-center justify-center rounded-md transition-colors duration-150 ease-out {entry.pinned
       ? 'text-primary'
       : 'text-ink-tertiary hover:text-ink'}"
-    aria-label={entry.pinned ? "取消固定" : "固定"}
+    aria-label={entry.pinned ? i18n.t("clip.unpin") : i18n.t("clip.pin")}
     aria-pressed={entry.pinned}
     onclick={onpin}
   >

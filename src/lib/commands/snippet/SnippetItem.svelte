@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "$lib/commands/types";
+  import { i18n } from "$lib/i18n";
   import { FileText, Pencil, Trash2 } from "@lucide/svelte";
 
   let {
@@ -60,7 +61,7 @@
   <button
     type="button"
     class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-    aria-label={`编辑 ${snippet.title}`}
+    aria-label={i18n.t("snippet.editItem", { title: snippet.title })}
     onclick={(event) => {
       event.stopPropagation();
       onedit();
@@ -71,7 +72,7 @@
   <button
     type="button"
     class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-    aria-label={`删除 ${snippet.title}`}
+    aria-label={i18n.t("snippet.deleteItem", { title: snippet.title })}
     onclick={(event) => {
       event.stopPropagation();
       onremove();

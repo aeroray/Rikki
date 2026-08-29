@@ -1,6 +1,7 @@
 <script lang="ts">
   import { CALC_EXAMPLES, evaluateExpression } from "$lib/commands/calc/evaluate";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import { i18n } from "$lib/i18n";
   import { calcHistory } from "$lib/stores/calcHistory.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Trash2 } from "@lucide/svelte";
@@ -32,7 +33,7 @@
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-1">
-  <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">计算器</p>
+  <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("calc.title")}</p>
 
   {#if outcome.ok}
     <p
@@ -40,24 +41,24 @@
     >
       {outcome.display}
     </p>
-    <p class="mt-2 px-1 text-[13px] leading-5 text-ink-tertiary">回车复制结果并记入历史</p>
+    <p class="mt-2 px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("calc.copyHint")}</p>
   {:else if outcome.reason === "empty" || outcome.reason === "pending"}
-    <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">输入表达式后回车保存</p>
+    <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.emptyHint")}</p>
     <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
       {CALC_EXAMPLES.join("  ·  ")}
     </p>
   {:else}
-    <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">无法计算</p>
+    <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.error")}</p>
   {/if}
 
   <div class="mt-4 flex min-h-0 flex-1 flex-col">
     <div class="mb-2 flex items-baseline justify-between px-1 text-[12px] leading-[1.4] text-ink-subtle">
-      <span>历史</span>
+      <span>{i18n.t("calc.history")}</span>
       <span class="tabular-nums">{calcHistory.entries.length}</span>
     </div>
 
     {#if calcHistory.entries.length === 0}
-      <p class="px-1 text-[13px] leading-5 text-ink-tertiary">还没有记录。算出结果后按回车保存。</p>
+      <p class="px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("calc.historyEmpty")}</p>
     {:else}
       <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col">
         <ul class="flex flex-col gap-1 pr-1">
@@ -82,7 +83,7 @@
               <button
                 type="button"
                 class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
-                aria-label="删除这条记录"
+                aria-label={i18n.t("calc.delete")}
                 onclick={() => remove(entry.id)}
               >
                 <Trash2 class="size-4" strokeWidth={1.5} aria-hidden="true" />

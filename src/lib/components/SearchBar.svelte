@@ -5,6 +5,7 @@
   import { settings } from "$lib/stores/settings.svelte";
   import { emojis } from "$lib/stores/emojis.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n";
   import { Search } from "@lucide/svelte";
   import { activateCommand } from "$lib/commands/activate";
   import { canFallbackSearch, runFallbackSearch } from "$lib/commands/fallback";
@@ -201,7 +202,9 @@
           ? settings.engines.length
           : screen === "theme"
             ? settings.themes.length
-            : settings.listItems.length;
+            : screen === "language"
+              ? settings.locales.length
+              : settings.listItems.length;
       if (event.key === "ArrowDown" && count > 0) {
         event.preventDefault();
         settings.selectedIndex = Math.min(count - 1, settings.selectedIndex + 1);
@@ -276,12 +279,12 @@
 
 <label class="search-glow m-3 flex items-center gap-3 rounded-md bg-surface-1 px-3 py-2.5">
   <Search class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
-  <span class="sr-only">Search commands</span>
+  <span class="sr-only">{i18n.t("search.placeholder")}</span>
   <input
     bind:this={inputEl}
     bind:value={ui.searchText}
     class="w-full bg-transparent text-[16px] leading-6 tracking-[-0.05px] text-ink outline-none placeholder:text-ink-tertiary"
-    placeholder="Search apps or type a command…"
+    placeholder={i18n.t("search.placeholder")}
     autocomplete="off"
     spellcheck="false"
     aria-autocomplete="list"

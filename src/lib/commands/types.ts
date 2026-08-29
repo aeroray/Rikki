@@ -2,7 +2,10 @@ export interface Command {
   id: string;
   prefix: string;
   title: string;
+  /** Chinese label shown as `中文 · {title}` when the UI language is zh-CN. */
+  titleZh?: string;
   description: string;
+  descriptionZh?: string;
   icon?: string;
   /** Extra prefixes that activate the same command, e.g. `snippet` for `sn`. */
   aliases?: string[];
@@ -37,6 +40,7 @@ export interface AppSettings {
   defaultSearchEngine: string;
   theme: ThemeId;
   hotkey: string;
+  locale: string;
   customSearchEngines: CustomSearchEngine[];
   version: number;
 }

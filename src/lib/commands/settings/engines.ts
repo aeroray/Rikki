@@ -1,4 +1,8 @@
-export type ThemeId = "dark" | "light";
+import type { ThemeId } from "$lib/commands/types";
+import { i18n } from "$lib/i18n";
+import type { MessageKey } from "$lib/i18n/zh-CN";
+
+export type { ThemeId };
 
 export type SearchEngine = {
   id: string;
@@ -27,6 +31,12 @@ export function getSearchEngine(id: string, custom: SearchEngine[] = []): Search
     custom.find((engine) => engine.id === id) ??
     SEARCH_ENGINES[0]!
   );
+}
+
+export function engineDisplayName(engine: SearchEngine): string {
+  if (engine.custom) return engine.name;
+  const key = `engines.${engine.id}` as MessageKey;
+  return i18n.t(key);
 }
 
 export function searchUrl(engine: SearchEngine, query: string): string {

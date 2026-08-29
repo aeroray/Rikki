@@ -22,7 +22,7 @@ export function handleEmojiEnter(): void {
   const screen = parseEmojiScreen(ui.commandRest);
   if (screen.type === "categories") {
     const category = emojis.categories[emojis.selectedIndex];
-    if (category) openEmojiCategory(category.name);
+    if (category) openEmojiCategory(category.id);
     return;
   }
   const item = emojis.visible(ui.commandRest)[emojis.selectedIndex];

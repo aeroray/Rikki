@@ -1,6 +1,7 @@
 import { writeText } from "tauri-plugin-clipboard-x-api";
 import { emojiCategories, emojisInCategory, searchEmojis } from "$lib/commands/emoji/data";
 import { parseEmojiScreen } from "$lib/commands/emoji/parse";
+import { i18n } from "$lib/i18n";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
@@ -41,7 +42,7 @@ class EmojiStore {
         clipboard.suppressNextCapture(false);
         throw err;
       }
-      this.flash(`已复制 ${native}`);
+      this.flash(i18n.t("emoji.copied", { glyph: native }));
       const nonce = ui.showNonce;
       if (this.hideTimer) clearTimeout(this.hideTimer);
       this.hideTimer = setTimeout(() => {

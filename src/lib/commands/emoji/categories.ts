@@ -1,4 +1,7 @@
 import type { EmojiCategory, EmojiCategoryId } from "$lib/commands/emoji/types";
+import { i18n } from "$lib/i18n";
+import { en } from "$lib/i18n/en";
+import { zhCN, type MessageKey } from "$lib/i18n/zh-CN";
 
 export const EMOJI_GRID_COLS = 12;
 
@@ -13,13 +16,15 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = [
   { id: "flags", name: "旗帜", icon: "🏁" },
 ];
 
-export const categoryNames: Record<EmojiCategoryId, string> = {
-  people: "笑脸与人物",
-  nature: "动物与自然",
-  foods: "食物与饮品",
-  activity: "活动与运动",
-  places: "旅行与地点",
-  objects: "物品",
-  symbols: "符号",
-  flags: "旗帜",
-};
+export function emojiCategoryKey(id: EmojiCategoryId): MessageKey {
+  return `emoji.category.${id}` as MessageKey;
+}
+
+export function emojiCategoryLabel(id: EmojiCategoryId): string {
+  return i18n.t(emojiCategoryKey(id));
+}
+
+export function categoryMatchNames(id: EmojiCategoryId): string[] {
+  const key = emojiCategoryKey(id);
+  return [id, zhCN[key], en[key]];
+}

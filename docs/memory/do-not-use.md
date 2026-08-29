@@ -2,6 +2,12 @@
 
 Tombstones are newest first.
 
+## Tombstone: extra UI locales and i18n libraries
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 is 简体中文 and English via a small catalog; extra locales and a translation library add surface without demand. Date: 2026-08-29.
+
+## Tombstone: Chinese in English command titles
+Do not show Chinese in command titles when the UI language is English. Reason: English users cannot read Chinese or pinyin. Date: 2026-08-29.
+
 ## Tombstone: web search history, suggestions, and in-app results
 Do not reintroduce unless the user explicitly reverses this. Reason: prefix search only opens the browser; history and results stay there. Date: 2026-08-29.
 

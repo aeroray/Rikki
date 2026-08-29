@@ -1,6 +1,7 @@
 <script lang="ts">
   import ClipItem from "$lib/commands/clip/ClipItem.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import { i18n } from "$lib/i18n";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { onMount } from "svelte";
@@ -29,14 +30,14 @@
 <div class="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-1">
   {#if items.length === 0}
     <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">
-      {ui.commandRest.trim() ? "没有匹配的剪贴板记录" : "复制文本或图片后会出现在这里"}
+      {ui.commandRest.trim() ? i18n.t("clip.noMatch") : i18n.t("clip.empty")}
     </p>
   {:else}
     <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col gap-3">
       {#if pinned.length > 0}
         <section>
           <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">
-            已固定 <span class="tabular-nums">{pinned.length}</span>
+            {i18n.t("clip.pinned")} <span class="tabular-nums">{pinned.length}</span>
           </p>
           <ul class="flex flex-col gap-1">
             {#each pinned as entry, index (entry.id)}
@@ -57,7 +58,7 @@
       {#if recent.length > 0}
         <section>
           <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">
-            最近 <span class="tabular-nums">{recent.length}</span>
+            {i18n.t("clip.recent")} <span class="tabular-nums">{recent.length}</span>
           </p>
           <ul class="flex flex-col gap-1">
             {#each recent as entry, index (entry.id)}
@@ -76,7 +77,7 @@
       {/if}
     </ScrollArea>
     <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
-      {items.length} 条 · 回车粘贴 · Tab 预览 · Delete 删除 · Ctrl+P 固定
+      {i18n.t("clip.footer", { count: items.length })}
     </p>
   {/if}
 </div>

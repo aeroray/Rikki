@@ -3,17 +3,22 @@ import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export function openEngineSettings(): void {
-  ui.searchText = "settings 搜索引擎";
+  ui.searchText = "settings engine";
   ui.focusField = "search";
 }
 
 export function openThemeSettings(): void {
-  ui.searchText = "settings 主题";
+  ui.searchText = "settings theme";
   ui.focusField = "search";
 }
 
 export function openHotkeySettings(): void {
-  ui.searchText = "settings 快捷键";
+  ui.searchText = "settings hotkey";
+  ui.focusField = "search";
+}
+
+export function openLanguageSettings(): void {
+  ui.searchText = "settings language";
   ui.focusField = "search";
 }
 
@@ -61,9 +66,15 @@ export async function handleSettingsEnter(): Promise<void> {
     return;
   }
   if (screen === "hotkey") return;
+  if (screen === "language") {
+    const option = settings.locales[settings.selectedIndex];
+    if (option) await settings.setLocale(option.id);
+    return;
+  }
 
   const item = settings.listItems[settings.selectedIndex];
   if (item?.id === "engine") openEngineSettings();
   if (item?.id === "theme") openThemeSettings();
   if (item?.id === "hotkey") openHotkeySettings();
+  if (item?.id === "language") openLanguageSettings();
 }

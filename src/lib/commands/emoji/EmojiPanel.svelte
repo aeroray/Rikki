@@ -1,8 +1,10 @@
 <script lang="ts">
   import { openEmojiCategory } from "$lib/commands/emoji/actions";
   import EmojiGrid from "$lib/commands/emoji/EmojiGrid.svelte";
+  import { emojiCategoryLabel } from "$lib/commands/emoji/categories";
   import { parseEmojiScreen } from "$lib/commands/emoji/parse";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import { i18n } from "$lib/i18n";
   import { emojis } from "$lib/stores/emojis.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { Smile } from "@lucide/svelte";
@@ -34,13 +36,13 @@
 
 <div class="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-1">
   {#if screen.type === "categories"}
-    <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">分类</p>
+    <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("emoji.categories")}</p>
     <ScrollArea
       class="min-h-0 flex-1"
       viewportClass="flex flex-col gap-1"
       role="listbox"
       tabindex={-1}
-      aria-label="Emoji categories"
+      aria-label={i18n.t("emoji.categories")}
     >
       {#each emojis.categories as category, index (category.id)}
         <button
@@ -51,12 +53,12 @@
             ? 'border-primary-focus/50 bg-surface-2'
             : 'border-transparent hover:bg-surface-2/70'}"
           use:scrollWhen={index === emojis.selectedIndex}
-          onclick={() => openEmojiCategory(category.name)}
+          onclick={() => openEmojiCategory(category.id)}
         >
           <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-1 text-[20px] leading-none">
             {category.icon}
           </span>
-          <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-ink">{category.name}</span>
+          <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-ink">{emojiCategoryLabel(category.id)}</span>
           <span class="tabular-nums text-[12px] leading-[1.4] text-ink-tertiary">{category.emojis.length}</span>
         </button>
       {/each}
@@ -66,12 +68,12 @@
       <span class="flex size-10 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
         <Smile class="size-4" strokeWidth={1.5} aria-hidden="true" />
       </span>
-      <p class="mt-3 text-[14px] font-medium leading-5 text-ink">没有匹配的表情</p>
-      <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">试试英文关键词，比如 smile 或 rocket</p>
+      <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("emoji.emptyTitle")}</p>
+      <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">{i18n.t("emoji.emptyBody")}</p>
     </div>
   {:else}
     <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">
-      {screen.type === "category" ? screen.category.name : "搜索结果"}
+      {screen.type === "category" ? emojiCategoryLabel(screen.category.id) : i18n.t("emoji.results")}
       <span class="tabular-nums">{items.length}</span>
     </p>
     <ScrollArea class="min-h-0 flex-1" viewportClass="p-0.5 pb-1" aria-label="Emoji grid">
@@ -83,11 +85,11 @@
     {#if emojis.notice}
       {emojis.notice}
     {:else if screen.type === "categories"}
-      Enter 打开 · Esc 关闭
+      {i18n.t("emoji.open")}
     {:else if items.length === 0}
-      Esc 返回分类
+      {i18n.t("emoji.back")}
     {:else}
-      Enter 复制 · Esc 返回
+      {i18n.t("emoji.copyHint")}
     {/if}
   </p>
 </div>

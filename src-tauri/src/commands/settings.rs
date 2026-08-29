@@ -35,3 +35,16 @@ pub fn cancel_hotkey_capture(app: AppHandle) -> Result<(), String> {
     crate::restore_hotkey_capture(&app);
     Ok(())
 }
+
+#[tauri::command]
+pub fn update_tray_menu(app: AppHandle, show: String, quit: String) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        crate::tray::set_labels(&app, &show, &quit)
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (app, show, quit);
+        Ok(())
+    }
+}

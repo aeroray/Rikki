@@ -5,11 +5,11 @@ import type { Command } from "$lib/commands/types";
 import { ui } from "$lib/stores/ui.svelte";
 
 const WEB_SEARCH = [
-  { prefix: "gg", engineId: "google", title: "谷歌 · Google", description: "使用 Google 搜索" },
-  { prefix: "bd", engineId: "baidu", title: "百度 · Baidu", description: "使用百度搜索" },
-  { prefix: "bing", engineId: "bing", title: "必应 · Bing", description: "使用必应搜索" },
-  { prefix: "ddg", engineId: "duckduckgo", title: "DuckDuckGo", description: "使用 DuckDuckGo 搜索" },
-  { prefix: "sogou", engineId: "sogou", title: "搜狗 · Sogou", description: "使用搜狗搜索" },
+  { prefix: "gg", engineId: "google", title: "Google", titleZh: "谷歌", description: "Search with Google", descriptionZh: "使用 Google 搜索" },
+  { prefix: "bd", engineId: "baidu", title: "Baidu", titleZh: "百度", description: "Search with Baidu", descriptionZh: "使用百度搜索" },
+  { prefix: "bing", engineId: "bing", title: "Bing", titleZh: "必应", description: "Search with Bing", descriptionZh: "使用必应搜索" },
+  { prefix: "ddg", engineId: "duckduckgo", title: "DuckDuckGo", titleZh: undefined, description: "Search with DuckDuckGo", descriptionZh: "使用 DuckDuckGo 搜索" },
+  { prefix: "sogou", engineId: "sogou", title: "Sogou", titleZh: "搜狗", description: "Search with Sogou", descriptionZh: "使用搜狗搜索" },
 ] as const;
 
 for (const item of WEB_SEARCH) {
@@ -18,7 +18,9 @@ for (const item of WEB_SEARCH) {
     id: `web-${item.prefix}`,
     prefix: item.prefix,
     title: item.title,
+    titleZh: item.titleZh || undefined,
     description: item.description,
+    descriptionZh: item.descriptionZh,
     icon: "Globe",
     run(input) {
       const query = input.trim();

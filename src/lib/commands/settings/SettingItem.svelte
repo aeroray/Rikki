@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Globe, Keyboard, Palette } from "@lucide/svelte";
+  import { i18n } from "$lib/i18n";
+  import { Globe, Keyboard, Languages, Palette } from "@lucide/svelte";
 
   let {
     title,
@@ -10,7 +11,7 @@
   }: {
     title: string;
     value: string;
-    icon: "Globe" | "Palette" | "Keyboard";
+    icon: "Globe" | "Palette" | "Keyboard" | "Languages";
     selected: boolean;
     onselect: () => void;
   } = $props();
@@ -19,6 +20,7 @@
     Globe,
     Palette,
     Keyboard,
+    Languages,
   };
   const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();
@@ -43,6 +45,6 @@
   </span>
   <span class="min-w-0 flex-1">
     <span class="block truncate text-[14px] font-medium leading-5 text-ink">{title}</span>
-    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">当前: {value}</span>
+    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("settings.current", { value })}</span>
   </span>
 </button>

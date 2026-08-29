@@ -7,8 +7,10 @@ import { evaluateExpression } from "./evaluate";
 export const calcCommand: Command = {
   id: "calc",
   prefix: "calc",
-  title: "计算器 · Calculator",
-  description: "计算表达式",
+  title: "Calculator",
+  titleZh: "计算器",
+  description: "Evaluate expressions",
+  descriptionZh: "计算表达式",
   icon: "Calculator",
   run(input) {
     const expr = input.trim();

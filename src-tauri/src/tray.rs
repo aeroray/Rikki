@@ -38,6 +38,23 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+pub fn set_labels(app: &AppHandle, show_label: &str, quit_label: &str) -> Result<(), String> {
+    let tray = app
+        .tray_by_id("main")
+        .ok_or_else(|| "tray icon missing".to_string())?;
+    let show = MenuItem::with_id(app, "tray-show", show_label, true, None::<&str>)
+        .map_err(|err| format!("tray show item: {err}"))?;
+    let quit = MenuItem::with_id(app, "tray-quit", quit_label, true, None::<&str>)
+        .map_err(|err| format!("tray quit item: {err}"))?;
+    let separator =
+        PredefinedMenuItem::separator(app).map_err(|err| format!("tray separator: {err}"))?;
+    let menu = Menu::with_items(app, &[&show, &separator, &quit])
+        .map_err(|err| format!("tray menu: {err}"))?;
+    tray.set_menu(Some(menu))
+        .map_err(|err| format!("set tray menu: {err}"))?;
+    Ok(())
+}
+
 fn tooltip() -> &'static str {
     #[cfg(target_os = "macos")]
     {

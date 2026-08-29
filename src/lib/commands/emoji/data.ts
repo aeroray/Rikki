@@ -1,6 +1,6 @@
 import data from "@emoji-mart/data";
 import type { EmojiMartData } from "@emoji-mart/data";
-import { EMOJI_CATEGORIES } from "$lib/commands/emoji/categories";
+import { categoryMatchNames, EMOJI_CATEGORIES } from "$lib/commands/emoji/categories";
 import type { EmojiCategory, EmojiItem } from "$lib/commands/emoji/types";
 
 const mart = data as EmojiMartData;
@@ -34,7 +34,9 @@ export function findCategory(query: string): EmojiCategory | null {
   const raw = query.trim();
   if (!raw) return null;
   const q = raw.toLowerCase();
-  const exact = emojiCategories.find((category) => category.id === q || category.name === raw);
+  const exact = emojiCategories.find((category) =>
+    categoryMatchNames(category.id).some((name) => name.toLowerCase() === q),
+  );
   if (exact) return exact;
   if (raw.length < 2) return null;
   const prefixed = emojiCategories.filter((category) => category.name.startsWith(raw));

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n } from "$lib/i18n";
   import { scale } from "svelte/transition";
 
   let {
@@ -18,7 +19,7 @@
   class="absolute inset-0 z-20 flex items-center justify-center"
   role="dialog"
   aria-modal="true"
-  aria-label="图片预览"
+  aria-label={i18n.t("clip.previewTitle")}
   tabindex="-1"
   in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.96 }}
   out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.96 }}
@@ -26,12 +27,12 @@
   <button
     type="button"
     class="absolute inset-0 bg-black/55 backdrop-blur-xl"
-    aria-label="关闭预览"
+    aria-label={i18n.t("clip.closePreview")}
     onclick={onclose}
   ></button>
   <img
     {src}
-    alt="剪贴板图片预览"
+    alt={i18n.t("clip.previewAlt")}
     draggable="false"
     class="relative z-10 max-h-[calc(100%-40px)] max-w-[calc(100%-40px)] object-contain outline outline-1 outline-hairline"
   />

@@ -21,29 +21,63 @@ function action(
 
 const commands: Command[] = [
   action(
-    { id: "lock", prefix: "lock", title: "锁屏 · Lock", description: "锁定当前会话", icon: "Lock" },
+    {
+      id: "lock",
+      prefix: "lock",
+      title: "Lock",
+      titleZh: "锁屏",
+      description: "Lock this session",
+      descriptionZh: "锁定当前会话",
+      icon: "Lock",
+    },
     () => invoke("lock_screen"),
   ),
   action(
-    { id: "sleep", prefix: "sleep", title: "休眠 · Sleep", description: "将电脑置于睡眠状态", icon: "Moon" },
+    {
+      id: "sleep",
+      prefix: "sleep",
+      title: "Sleep",
+      titleZh: "休眠",
+      description: "Put the computer to sleep",
+      descriptionZh: "将电脑置于睡眠状态",
+      icon: "Moon",
+    },
     () => sleep(),
   ),
   action(
     {
       id: "shutdown",
       prefix: "shutdown",
-      title: "关机 · Shutdown",
-      description: "关闭电脑",
+      title: "Shutdown",
+      titleZh: "关机",
+      description: "Shut down the computer",
+      descriptionZh: "关闭电脑",
       icon: "Power",
     },
     () => shutdown(),
   ),
   action(
-    { id: "reboot", prefix: "reboot", title: "重启 · Reboot", description: "重新启动电脑", icon: "RotateCw" },
+    {
+      id: "reboot",
+      prefix: "reboot",
+      title: "Reboot",
+      titleZh: "重启",
+      description: "Restart the computer",
+      descriptionZh: "重新启动电脑",
+      icon: "RotateCw",
+    },
     () => reboot(),
   ),
   action(
-    { id: "logout", prefix: "logout", title: "注销 · Logout", description: "注销当前用户", icon: "LogOut" },
+    {
+      id: "logout",
+      prefix: "logout",
+      title: "Logout",
+      titleZh: "注销",
+      description: "Sign out of this account",
+      descriptionZh: "注销当前用户",
+      icon: "LogOut",
+    },
     () => logout(),
   ),
 ];

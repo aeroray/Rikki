@@ -1,6 +1,7 @@
 <script lang="ts">
   import { snippets } from "$lib/stores/snippets.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n";
   import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
   import { Check } from "@lucide/svelte";
 
@@ -41,15 +42,15 @@
     }}
   >
     <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">
-      {snippets.draft.id ? "编辑片段" : "新建片段"}
+      {snippets.draft.id ? i18n.t("snippet.edit") : i18n.t("snippet.create")}
     </p>
     <label class="flex items-center rounded-md bg-surface-1 px-3 py-2">
-      <span class="sr-only">标题</span>
+      <span class="sr-only">{i18n.t("snippet.title")}</span>
       <input
         bind:this={titleEl}
         bind:value={snippets.draft.title}
         class="w-full bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
-        placeholder="标题"
+        placeholder={i18n.t("snippet.title")}
         autocomplete="off"
         spellcheck="false"
         onfocus={() => (ui.focusField = "snippet-title")}
@@ -59,11 +60,11 @@
       />
     </label>
     <label class="flex items-center rounded-md bg-surface-1 px-3 py-2">
-      <span class="sr-only">关键字</span>
+      <span class="sr-only">{i18n.t("snippet.keyword")}</span>
       <input
         bind:value={snippets.draft.keyword}
         class="w-full bg-transparent font-sans text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
-        placeholder="关键字，如 addr"
+        placeholder={i18n.t("snippet.keywordPlaceholder")}
         autocomplete="off"
         spellcheck="false"
         onfocus={() => (ui.focusField = "snippet-keyword")}
@@ -73,11 +74,11 @@
       />
     </label>
     <label class="flex min-h-0 flex-1 flex-col rounded-md bg-surface-1 px-3 py-2">
-      <span class="sr-only">内容</span>
+      <span class="sr-only">{i18n.t("snippet.content")}</span>
       <textarea
         bind:value={snippets.draft.content}
         class="min-h-[5.5rem] flex-1 resize-none bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
-        placeholder={'片段内容，可用 {{date}} {{time}} {{clipboard}}'}
+        placeholder={i18n.t("snippet.contentPlaceholder")}
         spellcheck="false"
         onfocus={() => (ui.focusField = "snippet-content")}
         onkeydown={onKeydown}
@@ -101,11 +102,11 @@
           <Check class="size-3 text-primary" strokeWidth={2} />
         {/if}
       </span>
-      <span>敏感内容</span>
-      <span class="text-[12px] leading-[1.4] text-ink-tertiary">列表中显示 ******</span>
+      <span>{i18n.t("snippet.sensitive")}</span>
+      <span class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("snippet.sensitiveHint")}</span>
     </button>
     <div class="flex items-center justify-between px-1">
-      <p class="text-[12px] leading-[1.4] text-ink-tertiary">Ctrl+Enter 保存 · Esc 取消</p>
+      <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("snippet.saveHint")}</p>
       <button
         type="submit"
         class="rounded-md px-2 py-1 text-[12px] leading-[1.4] transition-colors duration-150 ease-out {canSave
@@ -113,7 +114,7 @@
           : 'text-ink-tertiary'}"
         disabled={!canSave}
       >
-        保存
+        {i18n.t("snippet.save")}
       </button>
     </div>
   </form>

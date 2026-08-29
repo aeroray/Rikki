@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { InstalledApp } from "$lib/commands/types";
+  import { i18n } from "$lib/i18n";
   import { convertFileSrc } from "@tauri-apps/api/core";
   import { AppWindow } from "@lucide/svelte";
 
@@ -68,6 +69,6 @@
   </span>
   <span class="min-w-0 flex-1">
     <span class="block truncate text-[14px] font-medium leading-5 text-ink">{app.name}</span>
-    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">应用</span>
+    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("app.kind")}</span>
   </span>
 </button>

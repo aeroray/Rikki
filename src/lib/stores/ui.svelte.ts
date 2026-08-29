@@ -1,5 +1,6 @@
 import { listCommands, match, rankCommand } from "$lib/commands/registry";
 import type { RootHit } from "$lib/commands/types";
+import { i18n } from "$lib/i18n";
 import { apps } from "$lib/stores/apps.svelte";
 import { requestHidePalette } from "$lib/window";
 
@@ -37,7 +38,7 @@ class UiStore {
       .map((command) => ({
         kind: "command" as const,
         id: `command:${command.id}`,
-        score: rankCommand(query, command),
+        score: rankCommand(query, command, i18n.locale),
         command,
       }))
       .filter((hit) => hit.score > 0);
@@ -59,7 +60,7 @@ class UiStore {
         kind: "command",
         id,
         score: Number.POSITIVE_INFINITY,
-        command: { ...matched, description: `搜索「${rest}」` },
+        command: { ...matched, description: i18n.t("search.query", { query: rest }), descriptionZh: undefined },
       };
       if (existing >= 0) hits.splice(existing, 1);
       hits.unshift(pinned);
