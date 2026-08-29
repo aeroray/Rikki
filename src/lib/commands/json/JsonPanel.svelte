@@ -66,7 +66,7 @@
       {inspected.ok ? i18n.t("json.valid") : inspected.empty ? i18n.t("json.editing") : i18n.t("json.invalid")}
     </p>
     {#if !inspected.ok && !inspected.empty}
-      <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+      <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
         {i18n.t("json.errorAt", { line: inspected.error.line, column: inspected.error.column })}
       </p>
       <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{inspected.error.message}</p>
@@ -81,7 +81,7 @@
       onkeydown={onEditorKeydown}
       onfocus={() => (ui.focusField = "json-editor")}
     ></textarea>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("json.editHint")}</p>
+    <p class="palette-hint">{i18n.t("json.editHint")}</p>
   {:else if inspected.ok}
     <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("json.valid")}</p>
     <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
@@ -97,13 +97,13 @@
         <pre class="json-view m-0 whitespace-pre-wrap break-all">{@html html}</pre>
       </button>
     </ScrollArea>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("json.copyHint")}</p>
+    <p class="palette-hint">{i18n.t("json.copyHint")}</p>
   {:else if inspected.empty}
     <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("json.emptyHint")}</p>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("json.emptyAction")}</p>
+    <p class="palette-hint">{i18n.t("json.emptyAction")}</p>
   {:else}
     <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("json.invalid")}</p>
-    <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+    <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
       {i18n.t("json.errorAt", { line: inspected.error.line, column: inspected.error.column })}
     </p>
     <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{inspected.error.message}</p>
@@ -131,7 +131,7 @@
         {/if}
       </button>
     </ScrollArea>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("json.invalidHint")}</p>
+    <p class="palette-hint">{i18n.t("json.invalidHint")}</p>
   {/if}
 </div>
 

@@ -33,7 +33,7 @@
           <li>
             <button
               type="button"
-              class="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2/70 active:scale-[0.96]"
+              class="pressable flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left hover:bg-surface-2/70 active:scale-[0.96]"
               onclick={() => void copyColorValue(row.value)}
             >
               <span class="w-12 shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{row.label}</span>
@@ -43,7 +43,7 @@
           </li>
         {/each}
       </ul>
-      <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("color.copyHint")}</p>
+      <p class="palette-hint">{i18n.t("color.copyHint")}</p>
     {:else if query}
       <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.invalid")}</p>
     {:else}
@@ -60,18 +60,18 @@
             <li>
               <button
                 type="button"
-                class="flex w-[4.5rem] flex-col items-center gap-1 rounded-md p-1 text-left transition-colors duration-150 ease-out hover:bg-surface-2/70 active:scale-[0.96]"
+                class="pressable flex w-[4.5rem] flex-col items-center gap-1 rounded-md p-1 text-left hover:bg-surface-2/70 active:scale-[0.96]"
                 aria-label={i18n.t("color.useRecent", { hex: color.hex })}
                 onclick={() => applyRecentColor(color.hex)}
               >
                 <span
-                  class="relative size-8 overflow-hidden rounded-[6px] outline outline-1 outline-hairline"
+                  class="relative size-8 overflow-hidden rounded-md media-outline"
                   class:color-check={color.rgba.a < 1 - 0.5 / 255}
                   aria-hidden="true"
                 >
                   <span class="absolute inset-0" style="background-color: {color.rgbaCss}"></span>
                 </span>
-                <span class="w-full truncate text-center text-[11px] leading-[1.3] text-ink-tertiary">
+                <span class="w-full truncate text-center text-[11px] leading-[1.3] text-ink-tertiary tabular-nums">
                   {color.hex}
                 </span>
               </button>

@@ -76,7 +76,7 @@
       <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("engine.saveHint")}</p>
       <button
         type="submit"
-        class="rounded-md px-2 py-1 text-[12px] leading-[1.4] transition-colors duration-150 ease-out {canSave
+        class="pressable flex h-10 items-center rounded-md px-2 text-[12px] leading-[1.4] {canSave
           ? 'text-primary hover:text-primary-hover'
           : 'text-ink-tertiary'}"
         disabled={!canSave}

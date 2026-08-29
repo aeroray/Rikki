@@ -50,6 +50,6 @@
     {/if}
   </span>
   {#if current}
-    <Check class="size-4 shrink-0 text-primary" strokeWidth={2} aria-hidden="true" />
+    <Check class="size-4 shrink-0 text-primary" strokeWidth={2} fill="currentColor" aria-hidden="true" />
   {/if}
 </button>

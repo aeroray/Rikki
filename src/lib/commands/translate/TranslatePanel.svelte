@@ -77,7 +77,7 @@
       </p>
       <button
         type="button"
-        class="mt-4 flex h-10 items-center rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink transition-colors duration-150 ease-out hover:bg-surface-2 active:scale-[0.96]"
+        class="pressable mt-4 flex h-10 items-center rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
         onclick={() => openTranslateSettings()}
       >
         {i18n.t("translate.setupCta")}
@@ -101,7 +101,7 @@
       {#if translate.error === "not_configured"}
         <button
           type="button"
-          class="mt-4 flex h-10 items-center rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink transition-colors duration-150 ease-out hover:bg-surface-2 active:scale-[0.96]"
+          class="pressable mt-4 flex h-10 items-center rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
           onclick={() => openTranslateSettings()}
         >
           {i18n.t("translate.setupCta")}
@@ -199,7 +199,7 @@
     </p>
   {/if}
 
-  <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+  <p class="palette-hint">
     {#if !configured}
       {i18n.t("translate.setupCta")}
     {:else if translate.result && translate.wordMode}

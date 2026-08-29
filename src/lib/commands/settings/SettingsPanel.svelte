@@ -16,9 +16,11 @@
     openThemeSettings,
     openTranslateSettings,
     startEngineCreate,
+    startClipCleanup,
   } from "$lib/commands/settings/actions";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { settings } from "$lib/stores/settings.svelte";
+  import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import { Plus } from "@lucide/svelte";
@@ -29,6 +31,7 @@
 
   onDestroy(() => {
     settings.cancelReturn();
+    clipboard.closeConfirm();
     if (settings.engineDraft) settings.closeEngineDraft();
     if (settings.translateDraft) settings.closeTranslateDraft();
   });
@@ -43,6 +46,7 @@
     if (ui.view !== "settings") {
       if (lastScreen !== null) lastScreen = null;
       settings.cancelReturn();
+      clipboard.closeConfirm();
       if (settings.engineDraft) settings.closeEngineDraft();
       if (settings.translateDraft) settings.closeTranslateDraft();
       return;
@@ -116,7 +120,7 @@
       {#if screen === "engine"}
         <button
           type="button"
-          class="flex size-8 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
+          class="pressable flex size-10 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
           aria-label={i18n.t("settings.addEngine")}
           onclick={() => startEngineCreate()}
         >
@@ -196,6 +200,7 @@
               if (item.id === "language") openLanguageSettings();
               if (item.id === "translate") openTranslateSettings();
               if (item.id === "retention") openRetentionSettings();
+              if (item.id === "cleanup") startClipCleanup();
               if (item.id === "export") void settings.exportBackup();
               if (item.id === "import") void settings.importBackup();
             }}
@@ -203,13 +208,17 @@
         {/each}
       {/if}
     </ScrollArea>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+    <p class="palette-hint">
       {#if settings.notice}
         {settings.notice}
       {:else if screen === "engine"}
         {i18n.t("settings.engineHint")}
       {:else if screen === "theme" || screen === "language" || screen === "retention"}
         {i18n.t("settings.confirm")}
+      {:else if settings.listItems[settings.selectedIndex]?.id === "cleanup"}
+        {settings.clipTextRetentionDays > 0
+          ? i18n.t("settings.clipCleanup.hint")
+          : i18n.t("clip.cleanupDisabledHint")}
       {:else if settings.listItems[settings.selectedIndex]?.id === "export" || settings.listItems[settings.selectedIndex]?.id === "import"}
         {i18n.t("settings.backup.hint")}
       {:else}

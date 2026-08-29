@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$lib/i18n";
-  import { Globe, Keyboard, KeyRound, Languages, Palette, Timer, Download, Upload } from "@lucide/svelte";
+  import { Globe, Keyboard, KeyRound, Languages, Palette, Timer, Eraser, Download, Upload } from "@lucide/svelte";
 
   let {
     title,
@@ -12,7 +12,7 @@
   }: {
     title: string;
     value: string;
-    icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Download" | "Upload";
+    icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
     selected: boolean;
     onselect: () => void;
     current?: boolean;
@@ -27,6 +27,7 @@
     Download,
     Upload,
     Timer,
+    Eraser,
   };
   const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();

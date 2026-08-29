@@ -37,7 +37,7 @@
         <li>
           <button
             type="button"
-            class="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2/70 active:scale-[0.96]"
+            class="pressable flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left hover:bg-surface-2/70 active:scale-[0.96]"
             onclick={() => void copyTimestampValue(row.value)}
           >
             <span class="w-20 shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{row.label}</span>
@@ -47,7 +47,7 @@
         </li>
       {/each}
     </ul>
-    <p class="mt-3 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+    <p class="palette-hint">
       {inspected.kind === "from-unix" ? i18n.t("ts.copyLocal") : i18n.t("ts.copySeconds")}
     </p>
   {:else if inspected.empty}

@@ -52,14 +52,14 @@
         {qrdecode.data}
       </p>
     </ScrollArea>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+    <p class="palette-hint">
       {kindLabel} · {i18n.t("qr.decodeCopy")}
     </p>
   {:else if qrdecode.reason === "empty"}
     <p class="px-1 text-[14px] leading-5 text-ink">{i18n.t("qr.decodeEmptyTitle")}</p>
-    <p class="mt-2 px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("qr.decodeEmptyBody")}</p>
+    <p class="mt-2 px-1 text-pretty text-[13px] leading-5 text-ink-subtle">{i18n.t("qr.decodeEmptyBody")}</p>
   {:else}
     <p class="px-1 text-[14px] leading-5 text-ink">{i18n.t("qr.decodeNoneTitle")}</p>
-    <p class="mt-2 px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("qr.decodeNoneBody")}</p>
+    <p class="mt-2 px-1 text-pretty text-[13px] leading-5 text-ink-subtle">{i18n.t("qr.decodeNoneBody")}</p>
   {/if}
 </div>

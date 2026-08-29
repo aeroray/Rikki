@@ -15,6 +15,7 @@
   import "$lib/commands/web";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
+  import ClipConfirm from "$lib/commands/clip/ClipConfirm.svelte";
   import ColorPanel from "$lib/commands/color/ColorPanel.svelte";
   import Base64Panel from "$lib/commands/base64/Base64Panel.svelte";
   import JsonPanel from "$lib/commands/json/JsonPanel.svelte";
@@ -23,12 +24,9 @@
   import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
-  import { closeEmojiDrill } from "$lib/commands/emoji/actions";
+  import { escapePalette } from "$lib/commands/escape";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
   import { saveQrPng } from "$lib/commands/qrcode/actions";
-  import { closeJsonEdit } from "$lib/commands/json/actions";
-  import { closeSettingsDrill } from "$lib/commands/settings/actions";
-  import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
@@ -83,19 +81,7 @@
   function onWindowKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       event.preventDefault();
-      if (ui.imagePreviewSrc) {
-        ui.imagePreviewSrc = null;
-        return;
-      }
-      if (clipboard.confirm) {
-        clipboard.closeConfirm();
-        return;
-      }
-      if (closeSettingsDrill()) return;
-      if (closeEmojiDrill()) return;
-      if (closeJsonEdit()) return;
-      if (cancelSnippetDraft()) return;
-      ui.beginHide();
+      escapePalette();
       return;
     }
     if (event.key === "Tab" && ui.view === "qr") {
@@ -110,11 +96,11 @@
       event.preventDefault();
       toggleBase64Mode();
     }
+    if (event.key === "Tab" && clipboard.confirm) {
+      event.preventDefault();
+      return;
+    }
     if (event.key === "Tab" && ui.view === "clip") {
-      if (clipboard.confirm) {
-        event.preventDefault();
-        return;
-      }
       event.preventDefault();
       toggleSelectedImagePreview();
     }
@@ -134,7 +120,7 @@
 >
   <SearchBar />
 
-  <div id="command-results" class="flex min-h-0 flex-1 flex-col">
+  <div id="command-results" class="flex min-h-0 flex-1 flex-col" class:pb-14={Boolean(ui.notice)}>
     {#if ui.view === "empty"}
       <EmptyState />
     {:else if ui.view === "todo"}
@@ -169,12 +155,11 @@
     {/if}
   </div>
 
-  {#if ui.imagePreviewSrc}
-    <ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
-  {/if}
+  <ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
+  <ClipConfirm />
 
   {#if ui.notice}
-    <p class="pointer-events-none absolute inset-x-3 bottom-3 z-30 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.4] text-ink-tertiary outline outline-1 outline-hairline">
+    <p class="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.4] text-pretty text-ink outline outline-1 outline-hairline">
       {ui.notice}
     </p>
   {/if}

@@ -1,4 +1,6 @@
 import { parseSettingsScreen } from "$lib/commands/settings/parse";
+import { i18n } from "$lib/i18n";
+import { clipboard } from "$lib/stores/clipboard.svelte";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
@@ -30,6 +32,15 @@ export function openTranslateSettings(): void {
 export function openRetentionSettings(): void {
   ui.searchText = "settings retention";
   ui.focusField = "search";
+}
+
+export function startClipCleanup(): void {
+  const days = settings.clipTextRetentionDays;
+  if (days <= 0) {
+    ui.flash(i18n.t("clip.cleanupDisabledHint"));
+    return;
+  }
+  clipboard.openExpireConfirm(days);
 }
 
 export function startEngineCreate(): void {
@@ -102,6 +113,10 @@ export async function handleSettingsEnter(): Promise<void> {
   if (item?.id === "language") openLanguageSettings();
   if (item?.id === "translate") openTranslateSettings();
   if (item?.id === "retention") openRetentionSettings();
+  if (item?.id === "cleanup") {
+    startClipCleanup();
+    return;
+  }
   if (item?.id === "export") {
     await settings.exportBackup();
     return;

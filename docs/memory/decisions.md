@@ -2,7 +2,27 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Escape steps back to home before hiding
+Decision:
+Escape closes overlays and drills first, then clears the search and returns to the empty home. Escape on an empty home hides the palette. Blur and the palette hotkey still hide without clearing.
+Reason:
+Users need to leave color, clip, and other panels to open a different command without dismissing the launcher.
+
+## 2026-08-29 - Palette restores last query after a casual hide
+Decision:
+Blur or hotkey hide keeps the last query and page. Launching, copying, or opening a web search resets on the next show. Escape from a panel clears the query instead of hiding with it.
+Reason:
+Leaving to copy a setting must not dump the user back to an empty palette.
+
+## 2026-08-29 - Clip cleanup lives in settings
+Superseded: 2026-08-29 - Clip cleanup is a button, not a timer.
+Decision:
+Retention stays 7 / 30 / never. Cleaning expired unpinned text and extra images is a settings action with a confirm. Clearing unpinned clip history is Shift+Delete in the clip panel, also with a confirm.
+Reason:
+The clip panel is for browsing and pasting; bulk delete belongs with retention or a shortcut, not two footer buttons.
+
 ## 2026-08-29 - Clip cleanup is a button, not a timer
+Superseded by: 2026-08-29 - Clip cleanup lives in settings.
 Decision:
 Settings store `clipTextRetentionDays` as 7, 30, or never (null/0, default 7). The clip panel has a cleanup button that deletes unpinned texts older than that window and extra images over 200; pinned rows stay. It is disabled when retention is off.
 Reason:
@@ -64,6 +84,7 @@ Reason:
 Raycast shows a color preview from a bare hex; a prefix would hide the common case.
 
 ## 2026-08-29 - Palette restores last query after a casual hide
+Superseded by the 2026-08-29 entry of the same title (Escape now clears a panel instead of hiding with it).
 Decision:
 Blur, Escape, or hotkey hide keeps the last query and page. Launching, copying, or opening a web search resets on the next show.
 Reason:

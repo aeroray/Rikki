@@ -49,10 +49,10 @@
     >
       {outcome.display}
     </p>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("calc.copyHint")}</p>
+    <p class="palette-hint">{i18n.t("calc.copyHint")}</p>
   {:else if outcome.reason === "empty" || outcome.reason === "pending"}
     <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.emptyHint")}</p>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+    <p class="palette-hint">
       {CALC_EXAMPLES.join("  ·  ")}
     </p>
   {:else}
@@ -78,7 +78,7 @@
             >
               <button
                 type="button"
-                class="min-w-0 flex-1 rounded-md px-1 py-1 text-left transition-colors duration-150 ease-out hover:bg-surface-2/70 active:scale-[0.96]"
+                class="pressable min-w-0 flex-1 rounded-md px-1 py-1 text-left hover:bg-surface-2/70 active:scale-[0.96]"
                 onclick={() => reuse(entry.expression)}
               >
                 <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">
@@ -90,7 +90,7 @@
               </button>
               <button
                 type="button"
-                class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
+                class="pressable flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
                 aria-label={i18n.t("calc.delete")}
                 onclick={() => remove(entry.id)}
               >

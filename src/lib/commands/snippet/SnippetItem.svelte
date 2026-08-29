@@ -40,7 +40,7 @@
     type="button"
     role="option"
     aria-selected={selected}
-    class="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left active:scale-[0.96]"
+    class="pressable flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left active:scale-[0.96]"
     onclick={onselect}
   >
     <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
@@ -60,7 +60,7 @@
   </button>
   <button
     type="button"
-    class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
+    class="pressable flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
     aria-label={i18n.t("snippet.editItem", { title: snippet.title })}
     onclick={(event) => {
       event.stopPropagation();
@@ -71,7 +71,7 @@
   </button>
   <button
     type="button"
-    class="flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary transition-colors duration-150 ease-out hover:text-ink active:scale-[0.96]"
+    class="pressable flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
     aria-label={i18n.t("snippet.deleteItem", { title: snippet.title })}
     onclick={(event) => {
       event.stopPropagation();

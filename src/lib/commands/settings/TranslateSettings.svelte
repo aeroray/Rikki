@@ -64,7 +64,7 @@
       <label class="flex items-center justify-between gap-3 rounded-md bg-surface-1 px-3 py-2">
         <span class="text-[13px] leading-5 text-ink">{i18n.t("settings.translate.defaultTarget")}</span>
         <select
-          class="h-8 min-w-[7.5rem] rounded-md bg-canvas px-2 font-sans text-[13px] leading-5 text-ink outline-none"
+          class="h-10 min-w-[7.5rem] rounded-md bg-canvas px-2 font-sans text-[13px] leading-5 text-ink outline-none"
           value={settings.translateDefaultTarget}
           onchange={onDefaultChange}
           onkeydown={onKeydown}
@@ -77,7 +77,7 @@
       <label class="flex items-center justify-between gap-3 rounded-md bg-surface-1 px-3 py-2">
         <span class="text-[13px] leading-5 text-ink">{i18n.t("settings.translate.secondTarget")}</span>
         <select
-          class="h-8 min-w-[7.5rem] rounded-md bg-canvas px-2 font-sans text-[13px] leading-5 text-ink outline-none"
+          class="h-10 min-w-[7.5rem] rounded-md bg-canvas px-2 font-sans text-[13px] leading-5 text-ink outline-none"
           value={settings.translateSecondTarget}
           onchange={onSecondChange}
           onkeydown={onKeydown}
@@ -138,7 +138,7 @@
       <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("settings.translate.dictHint")}</p>
       <button
         type="button"
-        class="px-1 text-left text-[12px] leading-[1.4] text-primary hover:text-primary-hover"
+        class="pressable flex h-10 items-center px-1 text-left text-[12px] leading-[1.4] text-primary hover:text-primary-hover"
         onclick={() => {
           void settings.flushTranslatePersist();
           void openUrl("https://api.fanyi.baidu.com/").catch(() => {});
@@ -148,7 +148,7 @@
       </button>
     </ScrollArea>
     <div class="px-3 pb-3 pt-1">
-      <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("settings.translate.saveHint")}</p>
+      <p class="text-pretty text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("settings.translate.saveHint")}</p>
     </div>
     {#if settings.notice}
       <p class="px-3 pb-3 text-[12px] leading-[1.4] text-ink-tertiary">{settings.notice}</p>

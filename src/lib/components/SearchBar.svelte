@@ -12,21 +12,20 @@
   import { canFallbackSearch, runFallbackSearch } from "$lib/commands/fallback";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
   import {
-    cancelSnippetDraft,
     handleSnippetEnter,
     startSnippetCreate,
     startSnippetEdit,
   } from "$lib/commands/snippet/actions";
   import { parseSnippetAction } from "$lib/commands/snippet/parse";
   import {
-    closeSettingsDrill,
     handleSettingsEnter,
     startEngineCreate,
   } from "$lib/commands/settings/actions";
   import { parseSettingsScreen } from "$lib/commands/settings/parse";
   import { copyColorHex } from "$lib/commands/color/actions";
-  import { closeEmojiDrill, handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
-  import { closeJsonEdit, handleJsonEnter } from "$lib/commands/json/actions";
+  import { handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
+  import { handleJsonEnter } from "$lib/commands/json/actions";
+  import { escapePalette } from "$lib/commands/escape";
   import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
   import { copyTimestampResult } from "$lib/commands/timestamp/actions";
   import { copyQrDecode, copyQrSvg, saveQrPng } from "$lib/commands/qrcode/actions";
@@ -56,58 +55,26 @@
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       event.preventDefault();
-      if (ui.imagePreviewSrc) {
-        ui.imagePreviewSrc = null;
-        event.stopPropagation();
-        return;
-      }
-      if (clipboard.confirm) {
-        clipboard.closeConfirm();
-        event.stopPropagation();
-        return;
-      }
-      if (closeSettingsDrill()) {
-        event.stopPropagation();
-        return;
-      }
-      if (closeEmojiDrill()) {
-        event.stopPropagation();
-        return;
-      }
-      if (closeJsonEdit()) {
-        event.stopPropagation();
-        return;
-      }
-      if (cancelSnippetDraft()) {
-        event.stopPropagation();
-        return;
-      }
-      void ui.beginHide();
+      event.stopPropagation();
+      escapePalette();
       return;
     }
 
     if (event.isComposing || composing) return;
 
-    if (ui.view === "clip") {
-      if (clipboard.confirm) {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          clipboard.closeConfirm();
-          return;
-        }
-        if (event.key === "Enter") {
-          event.preventDefault();
-          event.stopPropagation();
-          clipboard.confirmAction();
-          return;
-        }
-        if (event.key === "Tab" || event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Delete") {
-          event.preventDefault();
-          event.stopPropagation();
-        }
+    if (clipboard.confirm) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        clipboard.confirmAction();
         return;
       }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (ui.view === "clip") {
       const items = clipboard.filtered(ui.commandRest);
       if (event.key === "Tab") {
         event.preventDefault();
@@ -129,6 +96,11 @@
         event.preventDefault();
         const entry = items[clipboard.selectedIndex];
         if (entry) clipboard.togglePin(entry.id);
+        return;
+      }
+      if (event.key === "Delete" && event.shiftKey) {
+        event.preventDefault();
+        clipboard.openClearConfirm();
         return;
       }
       if (event.key === "Delete") {

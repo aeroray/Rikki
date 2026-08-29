@@ -87,12 +87,14 @@
 
 <div
   bind:this={row}
-  class="clip-item flex items-center gap-2 rounded-md px-2 py-1.5 {selected ? 'is-selected' : ''}"
+  class="flex items-center gap-2 rounded-md border-2 px-2 py-1.5 transition-[background-color,border-color] duration-150 ease-out {selected
+    ? 'border-primary-focus/50 bg-surface-2'
+    : 'border-transparent hover:bg-surface-2/70'}"
 >
   {#if entry.type === "image"}
     <button
       type="button"
-      class="relative size-10 shrink-0 overflow-hidden rounded-[6px] bg-surface-1 outline outline-1 outline-hairline active:scale-[0.96]"
+      class="pressable relative size-10 shrink-0 overflow-hidden rounded-md bg-surface-1 media-outline active:scale-[0.96]"
       aria-label={i18n.t("clip.preview", { dims: dims ? ` ${dims}` : "" })}
       onclick={openPreview}
     >
@@ -117,33 +119,33 @@
       <span
         class="pointer-events-none absolute right-0.5 bottom-0.5 flex size-4 items-center justify-center rounded-[3px] bg-black/70"
       >
-        <ZoomIn class="size-2.5 text-ink" strokeWidth={2} aria-hidden="true" />
+        <ZoomIn class="size-2.5 text-white" strokeWidth={2} aria-hidden="true" />
       </span>
     </button>
   {/if}
   <button
     type="button"
-    class="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left active:scale-[0.96]"
+    class="pressable flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left active:scale-[0.96]"
     aria-label={entry.type === "image" ? i18n.t("clip.pasteImage", { dims: dims ? ` ${dims}` : "", ago }) : undefined}
     title={[entry.appName, new Date(entry.createdAt).toLocaleString()].filter(Boolean).join(" · ")}
     onclick={onselect}
   >
     {#if entry.type === "image"}
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13px] leading-5 text-ink">{i18n.t("clip.image")}</span>
+        <span class="block truncate text-[14px] font-medium leading-5 text-ink">{i18n.t("clip.image")}</span>
         <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
           {meta}
         </span>
       </span>
     {:else if color}
       <span
-        class="size-4 shrink-0 rounded-[4px] outline outline-1 outline-hairline"
+        class="media-outline size-4 shrink-0 rounded-sm"
         style="background-color: {color.rgbaCss}"
         aria-hidden="true"
       ></span>
       <SwatchBook class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13px] leading-5 text-ink">{preview}</span>
+        <span class="block truncate text-[14px] font-medium leading-5 text-ink">{preview}</span>
         <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
           {meta}
         </span>
@@ -153,7 +155,7 @@
         <Clipboard class="size-4" strokeWidth={1.5} aria-hidden="true" />
       </span>
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[13px] leading-5 text-ink">{preview}</span>
+        <span class="block truncate text-[14px] font-medium leading-5 text-ink">{preview}</span>
         <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
           {meta}
         </span>
@@ -162,30 +164,18 @@
   </button>
   <button
     type="button"
-    class="flex size-10 shrink-0 items-center justify-center rounded-md transition-colors duration-150 ease-out {entry.pinned
+    class="pressable flex size-10 shrink-0 items-center justify-center rounded-md {entry.pinned
       ? 'text-primary'
-      : 'text-ink-tertiary hover:text-ink'}"
+      : 'text-ink-tertiary hover:text-ink'} active:scale-[0.96]"
     aria-label={entry.pinned ? i18n.t("clip.unpin") : i18n.t("clip.pin")}
     aria-pressed={entry.pinned}
     onclick={onpin}
   >
-    <Pin class="size-4" strokeWidth={1.5} aria-hidden="true" />
+    <Pin
+      class="size-4"
+      strokeWidth={entry.pinned ? 2 : 1.5}
+      fill={entry.pinned ? "currentColor" : "none"}
+      aria-hidden="true"
+    />
   </button>
 </div>
-
-<style>
-  .clip-item {
-    transition:
-      background-color 0.15s ease-out,
-      box-shadow 0.15s ease-out;
-  }
-
-  .clip-item:hover:not(.is-selected) {
-    background-color: color-mix(in srgb, var(--color-surface-2) 70%, transparent);
-  }
-
-  .clip-item.is-selected {
-    background-color: var(--color-surface-2);
-    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary-focus) 50%, transparent);
-  }
-</style>

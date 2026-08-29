@@ -25,7 +25,7 @@
   aria-selected={selected}
   aria-label={name}
   title={name}
-  class="flex aspect-square items-center justify-center rounded-md border-2 text-[28px] leading-none transition-[background-color,border-color,transform] duration-150 ease-out hover:scale-[1.14] active:scale-[0.96] motion-reduce:hover:scale-100 motion-reduce:active:scale-100 {selected
+  class="flex aspect-square items-center justify-center rounded-md border-2 text-[28px] leading-none transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.96] {selected
     ? 'border-primary-focus/50 bg-surface-2'
     : 'border-transparent hover:bg-surface-2/70'}"
   onclick={onselect}

@@ -9,7 +9,6 @@ const CLIP_DIR: &str = "clipboard";
 const INDEX_FILE: &str = "index.json";
 const IMAGES_DIR: &str = "images";
 const MAX_IMAGES: usize = 200;
-const DAY_MS: i64 = 86_400_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -121,6 +120,10 @@ pub fn prune(entries: Vec<ClipboardEntry>) -> Vec<ClipboardEntry> {
     texts
 }
 
+#[cfg(test)]
+const DAY_MS: i64 = 86_400_000;
+
+#[cfg(test)]
 pub fn expire(entries: Vec<ClipboardEntry>, now_ms: i64, retain_days: u32) -> Vec<ClipboardEntry> {
     let kept = if retain_days == 0 {
         entries
@@ -134,6 +137,7 @@ pub fn expire(entries: Vec<ClipboardEntry>, now_ms: i64, retain_days: u32) -> Ve
     cap_unpinned_images(kept)
 }
 
+#[cfg(test)]
 pub fn expire_preview(entries: &[ClipboardEntry], now_ms: i64, retain_days: u32) -> (usize, usize) {
     if retain_days == 0 {
         return (0, 0);
@@ -156,6 +160,7 @@ pub fn expire_preview(entries: &[ClipboardEntry], now_ms: i64, retain_days: u32)
     (texts, before_images.saturating_sub(after_images))
 }
 
+#[cfg(test)]
 fn cap_unpinned_images(entries: Vec<ClipboardEntry>) -> Vec<ClipboardEntry> {
     let mut texts = Vec::new();
     let mut images = Vec::new();

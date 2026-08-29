@@ -47,7 +47,7 @@
       </div>
       <p class="mt-3 max-w-full truncate px-1 text-[13px] leading-5 text-ink">{text}</p>
     </div>
-    <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("qr.copyHint")}</p>
+    <p class="palette-hint">{i18n.t("qr.copyHint")}</p>
   {:else if pending}
     <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("qr.loading")}</p>
   {:else if failed}

@@ -42,7 +42,7 @@
       : undefined}
   >
     {#if ui.rootHits.length === 0}
-      <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">{i18n.t("result.empty")}</p>
+      <p class="px-1 py-6 text-center text-pretty text-[14px] font-medium leading-5 text-ink">{i18n.t("result.empty")}</p>
     {:else}
       {#each ui.rootHits as hit, index (hit.id)}
         {#if hit.kind === "command"}
@@ -64,7 +64,7 @@
     {/if}
   </ScrollArea>
   {#if fallback}
-    <p class="px-4 pb-3 text-[12px] leading-[1.4] text-ink-tertiary">
+    <p class="px-4 pb-3 text-pretty text-[12px] leading-[1.4] text-ink-tertiary">
       {i18n.t("result.fallback", { engine: engineDisplayName(settings.engine) })}
     </p>
   {/if}

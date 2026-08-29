@@ -24,10 +24,10 @@ import { todos } from "$lib/stores/todos.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export type SettingItem = {
-  id: "engine" | "theme" | "hotkey" | "language" | "translate" | "retention" | "export" | "import";
+  id: "engine" | "theme" | "hotkey" | "language" | "translate" | "retention" | "cleanup" | "export" | "import";
   title: string;
   value: string;
-  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Download" | "Upload";
+  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
   current?: boolean;
 };
 
@@ -149,6 +149,16 @@ class SettingsStore {
       title: i18n.t("settings.clipRetention"),
       value: this.retentionLabel,
       icon: "Timer",
+    },
+    {
+      id: "cleanup",
+      title: i18n.t("settings.clipCleanup"),
+      value:
+        this.clipTextRetentionDays > 0
+          ? i18n.t("settings.clipCleanup.value", { days: this.clipTextRetentionDays })
+          : i18n.t("settings.clipCleanup.disabled"),
+      icon: "Eraser",
+      current: false,
     },
     {
       id: "export",

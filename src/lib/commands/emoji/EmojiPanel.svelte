@@ -137,7 +137,7 @@
     <div class="min-h-0 flex-1"></div>
   {/if}
 
-  <p class="mt-2 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+  <p class="palette-hint">
     {#if emojis.notice}
       {emojis.notice}
     {:else if screen.type === "categories"}

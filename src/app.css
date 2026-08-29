@@ -22,6 +22,7 @@
 html {
   --app-shell-bg: rgba(1, 1, 2, 0.85);
   --app-shell-border: rgba(255, 255, 255, 0.06);
+  --image-outline: oklch(1 0 0 / 0.1);
 }
 
 html[data-theme="light"] {
@@ -36,6 +37,7 @@ html[data-theme="light"] {
   --color-hairline-strong: #c9ccd2;
   --app-shell-bg: rgba(255, 255, 255, 0.9);
   --app-shell-border: rgba(15, 16, 17, 0.08);
+  --image-outline: oklch(0 0 0 / 0.1);
 }
 
 html,
@@ -52,6 +54,25 @@ body {
 
 kbd {
   font-family: inherit;
+}
+
+.palette-hint {
+  margin-top: 0.5rem;
+  padding-inline: 0.25rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-ink-tertiary);
+}
+
+.media-outline {
+  outline: 1px solid var(--image-outline);
+  outline-offset: -1px;
+}
+
+.pressable {
+  transition-property: background-color, border-color, color, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
 
 .app-shell {

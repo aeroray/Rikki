@@ -10,7 +10,7 @@
     <Keyboard class="size-4" strokeWidth={1.5} aria-hidden="true" />
   </span>
   <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("hotkey.prompt")}</p>
-  <p class="mt-2 text-[13px] leading-5 text-ink-subtle">
+  <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">
     {i18n.t("hotkey.needModifier", { key: isMac() ? "⌘" : "Win" })}
   </p>
   <p class="mt-4 rounded-md bg-surface-1 px-3 py-2 text-[14px] leading-5 text-ink">

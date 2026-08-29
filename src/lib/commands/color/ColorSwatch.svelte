@@ -13,7 +13,7 @@
 
 <div class="flex items-center gap-3 px-1">
   <span
-    class="relative size-16 shrink-0 overflow-hidden rounded-md outline outline-1 outline-hairline"
+    class="relative size-16 shrink-0 overflow-hidden rounded-md media-outline"
     class:color-check={transparent}
     aria-hidden="true"
   >

@@ -88,7 +88,7 @@
     </label>
     <button
       type="button"
-      class="flex h-10 items-center gap-2 rounded-md px-1 text-left text-[13px] leading-5 text-ink transition-colors duration-150 ease-out hover:bg-surface-1 active:scale-[0.96]"
+      class="pressable flex h-10 items-center gap-2 rounded-md px-1 text-left text-[13px] leading-5 text-ink hover:bg-surface-1 active:scale-[0.96]"
       aria-pressed={snippets.draft.sensitive}
       onclick={() => {
         if (snippets.draft) snippets.draft.sensitive = !snippets.draft.sensitive;
@@ -99,7 +99,7 @@
         aria-hidden="true"
       >
         {#if snippets.draft.sensitive}
-          <Check class="size-3 text-primary" strokeWidth={2} />
+          <Check class="size-3 text-primary" strokeWidth={2} fill="currentColor" />
         {/if}
       </span>
       <span>{i18n.t("snippet.sensitive")}</span>
@@ -109,7 +109,7 @@
       <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("snippet.saveHint")}</p>
       <button
         type="submit"
-        class="rounded-md px-2 py-1 text-[12px] leading-[1.4] transition-colors duration-150 ease-out {canSave
+        class="pressable flex h-10 items-center rounded-md px-2 text-[12px] leading-[1.4] {canSave
           ? 'text-primary hover:text-primary-hover'
           : 'text-ink-tertiary'}"
         disabled={!canSave}

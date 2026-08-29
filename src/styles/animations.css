@@ -95,4 +95,10 @@
   .slide-in {
     animation: none;
   }
+
+  button:active,
+  [role="option"]:active {
+    scale: 1;
+    transform: none;
+  }
 }

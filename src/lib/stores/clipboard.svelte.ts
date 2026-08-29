@@ -118,11 +118,16 @@ class ClipboardStore {
     const retention = parseClipRetentionDays(days);
     if (retention <= 0) return;
     const preview = previewExpire(this.entries, retention, Date.now());
+    if (preview.texts === 0 && preview.images === 0) {
+      ui.flash(i18n.t("clip.cleanupNone"));
+      return;
+    }
     this.confirm = { kind: "expire", days: retention, ...preview };
   }
 
   openClearConfirm() {
     const count = this.entries.filter((entry) => !entry.pinned).length;
+    if (count === 0) return;
     this.confirm = { kind: "clear", count };
   }
 
