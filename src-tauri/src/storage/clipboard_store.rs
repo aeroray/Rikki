@@ -99,6 +99,22 @@ pub fn prune(entries: Vec<ClipboardEntry>) -> Vec<ClipboardEntry> {
 }
 
 pub fn discard_image(app: &AppHandle, path: &str) -> Result<(), String> {
+    let resolved = resolve_image_path(app, path)?;
+    if resolved.exists() {
+        fs::remove_file(&resolved).map_err(|err| format!("delete clipboard image: {err}"))?;
+    }
+    Ok(())
+}
+
+pub fn read_image(app: &AppHandle, path: &str) -> Result<Vec<u8>, String> {
+    let resolved = resolve_image_path(app, path)?;
+    if !resolved.exists() {
+        return Err("image not found".into());
+    }
+    fs::read(&resolved).map_err(|err| format!("read clipboard image: {err}"))
+}
+
+fn resolve_image_path(app: &AppHandle, path: &str) -> Result<PathBuf, String> {
     let images = images_dir(app)?;
     let Some(name) = Path::new(path).file_name() else {
         return Err("invalid image path".into());
@@ -106,11 +122,7 @@ pub fn discard_image(app: &AppHandle, path: &str) -> Result<(), String> {
     if name == "." || name == ".." {
         return Err("invalid image path".into());
     }
-    let resolved = images.join(name);
-    if resolved.exists() {
-        fs::remove_file(&resolved).map_err(|err| format!("delete clipboard image: {err}"))?;
-    }
-    Ok(())
+    Ok(images.join(name))
 }
 
 fn image_file_name(path: &str) -> Option<String> {

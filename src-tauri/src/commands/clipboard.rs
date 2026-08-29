@@ -23,6 +23,11 @@ pub fn discard_clipboard_image(app: AppHandle, path: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+pub fn read_clipboard_image(app: AppHandle, path: String) -> Result<Vec<u8>, String> {
+    clipboard_store::read_image(&app, &path)
+}
+
+#[tauri::command]
 pub fn search_clipboard(app: AppHandle, query: String) -> Result<Vec<ClipboardEntry>, String> {
     let needle = query.trim().to_lowercase();
     let entries = clipboard_store::load_entries(&app)?;

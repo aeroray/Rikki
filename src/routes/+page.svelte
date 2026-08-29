@@ -5,6 +5,7 @@
   import "$lib/commands/color";
   import "$lib/commands/emoji";
   import "$lib/commands/json";
+  import "$lib/commands/qrcode";
   import "$lib/commands/settings";
   import "$lib/commands/snippet";
   import "$lib/commands/sys";
@@ -24,6 +25,7 @@
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
   import { closeEmojiDrill } from "$lib/commands/emoji/actions";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
+  import { saveQrPng } from "$lib/commands/qrcode/actions";
   import { closeJsonEdit } from "$lib/commands/json/actions";
   import { closeSettingsDrill } from "$lib/commands/settings/actions";
   import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
@@ -34,6 +36,8 @@
   import TodoList from "$lib/commands/todo/TodoList.svelte";
   import TranslatePanel from "$lib/commands/translate/TranslatePanel.svelte";
   import TimestampPanel from "$lib/commands/timestamp/TimestampPanel.svelte";
+  import QRPanel from "$lib/commands/qrcode/QRPanel.svelte";
+  import QRDecodePanel from "$lib/commands/qrcode/QRDecodePanel.svelte";
   import { apps } from "$lib/stores/apps.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { json } from "$lib/stores/json.svelte";
@@ -90,6 +94,10 @@
       ui.beginHide();
       return;
     }
+    if (event.key === "Tab" && ui.view === "qr") {
+      event.preventDefault();
+      void saveQrPng();
+    }
     if (event.key === "Tab" && ui.view === "json" && !json.editing) {
       event.preventDefault();
       json.toggleCompact();
@@ -144,6 +152,10 @@
       <Base64Panel />
     {:else if ui.view === "timestamp"}
       <TimestampPanel />
+    {:else if ui.view === "qr"}
+      <QRPanel />
+    {:else if ui.view === "qrdecode"}
+      <QRDecodePanel />
     {:else}
       <ResultList />
     {/if}

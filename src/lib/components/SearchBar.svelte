@@ -29,6 +29,7 @@
   import { closeJsonEdit, handleJsonEnter } from "$lib/commands/json/actions";
   import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
   import { copyTimestampResult } from "$lib/commands/timestamp/actions";
+  import { copyQrDecode, copyQrSvg, saveQrPng } from "$lib/commands/qrcode/actions";
   import { json } from "$lib/stores/json.svelte";
 
   let inputEl: HTMLInputElement | undefined = $state();
@@ -220,6 +221,28 @@
       if (event.key === "Enter") {
         event.preventDefault();
         void copyTimestampResult();
+        return;
+      }
+    }
+
+    if (ui.view === "qr") {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        void saveQrPng();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void copyQrSvg();
+        return;
+      }
+    }
+
+    if (ui.view === "qrdecode") {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void copyQrDecode();
         return;
       }
     }

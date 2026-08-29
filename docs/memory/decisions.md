@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-29 - QR generate copies SVG; decode reads clip images
+Decision:
+`qr`/`qrcode` builds an SVG in the search bar (Enter copies SVG, Tab saves PNG). `qrd`/`qrdecode` runs jsQR on clipboard images. Black/white, error level H. No camera, logo, or color options.
+Reason:
+Screenshots already land in clip history, so decode does not need a camera; a save dialog must ignore blur-hide so the palette stays up.
+
 ## 2026-08-29 - Timestamp converts in the search bar
 Decision:
 `ts`/`timestamp` parses 10-digit seconds, 13-digit millis, `YYYY-MM-DD` (also `/` and optional time), and 今天/today/now. Unix input copies local time; date input copies seconds. Local and UTC only; no history.

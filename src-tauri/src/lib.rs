@@ -14,6 +14,7 @@ mod tray;
 
 use commands::apps::{get_installed_apps, launch_app, AppIndex};
 use commands::calc::{get_calc_history, save_calc_history};
+use commands::qr::save_png_file;
 use commands::settings::{
     add_custom_engine, begin_hotkey_capture, cancel_hotkey_capture, delete_custom_engine,
     get_settings, update_setting, update_tray_menu,
@@ -24,7 +25,8 @@ use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_sni
 use commands::system::lock_screen;
 use commands::clipboard::{
     clear_clipboard, delete_clipboard_entry, discard_clipboard_image, get_clipboard_history,
-    get_clipboard_images_dir, save_clipboard_history, search_clipboard, toggle_pin_clipboard,
+    get_clipboard_images_dir, read_clipboard_image, save_clipboard_history, search_clipboard,
+    toggle_pin_clipboard,
 };
 use commands::todo::{get_todos, save_todos};
 use input::{get_foreground_app, simulate_paste};
@@ -42,6 +44,7 @@ struct PaletteState {
     hide: Mutex<HideGate>,
     hotkey: Mutex<String>,
     capturing_hotkey: Mutex<bool>,
+    ignore_blur: Mutex<bool>,
 }
 
 fn palette_window(app: &tauri::AppHandle) -> Option<WebviewWindow> {
@@ -58,10 +61,19 @@ fn should_hide_on_blur(app: &tauri::AppHandle) -> bool {
     let Some(state) = app.try_state::<PaletteState>() else {
         return true;
     };
+    if *state.ignore_blur.lock().expect("blur") {
+        return false;
+    }
     let shown_at = *state.last_shown_at.lock().expect("palette state");
     match shown_at {
         Some(shown_at) => shown_at.elapsed() >= BLUR_GRACE,
         None => true,
+    }
+}
+
+pub(crate) fn set_ignore_blur(app: &tauri::AppHandle, ignore: bool) {
+    if let Some(state) = app.try_state::<PaletteState>() {
+        *state.ignore_blur.lock().expect("blur") = ignore;
     }
 }
 
@@ -271,8 +283,10 @@ pub fn run() {
             }),
             hotkey: Mutex::new(String::new()),
             capturing_hotkey: Mutex::new(false),
+            ignore_blur: Mutex::new(false),
         })
         .plugin(tauri_plugin_clipboard_x::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_power_manager::init())
         .plugin(
@@ -334,6 +348,7 @@ pub fn run() {
             save_clipboard_history,
             get_clipboard_images_dir,
             discard_clipboard_image,
+            read_clipboard_image,
             search_clipboard,
             toggle_pin_clipboard,
             delete_clipboard_entry,
@@ -354,7 +369,8 @@ pub fn run() {
             begin_hotkey_capture,
             cancel_hotkey_capture,
             update_tray_menu,
-            translate
+            translate,
+            save_png_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

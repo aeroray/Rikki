@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: QR logos, colors, batch, ECC picker, and camera scan
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 is black-and-white generate plus clipboard-image decode; camera and styling add permissions and UI the launcher does not need. Date: 2026-08-29.
+
 ## Tombstone: timestamp timezones, date math, format templates, and history
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 shows local and UTC and copies one primary value; pickers and arithmetic add UI the launcher does not need. Date: 2026-08-29.
 

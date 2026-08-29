@@ -20,6 +20,7 @@
     "power-manager:allow-shutdown",
     "power-manager:allow-reboot",
     "power-manager:allow-logout",
-    "opener:default"
+    "opener:default",
+    "dialog:default"
   ]
 }

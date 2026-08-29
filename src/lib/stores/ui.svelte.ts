@@ -22,7 +22,7 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" | "json" | "base64" | "timestamp" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" | "json" | "base64" | "timestamp" | "qr" | "qrdecode" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
@@ -35,6 +35,8 @@ class UiStore {
     if (this.isCommandActive("json")) return "json";
     if (this.isCommandActive("base64") || this.isCommandActive("base64d")) return "base64";
     if (this.isCommandActive("timestamp")) return "timestamp";
+    if (this.isCommandActive("qr")) return "qr";
+    if (this.isCommandActive("qrdecode")) return "qrdecode";
     if (!this.matchedCommand && parseColor(this.searchText.trim())) return "color";
     return "suggest";
   });

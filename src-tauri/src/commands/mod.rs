@@ -1,6 +1,7 @@
 pub mod apps;
 pub mod calc;
 pub mod clipboard;
+pub mod qr;
 pub mod settings;
 pub mod snippet;
 pub mod system;
