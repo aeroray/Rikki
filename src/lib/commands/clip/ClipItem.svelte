@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ClipboardEntry } from "$lib/commands/types";
+  import { parseColor } from "$lib/commands/color/parse";
   import { i18n } from "$lib/i18n";
   import { relativeTime } from "$lib/relativeTime";
   import { imagePreviewSrc } from "$lib/commands/clip/preview";
@@ -22,7 +23,7 @@
 
   let row: HTMLDivElement | undefined = $state();
   let broken = $state(false);
-  const color = $derived(entry.type === "text" ? detectColor(entry.content) : null);
+  const color = $derived(entry.type === "text" ? parseColor(entry.content) : null);
   const preview = $derived(entry.type === "text" ? truncate(entry.content) : "");
   const isUrl = $derived(entry.type === "text" && /^https?:\/\//i.test(entry.content.trim()));
   const thumb = $derived(entry.type === "image" ? (imagePreviewSrc(entry) ?? "") : "");
@@ -45,18 +46,6 @@
       row?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   });
-
-  function detectColor(content: string): string | null {
-    const value = content.trim();
-    if (/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)) return value;
-    if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i.test(value)) {
-      return value;
-    }
-    if (/^hsla?\(\s*-?\d+(?:\.\d+)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i.test(value)) {
-      return value;
-    }
-    return null;
-  }
 
   function truncate(text: string): string {
     const compact = text.replace(/\s+/g, " ").trim();
@@ -150,7 +139,7 @@
     {:else if color}
       <span
         class="size-4 shrink-0 rounded-[4px] outline outline-1 outline-hairline"
-        style="background-color: {color}"
+        style="background-color: {color.rgbaCss}"
         aria-hidden="true"
       ></span>
       <SwatchBook class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />

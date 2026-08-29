@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: color picker, palettes, schemes, colorblind sim, and image sampling
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 is parse-and-convert plus clip recents; a screen picker needs extra permissions, and palettes or schemes add UI the launcher does not need. Date: 2026-08-29.
+
 ## Tombstone: auto-flip zh/en from the UI locale
 Do not retarget bare `tr` from the current UI language, or hardcode Chinese↔English as the fallback pair. Reason: default and second targets are persisted settings, seeded once from the UI locale. Date: 2026-08-29.
 

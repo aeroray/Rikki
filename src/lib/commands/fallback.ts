@@ -1,3 +1,4 @@
+import { parseColor } from "$lib/commands/color/parse";
 import { searchUrl } from "$lib/commands/settings/engines";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
@@ -8,6 +9,7 @@ export const FALLBACK_MIN_LENGTH = 2;
 export function canFallbackSearch(query: string, hitCount: number): boolean {
   if (hitCount !== 0 || query.trim().length < FALLBACK_MIN_LENGTH) return false;
   if (ui.matchedCommand && ui.commandRest.trim()) return false;
+  if (parseColor(query.trim())) return false;
   return true;
 }
 

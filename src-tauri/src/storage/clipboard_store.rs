@@ -28,6 +28,12 @@ pub struct ClipboardEntry {
     pub height: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_color: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }
 
 fn clipboard_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -155,6 +161,7 @@ mod tests {
             width: None,
             height: None,
             size: None,
+            is_color: false,
         }
     }
 
@@ -177,6 +184,24 @@ mod tests {
         let json = serde_json::to_string(&entry("text", "hello")).expect("serialize");
         assert!(!json.contains("width"));
         assert!(!json.contains("height"));
+        assert!(!json.contains("isColor"));
+    }
+
+    #[test]
+    fn old_entries_default_is_color_false() {
+        let json = r##"{"id":"a","type":"text","content":"#ff6363","createdAt":1}"##;
+        let parsed: ClipboardEntry = serde_json::from_str(json).expect("deserialize");
+        assert!(!parsed.is_color);
+    }
+
+    #[test]
+    fn color_flag_roundtrips() {
+        let mut item = entry("text", "#ff6363");
+        item.is_color = true;
+        let json = serde_json::to_string(&item).expect("serialize");
+        assert!(json.contains("\"isColor\":true"));
+        let parsed: ClipboardEntry = serde_json::from_str(&json).expect("deserialize");
+        assert!(parsed.is_color);
     }
 
     #[test]

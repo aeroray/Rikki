@@ -1,3 +1,4 @@
+import { parseColor } from "$lib/commands/color/parse";
 import { listCommands, match, rankCommand } from "$lib/commands/registry";
 import type { RootHit } from "$lib/commands/types";
 import { i18n } from "$lib/i18n";
@@ -21,7 +22,7 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
@@ -30,6 +31,8 @@ class UiStore {
     if (this.isCommandActive("settings")) return "settings";
     if (this.isCommandActive("emoji")) return "emoji";
     if (this.isCommandActive("translate")) return "translate";
+    if (this.isCommandActive("color")) return "color";
+    if (!this.matchedCommand && parseColor(this.searchText.trim())) return "color";
     return "suggest";
   });
   homeCommands = $derived(listCommands().filter((command) => command.mode !== "action"));

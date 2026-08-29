@@ -24,6 +24,7 @@
     startEngineCreate,
   } from "$lib/commands/settings/actions";
   import { parseSettingsScreen } from "$lib/commands/settings/parse";
+  import { copyColorHex } from "$lib/commands/color/actions";
   import { closeEmojiDrill, handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
 
   let inputEl: HTMLInputElement | undefined = $state();
@@ -169,6 +170,14 @@
       if (event.key === "Enter") {
         event.preventDefault();
         handleEmojiEnter();
+        return;
+      }
+    }
+
+    if (ui.view === "color") {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void copyColorHex();
         return;
       }
     }

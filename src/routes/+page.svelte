@@ -1,6 +1,7 @@
 <script lang="ts">
   import "$lib/commands/calc";
   import "$lib/commands/clip";
+  import "$lib/commands/color";
   import "$lib/commands/emoji";
   import "$lib/commands/settings";
   import "$lib/commands/snippet";
@@ -10,6 +11,7 @@
   import "$lib/commands/web";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
+  import ColorPanel from "$lib/commands/color/ColorPanel.svelte";
   import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";
   import EmojiPanel from "$lib/commands/emoji/EmojiPanel.svelte";
   import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
@@ -116,6 +118,8 @@
       <EmojiPanel />
     {:else if ui.view === "translate"}
       <TranslatePanel />
+    {:else if ui.view === "color"}
+      <ColorPanel />
     {:else}
       <ResultList />
     {/if}

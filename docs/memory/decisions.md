@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Root search detects color values
+Decision:
+Typing `#ff6363`, `rgb()`, or `hsl()` (including alpha) opens the color panel with no prefix. `color` / `clr` is the same panel. Names come from `color-name`; recents are the last 10 unique clip colors. Enter copies HEX.
+Reason:
+Raycast shows a color preview from a bare hex; a prefix would hide the common case.
+
 ## 2026-08-29 - Palette restores last query after a casual hide
 Decision:
 Blur, Escape, or hotkey hide keeps the last query and page. Launching, copying, or opening a web search resets on the next show.

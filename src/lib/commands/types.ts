@@ -71,6 +71,7 @@ export interface ClipboardEntry {
   width?: number;
   height?: number;
   size?: number;
+  isColor?: boolean;
 }
 
 export interface CommandMatch {

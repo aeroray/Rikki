@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { isColorValue } from "$lib/commands/color/parse";
 import type { ClipboardEntry } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
 import { ui } from "$lib/stores/ui.svelte";
@@ -73,6 +74,7 @@ class ClipboardStore {
         appName,
         createdAt: Date.now(),
         pinned: false,
+        isColor: isColorValue(value),
       });
     });
   }
