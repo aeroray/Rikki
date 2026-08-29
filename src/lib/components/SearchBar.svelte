@@ -4,6 +4,7 @@
   import { snippets } from "$lib/stores/snippets.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { emojis } from "$lib/stores/emojis.svelte";
+  import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import { Search } from "@lucide/svelte";
@@ -31,7 +32,7 @@
   $effect(() => {
     ui.showNonce;
     ui.imagePreviewSrc;
-    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft) {
+    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft && !settings.translateDraft) {
       requestAnimationFrame(() => inputEl?.focus());
     }
   });
@@ -172,6 +173,15 @@
       }
     }
 
+    if (ui.view === "translate") {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (translate.wordMode) translate.swap();
+        return;
+      }
+    }
+
     if (ui.view === "settings") {
       if (settings.recording) {
         event.preventDefault();
@@ -182,6 +192,13 @@
         if (event.key === "Enter") {
           event.preventDefault();
           void settings.saveEngineDraft();
+        }
+        return;
+      }
+      if (settings.translateDraft) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void settings.saveTranslateDraft();
         }
         return;
       }
@@ -204,7 +221,9 @@
             ? settings.themes.length
             : screen === "language"
               ? settings.locales.length
-              : settings.listItems.length;
+              : screen === "translate" || screen === "hotkey"
+                ? 0
+                : settings.listItems.length;
       if (event.key === "ArrowDown" && count > 0) {
         event.preventDefault();
         settings.selectedIndex = Math.min(count - 1, settings.selectedIndex + 1);

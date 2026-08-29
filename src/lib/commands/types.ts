@@ -41,6 +41,11 @@ export interface AppSettings {
   theme: ThemeId;
   hotkey: string;
   locale: string;
+  baiduTranslateAppId: string;
+  baiduTranslateSecretKey: string;
+  translationApiUrl: string;
+  translateDefaultTarget: string;
+  translateSecondTarget: string;
   customSearchEngines: CustomSearchEngine[];
   version: number;
 }

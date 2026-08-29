@@ -5,3 +5,4 @@ pub mod settings;
 pub mod snippet;
 pub mod system;
 pub mod todo;
+pub mod translate;

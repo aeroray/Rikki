@@ -22,6 +22,11 @@ export function openLanguageSettings(): void {
   ui.focusField = "search";
 }
 
+export function openTranslateSettings(): void {
+  ui.searchText = "settings translate";
+  ui.focusField = "search";
+}
+
 export function startEngineCreate(): void {
   if (parseSettingsScreen(ui.commandRest) !== "engine") {
     openEngineSettings();
@@ -35,6 +40,10 @@ export function closeSettingsDrill(): boolean {
     settings.closeEngineDraft();
     return true;
   }
+  if (settings.translateDraft) {
+    settings.closeTranslateDraft();
+  }
+
   if (settings.recording) {
     void settings.stopRecording();
     ui.searchText = "settings ";
@@ -53,6 +62,10 @@ export async function handleSettingsEnter(): Promise<void> {
     await settings.saveEngineDraft();
     return;
   }
+  if (settings.translateDraft) {
+    await settings.saveTranslateDraft();
+    return;
+  }
 
   const screen = parseSettingsScreen(ui.commandRest);
   if (screen === "engine") {
@@ -66,6 +79,10 @@ export async function handleSettingsEnter(): Promise<void> {
     return;
   }
   if (screen === "hotkey") return;
+  if (screen === "translate") {
+    await settings.saveTranslateDraft();
+    return;
+  }
   if (screen === "language") {
     const option = settings.locales[settings.selectedIndex];
     if (option) await settings.setLocale(option.id);
@@ -77,4 +94,5 @@ export async function handleSettingsEnter(): Promise<void> {
   if (item?.id === "theme") openThemeSettings();
   if (item?.id === "hotkey") openHotkeySettings();
   if (item?.id === "language") openLanguageSettings();
+  if (item?.id === "translate") openTranslateSettings();
 }

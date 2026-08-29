@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-29 - Translate uses Baidu's free API
+Decision:
+`tr` calls Baidu Translate with credentials only in Rust. Bare `tr` uses a persisted default target (seeded once from the UI locale) and a second target (default English) when the guessed source matches the default. Word layout follows API dictionary data.
+Reason:
+The target pair is user-configured; later UI-language changes must not rewrite it.
+
 ## 2026-08-29 - UI language follows the system
 Decision:
 Settings persist `locale` as `system` | `zh-CN` | `en` (default system). Any OS `zh*` locale becomes Simplified Chinese; everything else is English. zh-CN command titles stay `中文 · English`; English UI shows the English title only.

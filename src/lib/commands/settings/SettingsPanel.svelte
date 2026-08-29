@@ -6,11 +6,13 @@
   import SettingItem from "$lib/commands/settings/SettingItem.svelte";
   import ThemeSelector from "$lib/commands/settings/ThemeSelector.svelte";
   import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
+  import TranslateSettings from "$lib/commands/settings/TranslateSettings.svelte";
   import {
     openEngineSettings,
     openHotkeySettings,
     openLanguageSettings,
     openThemeSettings,
+    openTranslateSettings,
     startEngineCreate,
   } from "$lib/commands/settings/actions";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
@@ -18,16 +20,29 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import { Plus } from "@lucide/svelte";
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
 
   const screen = $derived(parseSettingsScreen(ui.commandRest));
-  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | "language" | null>(null);
+  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | "language" | "translate" | null>(null);
+
+  onDestroy(() => {
+    settings.cancelReturn();
+    if (settings.engineDraft) settings.closeEngineDraft();
+    if (settings.translateDraft) settings.closeTranslateDraft();
+  });
+
+  $effect.pre(() => {
+    if (ui.view === "settings" && parseSettingsScreen(ui.commandRest) === "translate") {
+      if (!settings.translateDraft) untrack(() => settings.openTranslateDraft());
+    }
+  });
 
   $effect(() => {
     if (ui.view !== "settings") {
       if (lastScreen !== null) lastScreen = null;
       settings.cancelReturn();
       if (settings.engineDraft) settings.closeEngineDraft();
+      if (settings.translateDraft) settings.closeTranslateDraft();
       return;
     }
     const next = parseSettingsScreen(ui.commandRest);
@@ -42,7 +57,10 @@
       } else if (next === "language") {
         const index = settings.locales.findIndex((option) => option.id === settings.localePref);
         settings.selectedIndex = index >= 0 ? index : 0;
+      } else if (next === "translate") {
+        if (!settings.translateDraft) settings.openTranslateDraft();
       } else {
+        if (settings.translateDraft) settings.closeTranslateDraft();
         settings.selectedIndex = 0;
       }
     }
@@ -53,7 +71,9 @@
           ? settings.themes.length
           : next === "language"
             ? settings.locales.length
-            : settings.listItems.length;
+            : next === "translate" || next === "hotkey"
+              ? 0
+              : settings.listItems.length;
     settings.clampSelection(count);
   });
 
@@ -66,6 +86,8 @@
 
 {#if settings.engineDraft}
   <EngineCreate />
+{:else if screen === "translate"}
+  <TranslateSettings />
 {:else if screen === "hotkey"}
   <HotkeyRecorder />
 {:else}
@@ -150,6 +172,7 @@
               if (item.id === "theme") openThemeSettings();
               if (item.id === "hotkey") openHotkeySettings();
               if (item.id === "language") openLanguageSettings();
+              if (item.id === "translate") openTranslateSettings();
             }}
           />
         {/each}

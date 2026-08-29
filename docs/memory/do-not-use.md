@@ -2,6 +2,12 @@
 
 Tombstones are newest first.
 
+## Tombstone: auto-flip zh/en from the UI locale
+Do not retarget bare `tr` from the current UI language, or hardcode Chinese↔English as the fallback pair. Reason: default and second targets are persisted settings, seeded once from the UI locale. Date: 2026-08-29.
+
+## Tombstone: offline translation, TTS, history, favorites, and language autocomplete
+Do not reintroduce unless the user explicitly reverses this. Reason: v1 is one live Baidu request with automatic word/sentence layout; extra surfaces add storage and UI the launcher does not need. Date: 2026-08-29.
+
 ## Tombstone: extra UI locales and i18n libraries
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 is 简体中文 and English via a small catalog; extra locales and a translation library add surface without demand. Date: 2026-08-29.
 

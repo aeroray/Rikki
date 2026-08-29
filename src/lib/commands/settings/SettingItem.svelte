@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$lib/i18n";
-  import { Globe, Keyboard, Languages, Palette } from "@lucide/svelte";
+  import { Globe, Keyboard, KeyRound, Languages, Palette } from "@lucide/svelte";
 
   let {
     title,
@@ -11,7 +11,7 @@
   }: {
     title: string;
     value: string;
-    icon: "Globe" | "Palette" | "Keyboard" | "Languages";
+    icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound";
     selected: boolean;
     onselect: () => void;
   } = $props();
@@ -21,6 +21,7 @@
     Palette,
     Keyboard,
     Languages,
+    KeyRound,
   };
   const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();

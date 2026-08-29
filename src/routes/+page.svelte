@@ -6,6 +6,7 @@
   import "$lib/commands/snippet";
   import "$lib/commands/sys";
   import "$lib/commands/todo";
+  import "$lib/commands/translate";
   import "$lib/commands/web";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
@@ -22,8 +23,10 @@
   import SearchBar from "$lib/components/SearchBar.svelte";
   import TodoInput from "$lib/commands/todo/TodoInput.svelte";
   import TodoList from "$lib/commands/todo/TodoList.svelte";
+  import TranslatePanel from "$lib/commands/translate/TranslatePanel.svelte";
   import { apps } from "$lib/stores/apps.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
@@ -79,6 +82,10 @@
       event.preventDefault();
       toggleSelectedImagePreview();
     }
+    if (event.key === "Tab" && ui.view === "translate") {
+      event.preventDefault();
+      if (translate.wordMode) translate.swap();
+    }
   }
 </script>
 
@@ -107,6 +114,8 @@
       <SettingsPanel />
     {:else if ui.view === "emoji"}
       <EmojiPanel />
+    {:else if ui.view === "translate"}
+      <TranslatePanel />
     {:else}
       <ResultList />
     {/if}
