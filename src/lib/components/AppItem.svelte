@@ -45,13 +45,11 @@
   type="button"
   role="option"
   aria-selected={selected}
-  class="slide-in flex w-full items-center gap-3 rounded-md border-2 px-3 py-2.5 text-left transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.96] {selected
-    ? 'border-primary-focus/50 bg-surface-2'
-    : 'border-transparent hover:bg-surface-2/70'}"
+  class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"
   onclick={onselect}
 >
   <span
-    class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-1 text-ink-muted media-outline"
+    class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface-1 text-ink-muted media-outline"
   >
     {#if iconSrc && !broken}
       <img
@@ -68,7 +66,7 @@
     {/if}
   </span>
   <span class="min-w-0 flex-1">
-    <span class="block truncate text-[14px] font-medium leading-5 text-ink">{app.name}</span>
-    <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("app.kind")}</span>
+    <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{app.name}</span>
+    <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-subtle">{i18n.t("app.kind")}</span>
   </span>
 </button>

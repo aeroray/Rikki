@@ -42,8 +42,8 @@
     ></button>
     <div
       class="relative z-10 mx-3 w-[min(100%-24px,20rem)] rounded-lg bg-surface-1 p-4 outline outline-1 outline-hairline"
-      in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.96 }}
-      out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.96 }}
+      in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.95 }}
+      out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.95 }}
     >
       {#if confirm.kind === "expire"}
         <h2 id="clip-confirm-title" class="text-balance text-[14px] font-medium leading-5 text-ink">
@@ -66,14 +66,14 @@
       <div class="mt-4 flex justify-end gap-2">
         <button
           type="button"
-          class="pressable flex h-10 items-center rounded-md px-3 text-[13px] leading-5 text-ink-subtle hover:text-ink active:scale-[0.96]"
+          class="pressable flex h-10 items-center rounded-sm px-3 text-[13px] leading-5 text-ink-subtle hover:text-ink active:scale-[0.96]"
           onclick={cancel}
         >
           {i18n.t("clip.cleanupCancel")}
         </button>
         <button
           type="button"
-          class="pressable flex h-10 items-center rounded-md bg-surface-2 px-3 text-[13px] leading-5 text-ink outline outline-1 outline-hairline enabled:hover:bg-surface-1 enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+          class="pressable flex h-10 items-center rounded-sm bg-surface-2 px-3 text-[13px] leading-5 text-ink outline outline-1 outline-hairline enabled:hover:bg-surface-1 enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!canConfirm}
           onclick={ok}
         >

@@ -45,7 +45,7 @@
 
   {#if outcome.ok}
     <p
-      class="slide-in mt-3 px-1 font-medium text-[24px] leading-8 tracking-[-0.05px] text-pretty text-ink tabular-nums"
+      class="row-fade mt-3 px-1 text-[24px] font-medium leading-8 tracking-[-0.05px] text-pretty text-ink tabular-nums"
     >
       {outcome.display}
     </p>
@@ -78,7 +78,7 @@
             >
               <button
                 type="button"
-                class="pressable min-w-0 flex-1 rounded-md px-1 py-1 text-left hover:bg-surface-2/70 active:scale-[0.96]"
+                class="row-hit min-w-0 flex-1 px-1 py-1 text-left active:scale-[0.96]"
                 onclick={() => reuse(entry.expression)}
               >
                 <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle">

@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-30 - Palette chrome uses Raycast-like tokens
+Decision:
+Dark canvas is `#07080a`, panels `#111214`, hairlines `rgb(255 255 255 / 0.06)`. Rows select and hover with translucent fills, not a 2px accent border. Home-list fade-stagger runs only when the empty palette opens.
+Reason:
+Solid black, off-grid padding, and a hard selected outline read as cheap next to a command palette.
+
 ## 2026-08-30 - Home list ranks by command usage
 Decision:
 Empty-home commands sort by `usage_count.json` key `command:{id}` descending, then a default rank with clip and snippet first. Count once per visit when a prefix panel or web prefix + space becomes active; restoring the last query does not count.

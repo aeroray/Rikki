@@ -380,13 +380,13 @@
   }
 </script>
 
-<label class="search-glow m-3 flex items-center gap-3 rounded-md bg-surface-1 px-3 py-2.5">
+<label class="search-glow m-3 flex items-center gap-2 rounded-lg bg-surface-1 px-4 py-3">
   <Search class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
   <span class="sr-only">{i18n.t("search.placeholder")}</span>
   <input
     bind:this={inputEl}
     bind:value={ui.searchText}
-    class="w-full bg-transparent text-[16px] leading-6 tracking-[-0.05px] text-ink outline-none placeholder:text-ink-tertiary"
+    class="w-full bg-transparent text-[16px] font-medium leading-[1.45] tracking-[-0.05px] text-ink outline-none placeholder:font-normal placeholder:text-ink-tertiary"
     placeholder={i18n.t("search.placeholder")}
     autocomplete="off"
     spellcheck="false"

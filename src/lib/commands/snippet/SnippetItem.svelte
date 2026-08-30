@@ -32,28 +32,26 @@
 
 <div
   bind:this={row}
-  class="slide-in flex w-full items-center gap-1 rounded-md border-2 pr-1 transition-[background-color,border-color] duration-150 ease-out {selected
-    ? 'border-primary-focus/50 bg-surface-2'
-    : 'border-transparent hover:bg-surface-2/70'}"
+  class="row-hit flex w-full items-center gap-1 pr-1 {selected ? 'is-selected' : ''}"
 >
   <button
     type="button"
     role="option"
     aria-selected={selected}
-    class="pressable flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left active:scale-[0.96]"
+    class="pressable flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"
     onclick={onselect}
   >
-    <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
+    <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-ink-muted">
       <FileText class="size-4" strokeWidth={1.5} aria-hidden="true" />
     </span>
     <span class="min-w-0 flex-1">
-      <span class="block truncate text-[14px] font-medium leading-5 text-ink">{snippet.title}</span>
-      <span class="block truncate text-[12px] leading-[1.4] text-ink-subtle {snippet.sensitive
+      <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{snippet.title}</span>
+      <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-subtle {snippet.sensitive
         ? 'tracking-[0.2em]'
         : ''}">{preview}</span>
     </span>
     {#if snippet.keyword}
-      <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans text-[12px] text-ink-tertiary">
+      <kbd class="rounded bg-surface-2 px-1.5 py-0.5 font-sans text-[12px] font-normal text-ink-tertiary">
         {snippet.keyword}
       </kbd>
     {/if}

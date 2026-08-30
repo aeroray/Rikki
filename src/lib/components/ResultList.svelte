@@ -33,7 +33,7 @@
 <div class="flex min-h-0 flex-1 flex-col">
   <ScrollArea
     class="min-h-0 flex-1"
-    viewportClass="flex flex-col gap-1 px-3 pb-3 pt-1"
+    viewportClass="flex flex-col gap-2 px-3 pb-3 pt-1"
     role="listbox"
     tabindex={-1}
     aria-label={i18n.t("search.list")}

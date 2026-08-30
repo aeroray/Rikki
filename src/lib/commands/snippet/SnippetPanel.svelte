@@ -69,7 +69,7 @@
       </p>
       <ScrollArea
         class="min-h-0 flex-1"
-        viewportClass="flex flex-col gap-1"
+        viewportClass="flex flex-col gap-2"
         role="listbox"
         tabindex={-1}
         aria-label={i18n.t("snippet.all")}

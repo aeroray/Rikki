@@ -93,7 +93,7 @@
     <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("emoji.categories")}</p>
     <ScrollArea
       class="min-h-0 flex-1"
-      viewportClass="flex flex-col gap-1"
+      viewportClass="flex flex-col gap-2"
       role="listbox"
       tabindex={-1}
       aria-label={i18n.t("emoji.categories")}
@@ -103,17 +103,15 @@
           type="button"
           role="option"
           aria-selected={index === emojis.selectedIndex}
-          class="slide-in flex w-full items-center gap-3 rounded-md border-2 px-3 py-2.5 text-left transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.96] {index === emojis.selectedIndex
-            ? 'border-primary-focus/50 bg-surface-2'
-            : 'border-transparent hover:bg-surface-2/70'}"
+          class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"
           use:scrollWhen={index === emojis.selectedIndex}
           onclick={() => openEmojiCategory(category.id)}
         >
-          <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-1 text-[20px] leading-none">
+          <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-[20px] leading-none">
             {category.icon}
           </span>
-          <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-ink">{emojiCategoryLabel(category.id)}</span>
-          <span class="tabular-nums text-[12px] leading-[1.4] text-ink-tertiary">{emojis.ready ? category.emojis.length : ""}</span>
+          <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-[1.45] text-ink">{emojiCategoryLabel(category.id)}</span>
+          <span class="tabular-nums text-[12px] font-normal leading-[1.45] text-ink-tertiary">{emojis.ready ? category.emojis.length : ""}</span>
         </button>
       {/each}
     </ScrollArea>

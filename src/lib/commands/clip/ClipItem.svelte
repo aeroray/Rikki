@@ -87,9 +87,7 @@
 
 <div
   bind:this={row}
-  class="flex items-center gap-2 rounded-md border-2 px-2 py-1.5 transition-[background-color,border-color] duration-150 ease-out {selected
-    ? 'border-primary-focus/50 bg-surface-2'
-    : 'border-transparent hover:bg-surface-2/70'}"
+  class="row-hit flex items-center gap-2 px-3 py-2 {selected ? 'is-selected' : ''}"
 >
   {#if entry.type === "image"}
     <button
@@ -125,15 +123,15 @@
   {/if}
   <button
     type="button"
-    class="pressable flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left active:scale-[0.96]"
+    class="pressable flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left active:scale-[0.96]"
     aria-label={entry.type === "image" ? i18n.t("clip.pasteImage", { dims: dims ? ` ${dims}` : "", ago }) : undefined}
     title={[entry.appName, new Date(entry.createdAt).toLocaleString()].filter(Boolean).join(" · ")}
     onclick={onselect}
   >
     {#if entry.type === "image"}
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[14px] font-medium leading-5 text-ink">{i18n.t("clip.image")}</span>
-        <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{i18n.t("clip.image")}</span>
+        <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
           {meta}
         </span>
       </span>
@@ -145,8 +143,8 @@
       ></span>
       <SwatchBook class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[14px] font-medium leading-5 text-ink">{preview}</span>
-        <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{preview}</span>
+        <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
           {meta}
         </span>
       </span>
@@ -155,8 +153,8 @@
         <Clipboard class="size-4" strokeWidth={1.5} aria-hidden="true" />
       </span>
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[14px] font-medium leading-5 text-ink">{preview}</span>
-        <span class="block truncate text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{preview}</span>
+        <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
           {meta}
         </span>
       </span>

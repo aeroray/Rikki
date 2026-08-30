@@ -45,8 +45,8 @@
         alt={i18n.t("clip.previewAlt")}
         draggable="false"
         class="media-outline relative z-10 max-h-[calc(100%-40px)] max-w-[calc(100%-40px)] object-contain"
-        in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.96 }}
-        out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.96 }}
+        in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.95 }}
+        out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.95 }}
         onerror={() => (broken = true)}
       />
     {/if}

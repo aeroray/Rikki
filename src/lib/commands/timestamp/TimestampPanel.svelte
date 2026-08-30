@@ -37,7 +37,7 @@
         <li>
           <button
             type="button"
-            class="pressable flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left hover:bg-surface-2/70 active:scale-[0.96]"
+            class="row-hit flex w-full items-center gap-2 px-3 py-2 text-left active:scale-[0.96]"
             onclick={() => void copyTimestampValue(row.value)}
           >
             <span class="w-20 shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{row.label}</span>

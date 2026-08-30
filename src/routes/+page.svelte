@@ -126,11 +126,13 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
+<div class="app-frame">
 <div
-  class="app-shell relative flex flex-col"
+  class="app-shell relative"
   class:is-open={ui.shellOpen && !ui.shellExiting}
   class:is-exiting={ui.shellExiting}
 >
+<div class="app-shell-clip relative">
   <SearchBar />
 
   <div id="command-results" class="flex min-h-0 flex-1 flex-col" class:pb-14={Boolean(ui.notice)}>
@@ -172,8 +174,10 @@
   <ClipConfirm />
 
   {#if ui.notice}
-    <p class="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.4] text-pretty text-ink outline outline-1 outline-hairline">
+    <p class="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty text-ink outline outline-1 outline-hairline">
       {ui.notice}
     </p>
   {/if}
+</div>
+</div>
 </div>
