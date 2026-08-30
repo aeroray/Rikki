@@ -36,6 +36,7 @@
   import TimestampPanel from "$lib/commands/timestamp/TimestampPanel.svelte";
   import QRPanel from "$lib/commands/qrcode/QRPanel.svelte";
   import QRDecodePanel from "$lib/commands/qrcode/QRDecodePanel.svelte";
+  import { homeUsageCommandId } from "$lib/commands/registry";
   import { apps } from "$lib/stores/apps.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { json } from "$lib/stores/json.svelte";
@@ -53,6 +54,7 @@
     ui.focusField = "search";
     void clipboard.start();
     apps.start();
+    ui.start();
     const stops: Array<() => void> = [];
 
     void listen("palette-shown", () => {
@@ -76,6 +78,17 @@
     if (ui.view !== "clip" && ui.imagePreviewSrc) {
       ui.imagePreviewSrc = null;
     }
+  });
+
+  $effect(() => {
+    const id = homeUsageCommandId(
+      ui.view,
+      ui.matchedCommand?.id ?? null,
+      ui.searchText,
+      ui.commandRest,
+    );
+    if (id) ui.enterCommand(id);
+    else if (ui.view === "empty") ui.leaveCommand();
   });
 
   function onWindowKeydown(event: KeyboardEvent) {

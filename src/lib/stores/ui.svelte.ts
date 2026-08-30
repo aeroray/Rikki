@@ -1,9 +1,12 @@
 import { parseColor } from "$lib/commands/color/parse";
-import { listCommands, match, rankCommand } from "$lib/commands/registry";
+import { listCommands, listHomeCommands, match, rankCommand } from "$lib/commands/registry";
 import type { RootHit } from "$lib/commands/types";
 import { i18n } from "$lib/i18n";
 import { apps } from "$lib/stores/apps.svelte";
 import { requestHidePalette } from "$lib/window";
+import { invoke } from "@tauri-apps/api/core";
+
+const COMMAND_USAGE_PREFIX = "command:";
 
 const ROOT_HIT_LIMIT = 20;
 
@@ -20,6 +23,9 @@ class UiStore {
   private pendingReset = false;
   private hideFlushers = new Set<() => void>();
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  private sessionCommandId: string | null = null;
+  private usageReady: Promise<void>;
+  commandCounts = $state<Record<string, number>>({});
 
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
@@ -42,7 +48,7 @@ class UiStore {
     if (!this.matchedCommand && parseColor(this.searchText.trim())) return "color";
     return "suggest";
   });
-  homeCommands = $derived(listCommands().filter((command) => command.mode !== "action"));
+  homeCommands = $derived(listHomeCommands(this.commandCounts));
   rootHits = $derived.by((): RootHit[] => {
     if (this.view !== "suggest") return [];
     const query = this.searchText.trim();
@@ -81,6 +87,25 @@ class UiStore {
     }
     return hits;
   });
+
+  constructor() {
+    this.usageReady = this.hydrateCommandUsage();
+  }
+
+  start() {
+    void this.usageReady;
+  }
+
+  enterCommand(id: string) {
+    if (!id || this.sessionCommandId === id) return;
+    this.sessionCommandId = id;
+    this.commandCounts = { ...this.commandCounts, [id]: (this.commandCounts[id] ?? 0) + 1 };
+    void invoke("bump_usage", { key: `${COMMAND_USAGE_PREFIX}${id}` });
+  }
+
+  leaveCommand() {
+    this.sessionCommandId = null;
+  }
 
   resetSearch() {
     this.searchText = "";
@@ -159,6 +184,24 @@ class UiStore {
     }
     if (this.selectedIndex >= count) {
       this.selectedIndex = count - 1;
+    }
+  }
+
+  private async hydrateCommandUsage() {
+    try {
+      const all = await invoke<Record<string, number>>("get_usage_counts");
+      const next: Record<string, number> = {};
+      for (const [key, count] of Object.entries(all)) {
+        if (!key.startsWith(COMMAND_USAGE_PREFIX)) continue;
+        next[key.slice(COMMAND_USAGE_PREFIX.length)] = count;
+      }
+      const merged = { ...next };
+      for (const [id, count] of Object.entries(this.commandCounts)) {
+        merged[id] = Math.max(merged[id] ?? 0, count);
+      }
+      this.commandCounts = merged;
+    } catch {
+      // Keep any counts already recorded this session.
     }
   }
 }

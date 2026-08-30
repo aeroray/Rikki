@@ -6,6 +6,19 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 const USAGE_FILE: &str = "usage_count.json";
+const COMMAND_USAGE_PREFIX: &str = "command:";
+const MAX_COMMAND_ID_LEN: usize = 40;
+
+pub fn is_command_usage_key(key: &str) -> bool {
+    let Some(id) = key.strip_prefix(COMMAND_USAGE_PREFIX) else {
+        return false;
+    };
+    !id.is_empty()
+        && id.len() <= MAX_COMMAND_ID_LEN
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct UsageFile {
@@ -61,6 +74,17 @@ fn save_usage(app: &AppHandle, counts: &HashMap<String, u32>) -> Result<(), Stri
 mod tests {
     use super::UsageFile;
     use std::collections::HashMap;
+
+    #[test]
+    fn command_usage_keys_are_namespaced() {
+        assert!(super::is_command_usage_key("command:clip"));
+        assert!(super::is_command_usage_key("command:web-gg"));
+        assert!(super::is_command_usage_key("command:base64d"));
+        assert!(!super::is_command_usage_key("clip"));
+        assert!(!super::is_command_usage_key(r"C:\Start Menu\Chrome.lnk"));
+        assert!(!super::is_command_usage_key("command:Clip"));
+        assert!(!super::is_command_usage_key("command:"));
+    }
 
     #[test]
     fn usage_json_wraps_counts_map() {

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Mutex;
 
@@ -66,6 +67,19 @@ pub fn launch_app(app: AppHandle, path: String, index: State<AppIndex>) -> Resul
     let count = crate::storage::usage_store::increment_usage(&app, &target.path).unwrap_or(0);
     index.bump_usage(&path, count);
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_usage_counts(app: AppHandle) -> Result<HashMap<String, u32>, String> {
+    crate::storage::usage_store::load_usage(&app)
+}
+
+#[tauri::command]
+pub fn bump_usage(app: AppHandle, key: String) -> Result<u32, String> {
+    if !crate::storage::usage_store::is_command_usage_key(&key) {
+        return Err("invalid usage key".into());
+    }
+    crate::storage::usage_store::increment_usage(&app, &key)
 }
 
 fn open_path(path: &str) -> Result<(), String> {

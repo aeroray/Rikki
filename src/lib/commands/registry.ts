@@ -13,6 +13,58 @@ export function listCommands(): Command[] {
   return [...commands.values()];
 }
 
+/** Default empty-home order when usage counts are tied or missing. */
+export const HOME_COMMAND_ORDER = [
+  "clip",
+  "snippet",
+  "todo",
+  "calc",
+  "emoji",
+  "translate",
+  "color",
+  "json",
+  "timestamp",
+  "qr",
+  "qrdecode",
+  "base64",
+  "base64d",
+  "settings",
+  "web-gg",
+  "web-bd",
+  "web-bing",
+  "web-ddg",
+  "web-sogou",
+] as const;
+
+const HOME_RANK = new Map<string, number>(HOME_COMMAND_ORDER.map((id, index) => [id, index]));
+
+export function listHomeCommands(counts: Record<string, number>): Command[] {
+  const fallback = HOME_COMMAND_ORDER.length;
+  return listCommands()
+    .filter((command) => command.mode !== "action")
+    .sort((a, b) => {
+      const usage = (counts[b.id] ?? 0) - (counts[a.id] ?? 0);
+      if (usage !== 0) return usage;
+      return (HOME_RANK.get(a.id) ?? fallback) - (HOME_RANK.get(b.id) ?? fallback) || a.id.localeCompare(b.id);
+    });
+}
+
+export function homeUsageCommandId(
+  view: string,
+  matchedId: string | null,
+  searchText: string,
+  commandRest: string,
+): string | null {
+  if (view === "empty") return null;
+  if (view === "suggest") {
+    if (matchedId && (commandRest.length > 0 || searchText.endsWith(" "))) return matchedId;
+    return null;
+  }
+  if (view === "color") return matchedId ?? "color";
+  if (view === "base64") return matchedId ?? "base64";
+  return view;
+}
+
 export function commandPrefixes(command: Command): string[] {
   return [command.prefix, ...(command.aliases ?? [])];
 }

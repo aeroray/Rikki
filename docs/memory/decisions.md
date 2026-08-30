@@ -2,6 +2,12 @@
 
 Entries are newest first.
 
+## 2026-08-30 - Home list ranks by command usage
+Decision:
+Empty-home commands sort by `usage_count.json` key `command:{id}` descending, then a default rank with clip and snippet first. Count once per visit when a prefix panel or web prefix + space becomes active; restoring the last query does not count.
+Reason:
+Map insertion order looked alphabetical, and a fresh install should still surface the commands people open most.
+
 ## 2026-08-29 - Escape steps back to home before hiding
 Decision:
 Escape closes overlays and drills first, then clears the search and returns to the empty home. Escape on an empty home hides the palette. Blur and the palette hotkey still hide without clearing.

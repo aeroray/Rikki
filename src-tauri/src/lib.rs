@@ -12,7 +12,7 @@ mod storage;
 #[cfg(desktop)]
 mod tray;
 
-use commands::apps::{get_installed_apps, launch_app, AppIndex};
+use commands::apps::{bump_usage, get_installed_apps, get_usage_counts, launch_app, AppIndex};
 use commands::backup::{export_backup, import_backup};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::qr::save_png_file;
@@ -358,6 +358,8 @@ pub fn run() {
             get_foreground_app,
             get_installed_apps,
             launch_app,
+            get_usage_counts,
+            bump_usage,
             lock_screen,
             get_snippets,
             create_snippet,
