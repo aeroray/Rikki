@@ -9,21 +9,24 @@ const SYSTEM_BROWSER_PATH = "";
  *
  * `id` is the key the list is rendered with, `path` is what gets stored — the
  * system-default row has a name and an id but no path, so the two cannot be the
- * same field.
+ * same field. `icon` is empty for that row, and for a browser whose icon could
+ * not be extracted.
  */
 export type BrowserOption = {
   id: string;
   name: string;
   path: string;
+  icon: string;
 };
 
 export function browserOptionList(installed: InstalledBrowser[]): BrowserOption[] {
   return [
-    { id: "system", name: i18n.t("settings.browser.system"), path: SYSTEM_BROWSER_PATH },
+    { id: "system", name: i18n.t("settings.browser.system"), path: SYSTEM_BROWSER_PATH, icon: "" },
     ...installed.map((browser) => ({
       id: browser.id,
       name: browser.name,
       path: browser.path,
+      icon: browser.icon,
     })),
   ];
 }

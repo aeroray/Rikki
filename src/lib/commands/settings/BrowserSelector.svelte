@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { BrowserOption } from "$lib/commands/settings/browsers";
   import { i18n } from "$lib/i18n";
+  import { assetUrl } from "$lib/assetUrl";
   import { Check, Compass } from "@lucide/svelte";
 
   let {
@@ -20,6 +21,10 @@
   } = $props();
 
   let row: HTMLDivElement | undefined = $state();
+  // The system-default row names no executable, and an icon that could not be
+  // extracted leaves the path empty; both keep the generic tile.
+  let broken = $state(false);
+  const iconSrc = $derived(assetUrl(option.icon));
 
   $effect(() => {
     if (selected) row?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -39,8 +44,22 @@
     class="pressable flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"
     onclick={onselect}
   >
-    <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-ink-muted">
-      <Compass class="size-4" strokeWidth={1.5} aria-hidden="true" />
+    <span
+      class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface-1 text-ink-muted media-outline"
+    >
+      {#if iconSrc && !broken}
+        <img
+          src={iconSrc}
+          alt=""
+          width="32"
+          height="32"
+          class="size-full object-cover"
+          decoding="async"
+          onerror={() => (broken = true)}
+        />
+      {:else}
+        <Compass class="size-4" strokeWidth={1.5} aria-hidden="true" />
+      {/if}
     </span>
     <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-[1.45] text-ink">
       {option.name}

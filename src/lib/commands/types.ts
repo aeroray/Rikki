@@ -61,6 +61,8 @@ export interface InstalledBrowser {
   name: string;
   /** The executable, and the value `settings.json` stores. */
   path: string;
+  /** The browser's own icon, or empty when none could be extracted. */
+  icon: string;
 }
 
 export interface Snippet {

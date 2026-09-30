@@ -13,6 +13,22 @@ const WEB_SEARCH = [
   { prefix: "sogou", engineId: "sogou", title: "Sogou", titleZh: "搜狗", description: "Search with Sogou", descriptionZh: "使用搜狗搜索" },
 ] as const;
 
+/**
+ * The engine behind each web-search command, keyed by command id.
+ *
+ * `SearchBar` reads this to put the engine's own mark in the field, so it has to
+ * be the same mapping the commands below are built from rather than a second
+ * table that can drift away from it.
+ */
+const ENGINE_BY_COMMAND = new Map<string, string>(
+  WEB_SEARCH.map((item) => [`web-${item.prefix}`, item.engineId]),
+);
+
+/** The engine a command searches with, or `null` for a command that is not one. */
+export function engineIdForCommand(commandId: string): string | null {
+  return ENGINE_BY_COMMAND.get(commandId) ?? null;
+}
+
 for (const item of WEB_SEARCH) {
   const engine = SEARCH_ENGINES.find((entry) => entry.id === item.engineId)!;
   const command: Command = {

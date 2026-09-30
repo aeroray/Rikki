@@ -7,9 +7,10 @@
   import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
-  import { Search } from "@lucide/svelte";
+  import EngineMark from "$lib/components/EngineMark.svelte";
   import { activateCommand } from "$lib/commands/activate";
   import { canFallbackSearch, runFallbackSearch } from "$lib/commands/fallback";
+  import { engineIdForCommand } from "$lib/commands/web";
   import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
   import {
     handleSnippetEnter,
@@ -155,6 +156,20 @@
       return settings.countFor(parseSettingsScreen(ui.commandRest));
     }
     return 0;
+  });
+
+  /**
+   * The engine the field is searching with, or `null` when it is not a web
+   * search.
+   *
+   * A web-search prefix is the obvious case. The other one is the fallback row
+   * an unmatched query offers, which goes to the default engine — and that
+   * engine may be a custom one, which has no mark and so keeps the magnifier.
+   */
+  const searchEngineId = $derived.by((): string | null => {
+    if (ui.matchedCommand) return engineIdForCommand(ui.matchedCommand.id);
+    if (canFallbackSearch(ui.searchText, ui.rootHits.length)) return settings.engine.id;
+    return null;
   });
 
   $effect(() => {
@@ -633,7 +648,7 @@
 <label
   class="m-3 flex items-center gap-2 rounded-lg bg-surface-1 px-4 py-3 transition-shadow duration-150 ease-out focus-within:animate-[glowPulse_1.2s_ease-in-out_infinite] motion-reduce:focus-within:animate-none motion-reduce:focus-within:outline motion-reduce:focus-within:outline-1 motion-reduce:focus-within:outline-primary-focus/55"
 >
-  <Search class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
+  <EngineMark engineId={searchEngineId} />
   <span class="sr-only">{i18n.t("search.placeholder")}</span>
   <input
     bind:this={inputEl}

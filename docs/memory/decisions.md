@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-09-30 - Browsers show their own icon; search engines show their brand
+Decision:
+The browser picker renders each browser's real icon — extracted by `apps_icons` into `app_data_dir/apps/icons/browsers/`, named by the hash of the executable path, extracted once and then cached — and falls back to the existing `Compass` tile when there is none. The search field's leading icon becomes the engine's mark for `gg`/`bd`/`bing`/`ddg`/`sogou` and for the fallback-search row, and stays the magnifier everywhere else, custom engines included. The marks come from `@iconify-icons/cib` (CoreUI Brands, CC0), one module per icon, drawn monochrome through `currentColor` in `components/EngineMark.svelte`.
+Reason:
+A browser's own icon is the only source that can label a browser no library has heard of (`Tabbit浏览器`), and it is the extraction installed apps already use — a logo library could only guess or give up. For the engines, Simple Icons — the obvious source, and what its Svelte wrappers are built from — has no Bing at all, so it cannot cover the five engines the settings offer; CoreUI Brands is the only set found with all five, and its per-icon modules mean five marks cost ~4KB rather than the whole 830-icon set.
+Note:
+`write_png` had been failing every extraction since the atomic-write change: it wrote through `dest.with_extension("png.tmp")` and let `image::save` read the format off that extension, so no app icon had been extracted since 2026-09-30. It now names `ImageFormat::Png`, guarded by a Windows test that writes one and reads it back. On macOS a browser's executable path is resolved up to its `.app` bundle before the `.icns` is looked for; that path is unverified.
+
 ## 2026-09-30 - Translate is keyless: Sogou for sentences, Youdao for words
 Decision:
 `tr` posts sentences to Sogou's Hunyuan endpoint (`text`/`from_lang`/`to_lang`, no key and no signature) and single words to Youdao's public dictionary, which returns US and UK phonetics with matching audio, part-of-speech definitions, word forms and bilingual examples. The dictionary sits behind `lookup_word`, so a word it does not know falls through to the translator. One setting, `translateTarget`, holds the target and `Tab` cycles it; the source is guessed from the script, and a target that would equal the source falls back to the interface language.

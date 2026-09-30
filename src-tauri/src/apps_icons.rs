@@ -11,30 +11,68 @@ use crate::apps::InstalledApp;
 const ICON_SIZE: u32 = 32;
 
 pub fn attach_icons(app: &AppHandle, apps: &mut [InstalledApp]) {
-    let Ok(dir) = icons_dir(app) else {
+    let Some(mut cache) = IconCache::apps(app) else {
         return;
     };
-    let _ = fs::create_dir_all(&dir);
-    let mut keep = HashSet::new();
     for entry in apps.iter_mut() {
-        let dest = dir.join(icon_filename(&entry.path));
-        keep.insert(dest.clone());
-        if !dest.exists() {
-            let _ = extract_icon(&entry.path, &dest);
-        }
-        if dest.exists() {
-            entry.icon = dest.to_string_lossy().into_owned();
+        if let Some(icon) = cache.icon(&entry.path) {
+            entry.icon = icon;
         }
     }
-    prune_icons(&dir, &keep);
+    cache.finish();
 }
 
-fn icons_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|err| format!("resolve app data dir: {err}"))?;
-    Ok(dir.join("apps").join("icons"))
+/// A directory of extracted icons, keyed by the path each one came from.
+///
+/// Two lists are filled from this — installed apps and browsers — and each
+/// cache prunes itself down to exactly what it was just asked for, so they
+/// cannot share a directory: whichever list was read last would delete the
+/// other's icons. The browser cache is a subdirectory of the app one, which
+/// `prune_icons` skips and the asset protocol scope already covers.
+pub struct IconCache {
+    dir: PathBuf,
+    keep: HashSet<PathBuf>,
+}
+
+impl IconCache {
+    pub fn apps(app: &AppHandle) -> Option<IconCache> {
+        IconCache::open(app, "apps/icons")
+    }
+
+    pub fn browsers(app: &AppHandle) -> Option<IconCache> {
+        IconCache::open(app, "apps/icons/browsers")
+    }
+
+    fn open(app: &AppHandle, dir: &str) -> Option<IconCache> {
+        let dir = app.path().app_data_dir().ok()?.join(dir);
+        fs::create_dir_all(&dir).ok()?;
+        Some(IconCache {
+            dir,
+            keep: HashSet::new(),
+        })
+    }
+
+    /// The cached icon for `source`, extracted the first time it is asked for.
+    ///
+    /// An icon is an enhancement, so every failure here is an absent icon —
+    /// `None` — rather than an error the caller has to act on.
+    pub fn icon(&mut self, source: &str) -> Option<String> {
+        let dest = self.dir.join(icon_filename(source));
+        if !dest.exists() {
+            let _ = extract_icon(source, &dest);
+        }
+        if !dest.exists() {
+            return None;
+        }
+        self.keep.insert(dest.clone());
+        Some(dest.to_string_lossy().into_owned())
+    }
+
+    /// Drops the icons nothing asked for, so an uninstalled app or a browser
+    /// that has been removed does not leave its icon behind forever.
+    pub fn finish(self) {
+        prune_icons(&self.dir, &self.keep);
+    }
 }
 
 fn icon_filename(path: &str) -> String {
@@ -49,7 +87,12 @@ fn prune_icons(dir: &Path, keep: &HashSet<PathBuf>) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().is_some_and(|ext| ext == "png") && !keep.contains(&path) {
+        // Only files: the browser cache is a subdirectory, and `remove_file`
+        // on a directory would either fail or, worse, look like it worked.
+        if path.is_file()
+            && path.extension().is_some_and(|ext| ext == "png")
+            && !keep.contains(&path)
+        {
             let _ = fs::remove_file(path);
         }
     }
@@ -76,9 +119,13 @@ fn write_png(dest: &Path, width: u32, height: u32, rgba: Vec<u8>) -> Result<(), 
     let image = image::RgbaImage::from_raw(width, height, rgba).ok_or("invalid icon pixels")?;
     // Write through a temp file: a half-written PNG would otherwise be treated
     // as a valid cache hit by `attach_icons` on every later run.
+    //
+    // The format is named rather than left to `save`, which reads it off the
+    // extension — and the temp file's extension is `.tmp`, which is why every
+    // icon extraction failed with "not recognized as an image format".
     let tmp = dest.with_extension("png.tmp");
     image
-        .save(&tmp)
+        .save_with_format(&tmp, image::ImageFormat::Png)
         .map_err(|err| format!("write icon png: {err}"))?;
     fs::rename(&tmp, dest).map_err(|err| {
         let _ = fs::remove_file(&tmp);
@@ -175,7 +222,8 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
 
 #[cfg(target_os = "macos")]
 fn macos_icon(app_path: &Path, dest: &Path) -> Result<(), String> {
-    let icns = find_icns(app_path).ok_or_else(|| "no icns".to_string())?;
+    let bundle = bundle_root(app_path).ok_or_else(|| "no app bundle".to_string())?;
+    let icns = find_icns(bundle).ok_or_else(|| "no icns".to_string())?;
     if decode_icns(&icns, dest).is_ok() {
         return Ok(());
     }
@@ -197,6 +245,17 @@ fn macos_icon(app_path: &Path, dest: &Path) -> Result<(), String> {
     } else {
         Err("sips failed".into())
     }
+}
+
+/// The `.app` bundle a path belongs to.
+///
+/// Installed apps are listed by their bundle directory, but a browser is listed
+/// by the executable inside it, and the icon lives in the bundle either way.
+#[cfg(target_os = "macos")]
+fn bundle_root(app_path: &Path) -> Option<&Path> {
+    app_path
+        .ancestors()
+        .find(|path| path.extension().is_some_and(|ext| ext == "app"))
 }
 
 #[cfg(target_os = "macos")]
@@ -262,5 +321,38 @@ mod tests {
         assert_eq!(a, b);
         assert!(a.ends_with(".png"));
         assert_ne!(a, icon_filename(r"C:\Start Menu\Edge.lnk"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_browser_executable_resolves_to_its_bundle() {
+        use std::path::Path;
+
+        let bundle = Path::new("/Applications/Google Chrome.app");
+        assert_eq!(
+            super::bundle_root(&bundle.join("Contents/MacOS/Google Chrome")),
+            Some(bundle)
+        );
+        assert_eq!(super::bundle_root(bundle), Some(bundle));
+        assert_eq!(super::bundle_root(Path::new("/usr/bin/open")), None);
+    }
+
+    /// The write goes through a `.tmp` file, so the format has to be named
+    /// rather than read off the extension — reading it off the extension is
+    /// what made every icon extraction fail.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn an_icon_is_written_through_a_temp_file() {
+        let dir = std::env::temp_dir().join("rikki icon write test");
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let dest = dir.join("icon.png");
+        let rgba = vec![0u8, 128, 255, 255].repeat(16);
+
+        super::write_png(&dest, 4, 4, rgba).expect("write the icon");
+
+        let written = image::open(&dest).expect("read the icon back");
+        assert_eq!((written.width(), written.height()), (4, 4));
+        assert!(!dest.with_extension("png.tmp").exists());
+        std::fs::remove_dir_all(dir).ok();
     }
 }

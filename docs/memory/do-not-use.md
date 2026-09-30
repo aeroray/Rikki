@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: Simple Icons (and its Svelte wrappers) as the brand-logo source
+Do not reintroduce unless the user explicitly reverses this. Reason: the package has no Bing icon at all — checked at 16.33.0, and at 16.12.0, which is the snapshot the wrappers bundle — so it cannot cover the five search engines the settings offer. `@iconify-icons/cib` (CoreUI Brands, CC0, one module per icon) has all five. Date: 2026-09-30.
+
 ## Tombstone: translate settings and a source-language picker
 Do not reintroduce unless the user explicitly reverses this. Reason: there is nothing left to configure — the source is guessed from the script because Sogou rejects `auto`, the target is one remembered setting (`translateTarget`) that `Tab` cycles, and a target that collides with the source falls back to the interface language. Date: 2026-09-30.
 

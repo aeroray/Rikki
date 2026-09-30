@@ -4,6 +4,7 @@ use std::path::Path;
 use serde::Serialize;
 use tauri::AppHandle;
 
+use crate::apps_icons::IconCache;
 use crate::storage::settings_store;
 
 #[derive(Debug, Clone, Serialize)]
@@ -17,13 +18,36 @@ pub struct Browser {
     pub id: String,
     pub name: String,
     pub path: String,
+    /// The browser's own icon, extracted the way installed apps get theirs, or
+    /// empty when there is none to extract.
+    pub icon: String,
 }
 
-// A registry walk plus a handful of `is_file` checks. `async` keeps it off the
-// main thread, where it would otherwise stall the window and the hotkey.
+// A registry walk plus a handful of `is_file` checks, and one icon extraction
+// per browser the first time it is listed. `async` keeps it off the main
+// thread, where it would otherwise stall the window and the hotkey.
 #[tauri::command(async)]
-pub fn list_browsers() -> Result<Vec<Browser>, String> {
-    Ok(detect_browsers())
+pub fn list_browsers(app: AppHandle) -> Result<Vec<Browser>, String> {
+    let mut browsers = detect_browsers();
+    attach_icons(&app, &mut browsers);
+    Ok(browsers)
+}
+
+/// Fills in each browser's own icon.
+///
+/// This is the extraction installed apps already use, rather than a logo
+/// library: it yields the icon the browser actually ships, which is the only
+/// thing that can put a face on a browser no library has heard of.
+fn attach_icons(app: &AppHandle, browsers: &mut [Browser]) {
+    let Some(mut cache) = IconCache::browsers(app) else {
+        return;
+    };
+    for browser in browsers.iter_mut() {
+        if let Some(icon) = cache.icon(&browser.path) {
+            browser.icon = icon;
+        }
+    }
+    cache.finish();
 }
 
 /// Opens `url` in the browser the user picked, or the system default.
@@ -252,6 +276,7 @@ fn read_browser(
         id: path.clone(),
         name: name.to_string(),
         path,
+        icon: String::new(),
     })
 }
 
@@ -469,6 +494,7 @@ fn read_bundle(bundle: &Path) -> Option<Browser> {
         id: path.to_string_lossy().into_owned(),
         name: name.to_string(),
         path: path.to_string_lossy().into_owned(),
+        icon: String::new(),
     })
 }
 

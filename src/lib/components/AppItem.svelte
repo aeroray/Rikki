@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { InstalledApp } from "$lib/commands/types";
   import { i18n } from "$lib/i18n";
-  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { assetUrl } from "$lib/assetUrl";
   import { AppWindow } from "@lucide/svelte";
 
   let {
@@ -18,7 +18,7 @@
 
   let row: HTMLButtonElement | undefined = $state();
   let broken = $state(false);
-  const iconSrc = $derived(fileSrc(app.icon));
+  const iconSrc = $derived(assetUrl(app.icon));
 
   $effect(() => {
     app.icon;
@@ -28,15 +28,6 @@
   $effect(() => {
     if (selected) row?.scrollIntoView({ block: "nearest", inline: "nearest" });
   });
-
-  function fileSrc(path: string): string {
-    if (!path) return "";
-    try {
-      return convertFileSrc(path);
-    } catch {
-      return "";
-    }
-  }
 </script>
 
 <button
