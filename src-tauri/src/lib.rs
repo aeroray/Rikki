@@ -255,6 +255,7 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
 
     *state.hotkey.lock().expect("hotkey") = next.to_string();
     *state.capturing_hotkey.lock().expect("capture") = false;
+    let _ = tray::set_tooltip(app, next);
 
     match settings_store::update_setting(app, "hotkey", next) {
         Ok(settings) => Ok(settings),
@@ -310,23 +311,40 @@ pub fn run() {
         )
         .setup(|app| {
             #[cfg(desktop)]
-            {
+            let registered_hotkey = {
                 let hotkey = settings_store::load_settings(app.handle())
                     .map(|settings| settings_store::resolved_hotkey(&settings))
                     .unwrap_or_else(|_| settings_store::default_hotkey().to_string());
-                if app.global_shortcut().register(hotkey.as_str()).is_err() {
+                let registered = if app.global_shortcut().register(hotkey.as_str()).is_ok() {
+                    hotkey
+                } else {
+                    // The configured key is taken (PowerToys, an IME, another
+                    // launcher). Try the default, and if that is taken too start
+                    // with no hotkey rather than refusing to launch: the tray
+                    // icon is still an entry point, whereas the old `?` here
+                    // panicked the process with no window, no tray and no way to
+                    // change the setting back.
                     let fallback = settings_store::default_hotkey();
-                    app.global_shortcut().register(fallback)?;
-                    if let Some(state) = app.try_state::<PaletteState>() {
-                        *state.hotkey.lock().expect("hotkey") = fallback.to_string();
+                    if app.global_shortcut().register(fallback).is_ok() {
+                        fallback.to_string()
+                    } else {
+                        eprintln!("rikki: no global hotkey available; use the tray icon");
+                        String::new()
                     }
-                } else if let Some(state) = app.try_state::<PaletteState>() {
-                    *state.hotkey.lock().expect("hotkey") = hotkey;
+                };
+                if let Some(state) = app.try_state::<PaletteState>() {
+                    *state.hotkey.lock().expect("hotkey") = registered.clone();
                 }
-            }
+                registered
+            };
 
             #[cfg(desktop)]
             tray::install(app.handle())?;
+
+            #[cfg(desktop)]
+            if !registered_hotkey.is_empty() {
+                let _ = tray::set_tooltip(app.handle(), &registered_hotkey);
+            }
 
             let handle = app.handle().clone();
             std::thread::spawn(move || {

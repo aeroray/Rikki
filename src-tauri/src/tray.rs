@@ -38,7 +38,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 // over the next moment: a menu dismissed without a selection
                 // never fires `on_menu_event`, so this is the only repair that
                 // covers that case.
-                crate::cursor::repair_cursor_soon();
+                crate::cursor::repair_cursor_soon(tray.app_handle());
             }
 
             if let TrayIconEvent::Click {
@@ -74,6 +74,45 @@ pub fn set_labels(app: &AppHandle, show_label: &str, quit_label: &str) -> Result
     tray.set_menu(Some(menu))
         .map_err(|err| format!("set tray menu: {err}"))?;
     Ok(())
+}
+
+/// Points the tooltip at the hotkey that is actually registered.
+///
+/// It used to be hardcoded to the default at install time, so after the user
+/// changed the shortcut the tray kept advertising the old one.
+pub fn set_tooltip(app: &AppHandle, hotkey: &str) -> Result<(), String> {
+    let tray = app
+        .tray_by_id("main")
+        .ok_or_else(|| "tray icon missing".to_string())?;
+    let label = hotkey_label(hotkey);
+    let text = if label.is_empty() {
+        "Rikki".to_string()
+    } else {
+        format!("Rikki — {label}")
+    };
+    tray.set_tooltip(Some(text))
+        .map_err(|err| format!("set tray tooltip: {err}"))
+}
+
+fn hotkey_label(hotkey: &str) -> String {
+    let trimmed = hotkey.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // macOS convention writes modifiers as glyphs with no separators.
+        return trimmed
+            .replace("Command", "⌘")
+            .replace("Control", "⌃")
+            .replace("Alt", "⌥")
+            .replace("Shift", "⇧")
+            .replace('+', "");
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        trimmed.to_string()
+    }
 }
 
 fn tooltip() -> &'static str {

@@ -19,6 +19,13 @@
 //! for the rest of the process's life. That is what happens after right-clicking
 //! the tray menu.
 //!
+//! **The counter is per-thread.** Measured on Windows: with the main thread at
+//! -2, a freshly spawned thread reads 0. So every repair here has to run on the
+//! thread that owns the window — the main thread — because a worker thread would
+//! read its own untouched count and conclude there is nothing to fix. That is
+//! why `repair_cursor_soon` hops back through `run_on_main_thread` instead of
+//! doing the work where it was called.
+//!
 //! We never hide the cursor ourselves (`set_cursor_visible` is not called
 //! anywhere in this crate), so a negative counter is always a stuck state and
 //! raising it back to 0 is always correct. See
@@ -43,6 +50,8 @@ fn display_count() -> i32 {
 /// Only ever increments while the counter is negative: calling
 /// `ShowCursor(TRUE)` on a healthy counter would inflate it, and a later
 /// legitimate hide would then not hide anything.
+///
+/// Must be called on the main thread — see the module docs.
 #[cfg(target_os = "windows")]
 pub fn ensure_cursor_visible() {
     use windows::Win32::UI::WindowsAndMessaging::ShowCursor;
@@ -67,21 +76,30 @@ pub fn ensure_cursor_visible() {}
 /// This sweeps a short window instead, and stops on its own — there is no
 /// permanent timer. Used after the tray menu opens, where no "menu closed" event
 /// exists for the dismiss-without-selecting case.
+///
+/// Each step is dispatched to the main thread, because the counter the repair
+/// has to move belongs to that thread and not to this one.
 #[cfg(target_os = "windows")]
-pub fn repair_cursor_soon() {
-    std::thread::spawn(|| {
+pub fn repair_cursor_soon(app: &tauri::AppHandle) {
+    let handle = app.clone();
+    std::thread::spawn(move || {
         for _ in 0..6 {
             std::thread::sleep(std::time::Duration::from_millis(250));
-            ensure_cursor_visible();
+            let _ = handle.run_on_main_thread(ensure_cursor_visible);
         }
     });
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn repair_cursor_soon() {}
+pub fn repair_cursor_soon(_app: &tauri::AppHandle) {}
 
 #[cfg(test)]
 mod tests {
+    // These run on a single thread, which is exactly the thread whose counter
+    // they manipulate, so they cover the arithmetic but cannot catch a repair
+    // dispatched to the wrong thread. The thread scope itself was measured
+    // separately and is documented above.
+
     #[test]
     #[cfg(target_os = "windows")]
     fn repairing_does_not_inflate_a_healthy_counter() {

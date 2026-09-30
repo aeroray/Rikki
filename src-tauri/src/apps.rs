@@ -47,13 +47,19 @@ pub fn load_or_refresh(app: &AppHandle) -> Result<Vec<InstalledApp>, String> {
     crate::apps_icons::attach_icons(app, &mut apps);
     apply_usage(app, &mut apps);
     if !cache_hit {
-        save_cache(
+        // The cache is an optimisation, so failing to write it must not take the
+        // whole app list down. Propagating the error here left "launch an app"
+        // permanently broken on a full or read-only data directory, and made
+        // every request rescan from scratch.
+        if let Err(error) = save_cache(
             app,
             &AppsCache {
                 fingerprint,
                 apps: strip_runtime_fields(&apps),
             },
-        )?;
+        ) {
+            eprintln!("rikki: could not write the app cache: {error}");
+        }
     }
     Ok(apps)
 }
@@ -133,6 +139,13 @@ fn fingerprint_dir(dir: &Path, count: &mut u64, latest: &mut u64) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
+        // `entry.file_type()` does not follow links, unlike `entry.metadata()`.
+        // The Start Menu folder is user-writable, so a junction pointing back at
+        // an ancestor would recurse until the stack overflowed and the process
+        // aborted.
+        if entry.file_type().is_ok_and(|kind| kind.is_symlink()) {
+            continue;
+        }
         let Ok(meta) = entry.metadata() else {
             continue;
         };
@@ -187,6 +200,12 @@ fn collect_apps(
     };
     for entry in entries.flatten() {
         let path = entry.path();
+
+        // Skip links rather than following them: `path.is_dir()` would descend
+        // through a junction that points at an ancestor and never come back.
+        if entry.file_type().is_ok_and(|kind| kind.is_symlink()) {
+            continue;
+        }
 
         #[cfg(target_os = "macos")]
         {

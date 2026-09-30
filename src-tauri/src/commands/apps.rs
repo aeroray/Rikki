@@ -51,13 +51,18 @@ pub fn warm(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+// `async` so the wait for the scan lock happens off the main thread. Without it
+// the command runs inline on the main thread, and a cold start (no apps.json
+// yet, so the whole Start Menu is walked and every icon extracted) freezes the
+// window, the tray and the global hotkey for the duration.
+#[tauri::command(async)]
 pub fn get_installed_apps(app: AppHandle) -> Result<Vec<InstalledApp>, String> {
     warm(&app)?;
     Ok(app.state::<AppIndex>().snapshot())
 }
 
-#[tauri::command]
+// Spawns a process and then writes usage.json.
+#[tauri::command(async)]
 pub fn launch_app(app: AppHandle, path: String, index: State<AppIndex>) -> Result<(), String> {
     let apps = index.snapshot();
     let Some(target) = apps.iter().find(|item| item.path == path) else {
@@ -74,7 +79,8 @@ pub fn get_usage_counts(app: AppHandle) -> Result<HashMap<String, u32>, String> 
     crate::storage::usage_store::load_usage(&app)
 }
 
-#[tauri::command]
+// Called once per panel entry, and does a read-modify-write of usage.json.
+#[tauri::command(async)]
 pub fn bump_usage(app: AppHandle, key: String) -> Result<u32, String> {
     if !crate::storage::usage_store::is_command_usage_key(&key) {
         return Err("invalid usage key".into());
