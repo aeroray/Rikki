@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
@@ -212,15 +213,34 @@ fn referenced_image_names(entries: &[ClipboardEntry]) -> HashSet<String> {
         .collect()
 }
 
+/// How long a freshly written image is left alone before the orphan sweep may
+/// delete it.
+///
+/// The clipboard plugin writes the file first and the entry that references it
+/// is recorded afterwards, so a sweep landing in that window would delete a live
+/// image and leave a row that can never be pasted. The frontend drains its write
+/// queue around image captures; this is the backstop for anything that slips
+/// past it.
+const ORPHAN_GRACE: Duration = Duration::from_secs(60);
+
 fn cleanup_orphan_images(dir: &Path, entries: &[ClipboardEntry]) {
     let keep = referenced_image_names(entries);
     let Ok(reader) = fs::read_dir(dir) else {
         return;
     };
+    let now = SystemTime::now();
     for item in reader.flatten() {
         let path = item.path();
         if !path.is_file() {
             continue;
+        }
+        if let Ok(modified) = item.metadata().and_then(|meta| meta.modified()) {
+            if now
+                .duration_since(modified)
+                .is_ok_and(|age| age < ORPHAN_GRACE)
+            {
+                continue;
+            }
         }
         let Some(name) = path.file_name() else {
             continue;

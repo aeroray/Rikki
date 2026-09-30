@@ -39,7 +39,10 @@ fn paste_shortcut() -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+// Enumerates the window list. The clipboard watcher calls this on every change,
+// and inline on the main thread the enumeration stalls the palette, the tray
+// and the global hotkey each time the clipboard moves.
+#[tauri::command(async)]
 pub fn get_foreground_app() -> String {
     foreground_app_name()
 }

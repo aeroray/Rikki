@@ -2,12 +2,16 @@ use tauri::AppHandle;
 
 use crate::storage::settings_store::{self, Settings};
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_settings(app: AppHandle) -> Result<Settings, String> {
     settings_store::load_settings(&app)
 }
 
-#[tauri::command]
+// Each of these rewrites settings.json through a temp file and a rename, and the
+// hotkey path also unregisters and re-registers the global shortcut. Both are
+// slow enough to stall the window, the tray and the hotkey itself when they run
+// inline on the main thread.
+#[tauri::command(async)]
 pub fn update_setting(app: AppHandle, key: String, value: String) -> Result<Settings, String> {
     if key == "hotkey" {
         return crate::apply_hotkey(&app, &value);
@@ -15,12 +19,12 @@ pub fn update_setting(app: AppHandle, key: String, value: String) -> Result<Sett
     settings_store::update_setting(&app, &key, &value)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn add_custom_engine(app: AppHandle, name: String, url: String) -> Result<Settings, String> {
     settings_store::add_custom_engine(&app, name, url)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_custom_engine(app: AppHandle, id: String) -> Result<Settings, String> {
     settings_store::delete_custom_engine(&app, &id)
 }

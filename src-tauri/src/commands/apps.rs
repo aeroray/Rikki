@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+#[cfg(target_os = "macos")]
 use std::process::Command;
 use std::sync::Mutex;
 
@@ -6,6 +7,11 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::apps::{self, InstalledApp};
 
+// Every lock in here recovers from poisoning instead of panicking. A panic
+// while one of them was held used to poison the mutex, and each later `expect`
+// then panicked as well, so a single unrelated panic took the tray thread and
+// the global hotkey handler down with it. The value behind a poisoned lock is
+// still the last one written, which beats aborting the app.
 #[derive(Default)]
 pub struct AppIndex {
     ready: Mutex<bool>,
@@ -15,23 +21,35 @@ pub struct AppIndex {
 
 impl AppIndex {
     pub fn snapshot(&self) -> Vec<InstalledApp> {
-        self.apps.lock().expect("app index").clone()
+        self.apps
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     fn store(&self, apps: Vec<InstalledApp>) {
-        *self.apps.lock().expect("app index") = apps;
-        *self.ready.lock().expect("app index") = true;
+        *self
+            .apps
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = apps;
+        *self
+            .ready
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = true;
     }
 
     fn is_ready(&self) -> bool {
-        *self.ready.lock().expect("app index")
+        *self
+            .ready
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn bump_usage(&self, path: &str, count: u32) {
         if let Some(entry) = self
             .apps
             .lock()
-            .expect("app index")
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .iter_mut()
             .find(|item| item.path == path)
         {
@@ -42,7 +60,10 @@ impl AppIndex {
 
 pub fn warm(app: &AppHandle) -> Result<(), String> {
     let index = app.state::<AppIndex>();
-    let _scan = index.scan.lock().expect("app scan");
+    let _scan = index
+        .scan
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if index.is_ready() {
         return Ok(());
     }
@@ -69,12 +90,16 @@ pub fn launch_app(app: AppHandle, path: String, index: State<AppIndex>) -> Resul
         return Err("unknown app".into());
     };
     open_path(&target.path)?;
-    let count = crate::storage::usage_store::increment_usage(&app, &target.path).unwrap_or(0);
+    // Keep the count we are already showing when usage.json cannot be written.
+    // Falling back to 0 dropped the app to the bottom of the sort order and
+    // showed a zero in the UI even though the launch itself had succeeded.
+    let count = crate::storage::usage_store::increment_usage(&app, &target.path)
+        .unwrap_or(target.usage_count);
     index.bump_usage(&path, count);
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_usage_counts(app: AppHandle) -> Result<HashMap<String, u32>, String> {
     crate::storage::usage_store::load_usage(&app)
 }
@@ -100,13 +125,35 @@ fn open_path(path: &str) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        Command::new("cmd")
-            .args(["/C", "start", "", path])
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map_err(|err| format!("open app: {err}"))?;
+        use windows::core::PCWSTR;
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::Shell::ShellExecuteW;
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+        // This used to be `cmd /C start "" <path>`. cmd.exe re-parses the
+        // argument itself and expands `%VAR%` even inside quotes, so a shortcut
+        // literally named `%TEMP%.lnk` opened whatever TEMP points at.
+        // ShellExecuteW takes the path verbatim and applies the same shell
+        // resolution (shortcuts, file associations) that the Start Menu uses.
+        let file = to_wide(path);
+        let result = unsafe {
+            ShellExecuteW(
+                HWND::default(),
+                PCWSTR::null(),
+                PCWSTR(file.as_ptr()),
+                PCWSTR::null(),
+                PCWSTR::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        // ShellExecuteW reports failure as a value <= 32 rather than as a null
+        // handle, so `is_invalid()` would call a failure a success.
+        if (result.0 as isize) <= 32 {
+            return Err(format!(
+                "open app: ShellExecuteW failed ({})",
+                result.0 as isize
+            ));
+        }
         return Ok(());
     }
 
@@ -117,13 +164,22 @@ fn open_path(path: &str) -> Result<(), String> {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn to_wide(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
 #[cfg(test)]
 mod tests {
+    // The command line this replaced went through cmd.exe, which expanded
+    // `%VAR%` even inside quotes. This locks in that the path reaches
+    // ShellExecuteW as a single verbatim string.
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_start_uses_empty_title_arg() {
-        let args = ["/C", "start", "", r"C:\Start Menu\Chrome.lnk"];
-        assert_eq!(args[2], "");
-        assert!(args[3].ends_with(".lnk"));
+    fn launch_path_is_passed_verbatim() {
+        let wide = super::to_wide(r"C:\Start Menu\%TEMP%.lnk");
+        assert_eq!(wide.last().copied(), Some(0), "must stay null terminated");
+        let text = String::from_utf16(&wide[..wide.len() - 1]).expect("utf16");
+        assert_eq!(text, r"C:\Start Menu\%TEMP%.lnk");
     }
 }

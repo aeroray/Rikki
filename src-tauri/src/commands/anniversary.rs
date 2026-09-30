@@ -2,12 +2,14 @@ use tauri::AppHandle;
 
 use crate::storage::anniversary_store::{self, Anniversary};
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_anniversaries(app: AppHandle) -> Result<Vec<Anniversary>, String> {
     anniversary_store::load_anniversaries(&app)
 }
 
-#[tauri::command]
+// Every mutating command below rewrites anniversaries.json through a temp file
+// and a rename, which must not block the main thread.
+#[tauri::command(async)]
 pub fn create_anniversary(
     app: AppHandle,
     title: String,
@@ -28,7 +30,7 @@ pub fn create_anniversary(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[allow(clippy::too_many_arguments)]
 pub fn update_anniversary(
     app: AppHandle,
@@ -52,7 +54,7 @@ pub fn update_anniversary(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_anniversary(app: AppHandle, id: String) -> Result<(), String> {
     anniversary_store::delete_anniversary(&app, &id)
 }

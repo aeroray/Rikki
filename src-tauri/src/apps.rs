@@ -32,7 +32,7 @@ const APPS_FILE: &str = "apps.json";
 
 pub fn load_or_refresh(app: &AppHandle) -> Result<Vec<InstalledApp>, String> {
     let roots = scan_roots(app);
-    let cached = load_cache(app)?;
+    let cached = load_cache(app);
     let (mut apps, cache_hit, fingerprint) = if let Some(cached) = cached {
         let fingerprint = dir_fingerprint(&roots);
         if cached.fingerprint == fingerprint {
@@ -316,15 +316,27 @@ fn cache_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join(APPS_FILE))
 }
 
-fn load_cache(app: &AppHandle) -> Result<Option<AppsCache>, String> {
-    let path = cache_path(app)?;
-    match json_file::read_json::<AppsCache>(&path) {
-        Ok(cache) => Ok(cache),
+/// Reads the cache, treating every failure as a miss.
+///
+/// The app list is only a cache, so a data directory that cannot be resolved or
+/// created must fall back to a fresh scan instead of failing the whole command.
+/// Propagating the error here re-opened exactly the hole the `save_cache` path
+/// had already closed: on a full or read-only data directory the cache write
+/// was tolerated but the cache read still took "launch an app" down with it.
+fn load_cache(app: &AppHandle) -> Option<AppsCache> {
+    let path = match cache_path(app) {
+        Ok(path) => path,
         Err(err) => {
-            // The app list is only a cache: a damaged file must fall back to a
-            // fresh scan instead of failing the whole command.
             eprintln!("rikki: {err}");
-            Ok(None)
+            return None;
+        }
+    };
+    match json_file::read_json::<AppsCache>(&path) {
+        Ok(cache) => cache,
+        Err(err) => {
+            // A damaged file must fall back to a fresh scan as well.
+            eprintln!("rikki: {err}");
+            None
         }
     }
 }

@@ -29,9 +29,8 @@ use storage::settings_store;
 use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
 use commands::system::lock_screen;
 use commands::clipboard::{
-    clear_clipboard, delete_clipboard_entry, discard_clipboard_image, get_clipboard_history,
-    get_clipboard_images_dir, read_clipboard_image, save_clipboard_history, search_clipboard,
-    toggle_pin_clipboard,
+    discard_clipboard_image, get_clipboard_history, get_clipboard_images_dir,
+    read_clipboard_image, save_clipboard_history,
 };
 use commands::todo::{get_todos, save_todos};
 use input::{get_foreground_app, simulate_paste};
@@ -52,13 +51,23 @@ struct PaletteState {
     ignore_blur: Mutex<bool>,
 }
 
+/// Takes a lock, recovering the value if a previous holder panicked.
+///
+/// `.expect()` turns one panic while a lock is held into a panic in every later
+/// lock of the same mutex. These mutexes are touched from the tray and hotkey
+/// threads as well as the main one, so poisoning would take the whole app down
+/// rather than degrade one operation.
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 fn palette_window(app: &tauri::AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(PALETTE_LABEL)
 }
 
 fn mark_shown(app: &tauri::AppHandle) {
     if let Some(state) = app.try_state::<PaletteState>() {
-        *state.last_shown_at.lock().expect("palette state") = Some(Instant::now());
+        *lock(&state.last_shown_at) = Some(Instant::now());
     }
 }
 
@@ -66,10 +75,10 @@ fn should_hide_on_blur(app: &tauri::AppHandle) -> bool {
     let Some(state) = app.try_state::<PaletteState>() else {
         return true;
     };
-    if *state.ignore_blur.lock().expect("blur") {
+    if *lock(&state.ignore_blur) {
         return false;
     }
-    let shown_at = *state.last_shown_at.lock().expect("palette state");
+    let shown_at = *lock(&state.last_shown_at);
     match shown_at {
         Some(shown_at) => shown_at.elapsed() >= BLUR_GRACE,
         None => true,
@@ -78,24 +87,16 @@ fn should_hide_on_blur(app: &tauri::AppHandle) -> bool {
 
 pub(crate) fn set_ignore_blur(app: &tauri::AppHandle, ignore: bool) {
     if let Some(state) = app.try_state::<PaletteState>() {
-        *state.ignore_blur.lock().expect("blur") = ignore;
+        *lock(&state.ignore_blur) = ignore;
     }
 }
 
 fn bump_hide_seq(app: &tauri::AppHandle, hiding: bool) {
     if let Some(state) = app.try_state::<PaletteState>() {
-        let mut hide = state.hide.lock().expect("palette state");
+        let mut hide = lock(&state.hide);
         hide.hiding = hiding;
         hide.seq = hide.seq.wrapping_add(1);
     }
-}
-
-fn hide_palette(app: &tauri::AppHandle) {
-    restore_hotkey_capture(app);
-    if let Some(window) = palette_window(app) {
-        let _ = window.hide();
-    }
-    bump_hide_seq(app, false);
 }
 
 fn request_hide(app: &tauri::AppHandle) {
@@ -104,7 +105,7 @@ fn request_hide(app: &tauri::AppHandle) {
         return;
     };
     let seq = if let Some(state) = app.try_state::<PaletteState>() {
-        let mut hide = state.hide.lock().expect("palette state");
+        let mut hide = lock(&state.hide);
         if hide.hiding {
             return;
         }
@@ -120,7 +121,7 @@ fn request_hide(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(140));
         let still = app.try_state::<PaletteState>().is_some_and(|state| {
-            let hide = state.hide.lock().expect("palette state");
+            let hide = lock(&state.hide);
             hide.hiding && hide.seq == seq
         });
         if still {
@@ -149,7 +150,7 @@ pub(crate) fn show_palette(app: &tauri::AppHandle) {
 
 fn is_hiding(app: &tauri::AppHandle) -> bool {
     app.try_state::<PaletteState>()
-        .is_some_and(|state| state.hide.lock().expect("palette state").hiding)
+        .is_some_and(|state| lock(&state.hide).hiding)
 }
 
 fn toggle_palette(app: &tauri::AppHandle) {
@@ -165,11 +166,6 @@ fn toggle_palette(app: &tauri::AppHandle) {
     } else {
         show_palette(app);
     }
-}
-
-#[tauri::command]
-fn hide_window(app: tauri::AppHandle) {
-    hide_palette(&app);
 }
 
 #[tauri::command]
@@ -193,32 +189,71 @@ pub(crate) fn start_hotkey_capture(app: &tauri::AppHandle) -> Result<(), String>
     let Some(state) = app.try_state::<PaletteState>() else {
         return Ok(());
     };
-    let mut capturing = state.capturing_hotkey.lock().expect("capture");
+    let mut capturing = lock(&state.capturing_hotkey);
     if *capturing {
         return Ok(());
     }
-    let hotkey = state.hotkey.lock().expect("hotkey").clone();
+    let hotkey = lock(&state.hotkey).clone();
     if !hotkey.is_empty() {
-        let _ = app.global_shortcut().unregister(hotkey.as_str());
+        // Not fatal: the flag still goes up, so the recorder owns the keyboard
+        // either way. It used to be discarded silently, which is one of the two
+        // ways the app could end up believing a shortcut was free when it was
+        // not.
+        if let Err(err) = app.global_shortcut().unregister(hotkey.as_str()) {
+            eprintln!("rikki: could not release the hotkey for capture: {err}");
+        }
     }
     *capturing = true;
     Ok(())
 }
 
+/// Re-registers the shortcut after a capture was interrupted.
+///
+/// The actual work is deferred to another thread on purpose. The
+/// global-shortcut plugin holds its own mutex for the whole duration of the
+/// callback it invokes, and `register`/`unregister` take that same mutex.
+/// `std::sync::Mutex` is not reentrant, so calling either from inside the
+/// handler — which is how this is reached, through `request_hide` from
+/// `toggle_palette` — deadlocks the main thread and freezes the entire app.
+///
+/// The hop has to go through a *different* thread first: `run_on_main_thread`
+/// runs its closure inline when the caller is already on the main thread, which
+/// is precisely the case being avoided here.
 pub(crate) fn restore_hotkey_capture(app: &tauri::AppHandle) {
     let Some(state) = app.try_state::<PaletteState>() else {
         return;
     };
-    let mut capturing = state.capturing_hotkey.lock().expect("capture");
-    if !*capturing {
+    if !*lock(&state.capturing_hotkey) {
         return;
     }
-    *capturing = false;
-    let hotkey = state.hotkey.lock().expect("hotkey").clone();
-    if hotkey.is_empty() {
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let inner = handle.clone();
+        let _ = handle.run_on_main_thread(move || restore_hotkey_capture_now(&inner));
+    });
+}
+
+fn restore_hotkey_capture_now(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<PaletteState>() else {
         return;
+    };
+    {
+        let mut capturing = lock(&state.capturing_hotkey);
+        if !*capturing {
+            return;
+        }
+        *capturing = false;
     }
-    let _ = app.global_shortcut().register(hotkey.as_str());
+    let hotkey = lock(&state.hotkey).clone();
+    if !hotkey.is_empty() {
+        let _ = app.global_shortcut().register(hotkey.as_str());
+    }
+    // The recorder may still be on screen. It was stopped by the same blur that
+    // got us here, but the frontend has no way to observe that, so it would keep
+    // saying "press the new shortcut" while the old one is live again — and
+    // pressing that old shortcut is then swallowed by the global hotkey and
+    // toggles the palette instead of being recorded.
+    let _ = app.emit("hotkey-capture-cancelled", ());
 }
 
 pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<settings_store::Settings, String> {
@@ -233,8 +268,8 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
     let Some(state) = app.try_state::<PaletteState>() else {
         return settings_store::update_setting(app, "hotkey", next);
     };
-    let old = state.hotkey.lock().expect("hotkey").clone();
-    let capturing = *state.capturing_hotkey.lock().expect("capture");
+    let old = lock(&state.hotkey).clone();
+    let capturing = *lock(&state.capturing_hotkey);
     let gs = app.global_shortcut();
 
     if !capturing && old == next {
@@ -247,14 +282,19 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
 
     if let Err(err) = gs.register(next) {
         if !old.is_empty() {
-            let _ = gs.register(old.as_str());
+            // If the rollback fails too there is no hotkey at all, while the
+            // stored value still says `old` — the settings screen would advertise
+            // a shortcut that does nothing. Say so rather than discarding it.
+            if let Err(rollback) = gs.register(old.as_str()) {
+                eprintln!("rikki: could not restore the previous hotkey ({old}): {rollback}");
+            }
         }
-        *state.capturing_hotkey.lock().expect("capture") = false;
+        *lock(&state.capturing_hotkey) = false;
         return Err(format!("register hotkey: {err}"));
     }
 
-    *state.hotkey.lock().expect("hotkey") = next.to_string();
-    *state.capturing_hotkey.lock().expect("capture") = false;
+    *lock(&state.hotkey) = next.to_string();
+    *lock(&state.capturing_hotkey) = false;
     let _ = tray::set_tooltip(app, next);
 
     match settings_store::update_setting(app, "hotkey", next) {
@@ -263,7 +303,7 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
             let _ = gs.unregister(next);
             if !old.is_empty() {
                 let _ = gs.register(old.as_str());
-                *state.hotkey.lock().expect("hotkey") = old;
+                *lock(&state.hotkey) = old;
             }
             Err(err)
         }
@@ -326,6 +366,10 @@ pub fn run() {
                     // change the setting back.
                     let fallback = settings_store::default_hotkey();
                     if app.global_shortcut().register(fallback).is_ok() {
+                        // Persist it. The stored value still names the key that
+                        // failed, so the settings screen would otherwise show a
+                        // shortcut that is not the one actually in effect.
+                        let _ = settings_store::update_setting(app.handle(), "hotkey", fallback);
                         fallback.to_string()
                     } else {
                         eprintln!("rikki: no global hotkey available; use the tray icon");
@@ -333,7 +377,7 @@ pub fn run() {
                     }
                 };
                 if let Some(state) = app.try_state::<PaletteState>() {
-                    *state.hotkey.lock().expect("hotkey") = registered.clone();
+                    *lock(&state.hotkey) = registered.clone();
                 }
                 registered
             };
@@ -366,7 +410,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            hide_window,
             request_hide_window,
             get_todos,
             save_todos,
@@ -381,10 +424,6 @@ pub fn run() {
             get_clipboard_images_dir,
             discard_clipboard_image,
             read_clipboard_image,
-            search_clipboard,
-            toggle_pin_clipboard,
-            delete_clipboard_entry,
-            clear_clipboard,
             simulate_paste,
             get_foreground_app,
             get_installed_apps,
