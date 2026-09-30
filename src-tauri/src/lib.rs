@@ -24,7 +24,7 @@ use commands::settings::{
     add_custom_engine, begin_hotkey_capture, cancel_hotkey_capture, delete_custom_engine,
     get_settings, update_setting, update_tray_menu,
 };
-use commands::translate::{lookup_word, pronounce, translate, translate_llm};
+use commands::translate::{lookup_word, pronounce, pronounce_sentence, translate, translate_llm};
 use storage::settings_store;
 use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
 use commands::system::lock_screen;
@@ -446,6 +446,7 @@ pub fn run() {
             translate_llm,
             lookup_word,
             pronounce,
+            pronounce_sentence,
             save_png_file,
             export_backup,
             import_backup

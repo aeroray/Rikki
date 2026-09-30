@@ -214,7 +214,27 @@
         <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col gap-2.5 pr-1">
           <section class="px-1">
             {#if translate.llmApplies}
-              <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.machine")}</p>
+              <div class="flex items-center gap-1.5">
+                <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.machine")}</p>
+                <!-- One control, not two: a sentence has no US/UK pair to choose
+                     between. It sits on the label rather than on the text below,
+                     because it reads that translation and not the AI one — and
+                     the label is the only thing on screen that says which of the
+                     two answers the clip would be. It is drawn only when the
+                     store has a clip to ask for, so the button never appears on a
+                     sentence whose language the voice endpoint does not answer
+                     for. -->
+                {#if translate.sentenceVoice}
+                  <button
+                    type="button"
+                    class="pressable flex size-6 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
+                    aria-label={i18n.t("translate.playSentence")}
+                    onclick={() => void translate.playSentence()}
+                  >
+                    <Volume2 class="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                {/if}
+              </div>
             {/if}
             <p class="mt-1 text-[17px] font-medium leading-6 text-pretty text-ink">
               {result.translation.text}

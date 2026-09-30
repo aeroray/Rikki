@@ -109,6 +109,30 @@ class TranslateStore {
   readonly llmApplies = $derived(this.result !== null && this.result.entry === null);
 
   /**
+   * The clip the panel's one sentence control would ask for, or null.
+   *
+   * A sentence has no US/UK pair, so unlike a word card it has exactly one
+   * speaker — and unlike a word card it has nothing to say when the target is a
+   * language the voice endpoint was not measured to answer for, which is why
+   * this is null rather than a button that fails when it is pressed.
+   *
+   * The language is the one the service reported for the translation rather than
+   * the one that was asked for: `to` is the language the text on screen is
+   * actually in, and therefore the language the clip would be read in. The
+   * endpoint is measured for every target the panel offers, so the check is the
+   * panel's own list rather than a second one that could drift from it.
+   */
+  readonly sentenceVoice = $derived.by((): { text: string; lang: string } | null => {
+    const result = this.result;
+    if (!result || result.entry) return null;
+    const text = result.translation.text.trim();
+    const lang = result.translation.to;
+    if (!text) return null;
+    if (!SUPPORTED_TARGETS.some((target) => target.code === lang)) return null;
+    return { text, lang };
+  });
+
+  /**
    * How long the target has to hold still before the text is re-translated.
    * Long enough to cover a run of Tab presses, short enough to feel immediate.
    */
@@ -438,17 +462,52 @@ class TranslateStore {
       const base64 = await invoke<string>("pronounce", { text: entry.headword, accent });
       // A newer clip, or a stop, supersedes this one while it was in flight.
       if (seq !== this.audioSeq) return;
-      this.stopAudio();
-      const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
-      this.audio = audio;
-      audio.addEventListener("ended", () => this.release(audio));
-      audio.addEventListener("error", () => this.release(audio));
-      await audio.play();
+      await this.playClip(base64);
     } catch {
       // A clip that will not play is not worth an error state: the card the
       // user was reading stays exactly where it is.
       ui.flash(i18n.t("translate.audioFailed"));
     }
+  }
+
+  /**
+   * Reads the sentence translation aloud.
+   *
+   * The counterpart of `play` for a shape that has no accents: one clip, in the
+   * language the translation came back in, and the same single `Audio` element
+   * underneath so a sentence and a word can never play over each other. It is
+   * reached only through `sentenceVoice`, which is also what the panel uses to
+   * decide whether to draw the button at all.
+   */
+  async playSentence(): Promise<void> {
+    const voice = this.sentenceVoice;
+    if (!voice) return;
+    const seq = ++this.audioSeq;
+    try {
+      const base64 = await invoke<string>("pronounce_sentence", {
+        text: voice.text,
+        lang: voice.lang,
+      });
+      if (seq !== this.audioSeq) return;
+      await this.playClip(base64);
+    } catch {
+      ui.flash(i18n.t("translate.audioFailed"));
+    }
+  }
+
+  /**
+   * Plays one base64 clip, replacing whatever is playing.
+   *
+   * Both speakers go through here so that they share the one `Audio` element the
+   * store keeps: two clips must never overlap, whichever control asked for them.
+   */
+  private async playClip(base64: string): Promise<void> {
+    this.stopAudio();
+    const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
+    this.audio = audio;
+    audio.addEventListener("ended", () => this.release(audio));
+    audio.addEventListener("error", () => this.release(audio));
+    await audio.play();
   }
 
   stopAudio() {

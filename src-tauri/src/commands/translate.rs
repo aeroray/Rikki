@@ -17,11 +17,18 @@
 //!    definitions, word forms and bilingual examples. Words never reach either
 //!    sentence endpoint — a dictionary card is the better answer for a single
 //!    word, and it costs no quota.
+//!  - **Sentence audio** goes to a third endpoint behind the same page
+//!    (`dict.youdao.com/pronounce/base`), which reads a whole translation aloud.
+//!    It is not the word card's `dictvoice`: that one is asked for a sentence and
+//!    answers an HTTP 500, measured, for English and for Chinese alike. It is the
+//!    only audio path here that is a GET with a query rather than form data, and
+//!    the only one that has to percent-encode the text it sends.
 //!
-//! Neither sentence endpoint is published or documented, and both are signed
-//! with a secret lifted out of the site's own JavaScript. The two secrets are
-//! the constants below, and they are the whole of the coupling: everything else
-//! in this file is derived from the request shapes those bundles build.
+//! Neither sentence endpoint is published or documented, and all three are
+//! signed with a secret lifted out of the site's own JavaScript. The three
+//! secrets are the constants below, and they are the whole of the coupling:
+//! everything else in this file is derived from the request shapes those
+//! bundles build.
 //!
 //! The dictionary sits behind `lookup_word`, so swapping the source later is a
 //! change to this file and nothing else.
@@ -55,6 +62,7 @@ const LLM_TIMEOUT: Duration = Duration::from_secs(60);
 
 const YOUDAO_DICT: &str = "https://dict.youdao.com/jsonapi";
 const YOUDAO_VOICE: &str = "https://dict.youdao.com/dictvoice";
+const YOUDAO_SENTENCE_VOICE: &str = "https://dict.youdao.com/pronounce/base";
 const YOUDAO_TEXT_KEY: &str = "https://dict-trans.youdao.com/translate/key";
 const YOUDAO_TEXT_STREAM: &str = "https://dict-trans.youdao.com/webtranslate/sse";
 const YOUDAO_LLM_SECRET: &str = "https://luna-ai.youdao.com/translate_llm/secret";
@@ -80,6 +88,38 @@ const YOUDAO_TEXT_KEY_SECRET: &str = "kSy5gtKA4yRUxAVPJPrdYKZ0jBKyd3t1";
 /// place. The secret it returns is what signs the actual translation, so this
 /// key is only ever used on the secret request itself.
 const YOUDAO_LLM_SECRET_KEY: &str = "EZAmCfVOH2CrBGMtPrtIPUzyv3bheLdk";
+
+/// Signs the request for the sentence voice endpoint.
+///
+/// Read out of the voice player the translate site loads lazily — it is not in
+/// `app.js`: `translation-website/1.0.7/js/853.0466ec21.js`, where it is the
+/// `signSecretKey` of the `voiceFanyiWeb` config that the `VoicePlayer` component
+/// hands to the site's own `genParamV3`. Youdao rotates these whenever it ships
+/// a new version, and a rotated secret is not reported as such: measured against
+/// the live endpoint, a wrong one answers HTTP 400 with a `text/plain` body of
+/// exactly `invalid sign`. **This constant is the one place to update when that
+/// happens** — it is deliberately not duplicated at the call site.
+const YOUDAO_SENTENCE_VOICE_SECRET: &str = "qCG2vdP92hOXDcKa";
+
+/// The three identifiers the voice request names.
+///
+/// Unlike the translation endpoints, none of these is per-account or per-call:
+/// the site sends the same `keyid` and `keyfrom` for every clip, and `yduuid` is
+/// a fixed string in the bundle rather than a generated id. The endpoint was
+/// measured to accept it as one.
+const SENTENCE_VOICE_KEY_ID: &str = "voiceFanyiWeb";
+const SENTENCE_VOICE_KEYFROM: &str = "webfanyi";
+const SENTENCE_VOICE_UUID: &str = "abcdefg";
+
+/// Which of the endpoint's two voices a sentence is read in.
+///
+/// A sentence has no US/UK pair to choose between, so the panel offers one
+/// control and the request names one voice. This is the endpoint's own default:
+/// measured against the live service, a request that sends no `type` at all
+/// returns byte-for-byte the same clip as `type=2`, and `type=2` is also what
+/// [`pronounce`] picks when no accent is named. It only matters for the
+/// languages that have two voices — Chinese answers the same clip either way.
+const SENTENCE_VOICE_TYPE: &str = "2";
 
 /// The `keyid`s the four requests name.
 ///
@@ -715,6 +755,69 @@ fn llm_chat_fields(
     ]
 }
 
+/// The language code the voice endpoint wants for a clip.
+///
+/// The site's own text-translate page maps `zh-CHS` and `zh-CHT` down to `zh`
+/// before it builds a voice URL, and every other code travels unchanged. The
+/// endpoint accepts either spelling — measured, both answer the same clip byte
+/// for byte — so this only keeps the request on the path the site was measured
+/// with.
+fn sentence_voice_language(code: &str) -> String {
+    match code {
+        "zh-CHS" | "zh-CHT" => "zh".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// The fields the sentence voice request is signed over.
+///
+/// This is the one request here that is a GET with a query string rather than
+/// signed form data, and it is built in the order the site builds it — its
+/// `genParamV3` spreads a fixed block of defaults and then the caller's own keys
+/// over them. The order is not what the signature covers, but a field that is
+/// signed and not sent, or sent and not signed, is rejected rather than ignored,
+/// so the two lists have to stay the same shape. `phonetic` and `id` are empty
+/// here and are still sent: the site sends them, and it is the signature that
+/// drops empty values, not the request that drops the fields.
+fn sentence_voice_fields(word: &str, lang: &str, millis: u128) -> Vec<(String, String)> {
+    vec![
+        field("product", "webfanyi"),
+        field("appVersion", "1"),
+        field("client", "web"),
+        field("mid", "1"),
+        field("vendor", "web"),
+        field("screen", "1"),
+        field("model", "1"),
+        field("imei", "1"),
+        field("network", "wifi"),
+        field("keyfrom", SENTENCE_VOICE_KEYFROM),
+        field("keyid", SENTENCE_VOICE_KEY_ID),
+        field("mysticTime", millis.to_string()),
+        field("yduuid", SENTENCE_VOICE_UUID),
+        field("le", lang),
+        field("phonetic", ""),
+        field("rate", "4"),
+        field("word", word),
+        field("type", SENTENCE_VOICE_TYPE),
+        field("id", ""),
+    ]
+}
+
+/// The query string the voice endpoint is asked with.
+///
+/// [`query_string`] deliberately does not encode, because the translation
+/// endpoints only ever send values that are already URL-safe. This one carries
+/// the text being spoken, so every value goes through `encodeURIComponent` —
+/// `pointParam` included, whose commas the site encodes as `%2C`. The signature
+/// covers the unencoded values, so this is the only place the encoding matters.
+fn encoded_query_string(fields: &[(String, String)]) -> String {
+    fields
+        .iter()
+        .map(|(name, value)| format!("{name}={}", encode_uri_component(value)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
 /// Asks for a session secret, then the translation.
 ///
 /// `POST /translate/key` carries its parameters in the query string and has no
@@ -1008,6 +1111,46 @@ pub async fn pronounce(text: String, accent: String) -> Result<String, String> {
         .map_err(|error| format!("pronounce request: {error}"))?;
     if !response.status().is_success() {
         return Err(format!("pronounce http {}", response.status().as_u16()));
+    }
+    let bytes = bounded(response).await?;
+    if bytes.is_empty() {
+        return Err("no audio".into());
+    }
+    Ok(base64(&bytes))
+}
+
+/// Fetches a clip that reads a whole sentence aloud, base64-encoded like
+/// [`pronounce`] and for the same reason: the webview has no network access of
+/// its own, so the audio has to come back through the IPC and be played from a
+/// data URL.
+///
+/// The word path cannot do this. `dictvoice` is asked for a sentence and answers
+/// HTTP 500 with `{"msg":"returned null audio"}` — measured for English and for
+/// Chinese, with `type=1`, `type=2` and `le=zh` — so the sentence voice is a
+/// different host path, a different signature and a different secret. `lang` is
+/// the language of the text being read, which is the language of the
+/// translation, not of what the user typed.
+///
+/// It shares [`bounded`] with every other call here, which caps a clip at one
+/// megabyte: roughly 800 characters of English or 260 of Chinese. Past that the
+/// request fails rather than being cut short mid-sentence, and the panel says
+/// the clip would not play.
+#[tauri::command(async)]
+pub async fn pronounce_sentence(text: String, lang: String) -> Result<String, String> {
+    let text = prepare(&text)?;
+    let mut fields = sentence_voice_fields(&text, &sentence_voice_language(&lang), mystic_time());
+    let (signature, point_param) = sign(&fields, YOUDAO_SENTENCE_VOICE_SECRET);
+    fields.push(field("sign", signature));
+    fields.push(field("pointParam", point_param));
+    let url = format!("{YOUDAO_SENTENCE_VOICE}?{}", encoded_query_string(&fields));
+    let response = client()?
+        .get(url)
+        .header("Referer", REFERER)
+        .send()
+        .await
+        .map_err(|error| format!("sentence voice request: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!("sentence voice http {}", response.status().as_u16()));
     }
     let bytes = bounded(response).await?;
     if bytes.is_empty() {
@@ -1457,6 +1600,88 @@ mod tests {
     #[test]
     fn refuses_empty_input() {
         assert!(prepare("   ").is_err());
+    }
+
+    /// The language the voice endpoint is asked for, which is the one place the
+    /// site's codes and the endpoint's are not the same string.
+    #[test]
+    fn maps_the_sentence_voice_language_the_site_maps() {
+        assert_eq!(sentence_voice_language("zh-CHS"), "zh");
+        assert_eq!(sentence_voice_language("zh-CHT"), "zh");
+        assert_eq!(sentence_voice_language("en"), "en");
+        assert_eq!(sentence_voice_language("ja"), "ja");
+        assert_eq!(sentence_voice_language("ko"), "ko");
+    }
+
+    /// The signed body of the sentence voice request, pinned to a hash produced
+    /// by an independent MD5 rather than by `md5_hex`.
+    ///
+    /// This one is worth pinning even though it reuses the same `sign` as the
+    /// translation endpoints, because the field list is the part that is not
+    /// shared: a name that drifts here is answered with HTTP 400 `invalid sign`,
+    /// which names nothing, and the same response is what a rotated secret
+    /// produces. The language is asserted through `sentence_voice_language` so
+    /// that the mapping and the request cannot drift apart.
+    #[test]
+    fn builds_the_sentence_voice_request() {
+        let millis = 1_700_000_000_000;
+        let fields = sentence_voice_fields("一口气", &sentence_voice_language("zh-CHS"), millis);
+        assert_eq!(
+            signature_body(&fields, YOUDAO_SENTENCE_VOICE_SECRET),
+            "appVersion=1&client=web&imei=1&keyfrom=webfanyi&keyid=voiceFanyiWeb&le=zh&mid=1&model=1&mysticTime=1700000000000&network=wifi&product=webfanyi&rate=4&screen=1&type=2&vendor=web&word=一口气&yduuid=abcdefg&key=qCG2vdP92hOXDcKa"
+        );
+        let (signature, point_param) = sign(&fields, YOUDAO_SENTENCE_VOICE_SECRET);
+        assert_eq!(signature, "d1e6a6601dbdcb997e2e12c4f511311b");
+        assert_eq!(
+            point_param,
+            "appVersion,client,imei,keyfrom,keyid,le,mid,model,mysticTime,network,product,rate,screen,type,vendor,word,yduuid,key"
+        );
+        // The two empty fields are sent but not signed, which is the shape the
+        // site sends and the shape the server recomputes the hash from.
+        assert!(!signature_body(&fields, "x").contains("phonetic="));
+        assert!(fields.iter().any(|(name, value)| name == "phonetic" && value.is_empty()));
+        assert!(fields.iter().any(|(name, value)| name == "id" && value.is_empty()));
+    }
+
+    /// Unlike the translation endpoints this request carries its text in the
+    /// query, so the text has to be encoded — and so does `pointParam`, whose
+    /// commas are `%2C` on the wire because the site encodes every value it
+    /// joins in.
+    #[test]
+    fn encodes_the_sentence_voice_query() {
+        let mut fields = sentence_voice_fields("一口气 a+b", "zh", 1);
+        fields.push(field("sign", "abc"));
+        fields.push(field("pointParam", "a,b,key"));
+        let query = encoded_query_string(&fields);
+        assert!(query.contains("word=%E4%B8%80%E5%8F%A3%E6%B0%94%20a%2Bb"));
+        // The empty fields survive into the query; the signature is what drops
+        // them, not the request.
+        assert!(query.contains("&phonetic=&"));
+        assert!(query.ends_with("&sign=abc&pointParam=a%2Cb%2Ckey"));
+    }
+
+    /// Drives the real voice endpoint through the real code path.
+    ///
+    /// Ignored by default for the same reason as `live_translation`: it needs the
+    /// network and a third party's goodwill, so it must not gate a build. It
+    /// exists because the unit tests pin the signed string but not that the
+    /// endpoint still accepts it, and a rotated secret looks exactly like a
+    /// correct one until a request is made.
+    ///
+    /// Run with `cargo test --lib -- --ignored --nocapture live_sentence_voice`.
+    #[test]
+    #[ignore = "needs the network"]
+    fn live_sentence_voice() {
+        let clip = tauri::async_runtime::block_on(pronounce_sentence(
+            "这部电影真的太好看了，我一口气看完了三集，根本停不下来。".into(),
+            "zh-CHS".into(),
+        ))
+        .expect("live sentence voice");
+        println!("clip base64 chars: {}", clip.len());
+        // The measured clip is a shade over 100 kB of mp3, which is ~150k base64
+        // characters. Anything in the hundreds is an error page that was served
+        // with a 200 rather than audio.
+        assert!(clip.len() > 20_000, "clip is only {} base64 chars", clip.len());
     }
 
     /// Drives the real endpoint through the real code path.
