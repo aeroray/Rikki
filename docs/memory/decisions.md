@@ -2,6 +2,30 @@
 
 Entries are newest first.
 
+## 2026-09-30 - Commands that cannot be undone ask first
+Decision:
+A `Command` may carry `confirm: true`. `activateCommand` then arms `ui.requestConfirm` instead of running it, and `ActionConfirm` carries it out on a second Enter (Esc or the backdrop cancels). `shutdown`, `reboot` and `logout` are marked; `lock` and `sleep` are not, since both are one keystroke to reverse. Deleting a custom search engine uses the same dialog with its own body text.
+Reason:
+A launcher is driven fast and from muscle memory, and the prefix alone is not much of a guard — the mistake costs whatever was open. This is the second layer: the first is that an action command only fires when its prefix was actually typed, because `reb` fuzzy-matches `reboot` as the only hit.
+Note:
+The key hint lives inside each button rather than in a row beside it: the same two words twice was redundant, and in English the two groups together were wider than the 320px card.
+
+## 2026-09-30 - The window keeps a CSP, with `'unsafe-inline'` for scripts
+Decision:
+`app.security.csp` is set rather than `null`: `default-src 'self'`, `script-src 'self' 'unsafe-inline'`, `img-src 'self' asset: http://asset.localhost data: blob:`, `connect-src 'self' ipc: http://ipc.localhost`, and `object-src`/`base-uri`/`frame-ancestors`/`form-action` locked down.
+Reason:
+Both `{@html}` sites (the JSON highlighter, the QR SVG) were verified safe, so this is depth rather than a fix. `connect-src` is the part that does real work: it stops an injected script from shipping clipboard contents off the machine. The `'unsafe-inline'` is measured, not assumed — SvelteKit inlines its bootstrap script, Tauri only nonces `script[src^='http']`, and a build served with `script-src 'self'` renders a blank page. A nonce for that script would need a SvelteKit HTML transform plus a Tauri token, and would break `pnpm tauri dev`, where the HTML does not pass through Tauri's asset handler.
+Note:
+To re-check: build, inject the policy as a `<meta http-equiv>` tag, and load it — with `'unsafe-inline'` the app renders, without it the page is blank.
+
+## 2026-09-30 - Two Windows APIs that are per-thread, not per-process
+Decision:
+Cursor repair and global-shortcut re-registration both run on the main thread, and the shortcut restore is deferred through a *different* thread before it gets there.
+Reason:
+`ShowCursor`'s display counter is per-thread: measured with the main thread at -2, a freshly spawned thread reads 0. A repair on a worker thread therefore reads its own untouched count and returns without calling `ShowCursor` at all — which is exactly what an earlier attempt at this fix did. Separately, `run_on_main_thread` runs its closure *inline* when the caller is already on the main thread, so it cannot be used to escape a callback that is itself on the main thread.
+Note:
+The shortcut plugin holds its own mutex for the whole duration of the callback it invokes, and `register`/`unregister` take that same mutex. `std::sync::Mutex` is not reentrant, so calling either from inside the handler deadlocks the app — hence the thread hop, not a `run_on_main_thread` call.
+
 ## 2026-09-30 - Panels end in a pinned footer, not a hint paragraph
 Decision:
 Every panel ends with `components/PanelFooter.svelte`: a chrome bar where each shortcut is a `kbd` chip beside its action, a hairline separates it from the content, and it is a flex sibling of the content column rather than its last child. The calendar adopted it first and the other fourteen panels followed in the same change; `.palette-hint` is gone from `app.css` and no panel uses it. Actions shared by several panels live in one `key.*` vocabulary (`key.back`, `key.copy`, `key.save`, `key.cancel`, `key.confirm`, `key.open`, `key.edit`, `key.add`, `key.delete`) instead of being reworded per panel, which is what keeps "返回" reading the same everywhere.
