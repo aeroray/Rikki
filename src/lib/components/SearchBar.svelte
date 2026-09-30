@@ -29,10 +29,32 @@
   import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
   import { copyTimestampResult } from "$lib/commands/timestamp/actions";
   import { copyQrDecode, copyQrSvg, saveQrPng } from "$lib/commands/qrcode/actions";
+  import {
+    anniversaryRows,
+    handleAnniversaryEnter,
+    startAnniversaryCreate,
+  } from "$lib/commands/anniversary/actions";
+  import { anniversaries } from "$lib/stores/anniversaries.svelte";
   import { json } from "$lib/stores/json.svelte";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
+
+  /**
+   * ARIA 1.2 requires `aria-activedescendant` on the element that actually holds
+   * focus — the input — not on the listbox it controls. It used to sit on the
+   * listbox, where assistive tech ignores it.
+   */
+  const activeOptionId = $derived.by((): string | undefined => {
+    if (ui.view === "empty") {
+      const command = ui.homeCommands[ui.selectedIndex];
+      return command ? `home-${command.id}` : undefined;
+    }
+    if (ui.view === "suggest") {
+      return ui.rootHits[ui.selectedIndex] ? `hit-${ui.selectedIndex}` : undefined;
+    }
+    return undefined;
+  });
 
   $effect(() => {
     ui.showNonce;
@@ -113,6 +135,43 @@
         event.preventDefault();
         const entry = items[clipboard.selectedIndex];
         if (entry) void clipboard.paste(entry.id);
+        return;
+      }
+    }
+
+    if (ui.view === "anniversary") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        startAnniversaryCreate();
+        return;
+      }
+      if (anniversaries.draft) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void anniversaries.saveDraft();
+        }
+        return;
+      }
+      const rows = anniversaryRows();
+      if (event.key === "ArrowDown" && rows.length > 0) {
+        event.preventDefault();
+        anniversaries.selectedIndex = Math.min(rows.length - 1, anniversaries.selectedIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && rows.length > 0) {
+        event.preventDefault();
+        anniversaries.selectedIndex = Math.max(0, anniversaries.selectedIndex - 1);
+        return;
+      }
+      if (event.key === "Delete") {
+        event.preventDefault();
+        const row = rows[anniversaries.selectedIndex];
+        if (row) void anniversaries.remove(row.item.id);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleAnniversaryEnter(rows);
         return;
       }
     }
@@ -295,18 +354,7 @@
         if (engine?.custom) void settings.removeEngine(engine.id);
         return;
       }
-      const count =
-        screen === "engine"
-          ? settings.engines.length
-          : screen === "theme"
-            ? settings.themes.length
-            : screen === "language"
-              ? settings.locales.length
-              : screen === "retention"
-                ? settings.retentionOptions.length
-              : screen === "translate" || screen === "hotkey"
-                ? 0
-                : settings.listItems.length;
+      const count = settings.countFor(screen);
       if (event.key === "ArrowDown" && count > 0) {
         event.preventDefault();
         settings.selectedIndex = Math.min(count - 1, settings.selectedIndex + 1);
@@ -390,8 +438,10 @@
     placeholder={i18n.t("search.placeholder")}
     autocomplete="off"
     spellcheck="false"
+    role="combobox"
     aria-autocomplete="list"
     aria-controls="command-results"
+    aria-activedescendant={activeOptionId}
     aria-expanded={ui.view === "suggest" || ui.view === "empty"}
     oninput={onInput}
     onkeydown={onKeydown}

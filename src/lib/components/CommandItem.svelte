@@ -2,7 +2,7 @@
   import type { Command } from "$lib/commands/types";
   import { commandDescription, commandTitle } from "$lib/i18n/command";
   import { i18n } from "$lib/i18n";
-  import { Binary, Braces, Calculator, Clipboard, Clock, Droplet, FileText, Globe, Languages, ListTodo, Lock, LogOut, Moon, Power, QrCode, RotateCw, ScanQrCode, Search, Settings, Smile } from "@lucide/svelte";
+  import { Binary, Braces, Calculator, CalendarHeart, Clipboard, Clock, Droplet, FileText, Globe, Languages, ListTodo, Lock, LogOut, Moon, Power, QrCode, RotateCw, ScanQrCode, Search, Settings, Smile } from "@lucide/svelte";
 
   let { command, selected, onselect, optionId, staggerIndex }: { command: Command; selected: boolean; onselect: () => void; optionId?: string; staggerIndex?: number } =
     $props();
@@ -11,6 +11,7 @@
     Binary,
     Braces,
     Calculator,
+    CalendarHeart,
     Clipboard,
     Clock,
     Droplet,

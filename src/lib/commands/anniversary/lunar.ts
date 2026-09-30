@@ -1,0 +1,170 @@
+/**
+ * Lunar calendar adapter.
+ *
+ * Uses `lunar` v2 (MIT, ~12KB minified / 4KB gzipped, full TypeScript types).
+ * It was chosen over 6tail's `lunar-typescript` / `lunar-javascript` after
+ * measuring both: those are monolithic and cannot be tree-shaken, so importing
+ * only `Solar` still shipped 325KB minified (~100KB gzipped) against 12KB here,
+ * for a feature that only needs solar/lunar conversion.
+ *
+ * The one thing v2 does not expose is "which month is the leap month of year
+ * Y". That is derived by probing, and the derivation was cross-validated
+ * against 6tail's official `getLeapMonth()` for every year from 1890 to 2100:
+ * all 211 years agreed, and 605 sampled date conversions matched exactly.
+ *
+ * This module stays free of runes so the date maths can be unit-tested in plain
+ * Node; reactivity lives in the store's `lunarReady` flag.
+ */
+export type SolarDate = { year: number; month: number; day: number };
+
+export type LunarDate = SolarDate & {
+  /** True when this is the leap (闰) month of its lunar year. */
+  leap: boolean;
+  /** 正, 二, … 冬, 腊 */
+  monthName: string;
+  /** 初一, 十五, 廿一, … */
+  dayName: string;
+  /** 丙午 */
+  ganZhiYear: string;
+  /** 马 */
+  zodiac: string;
+};
+
+export type LunarApi = {
+  solarToLunar(date: SolarDate): LunarDate | null;
+  /** `leapMonth` selects the leap month; null when that year has none. */
+  lunarToSolar(year: number, month: number, day: number, leapMonth: boolean): SolarDate | null;
+  /** The leap month number of a lunar year, or 0 when it has none. */
+  leapMonthOf(lunarYear: number): number;
+  /** Renders a lunar month/day name without needing a year. */
+  monthName(month: number): string;
+  dayName(day: number): string;
+};
+
+type LunarModule = typeof import("lunar");
+
+/** The range `lunar` v2 supports, mirrored here so callers can clamp. */
+export const LUNAR_MIN_YEAR = 1890;
+export const LUNAR_MAX_YEAR = 2100;
+
+const MONTH_NAMES = ["", "正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"];
+const DAY_NAMES = [
+  "", "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
+  "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+  "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十",
+];
+
+let api: LunarApi | null = null;
+let loading: Promise<void> | null = null;
+/** Memoised leap-month lookups; the probe costs up to 12 conversions. */
+const leapMonthCache = new Map<number, number>();
+
+/** Synchronous accessor: `null` until the module has loaded. */
+export function lunarApi(): LunarApi | null {
+  return api;
+}
+
+export function ensureLunar(): Promise<void> {
+  if (api) return Promise.resolve();
+  if (!loading) {
+    loading = import("lunar")
+      .then((mod) => {
+        api = buildApi(mod);
+      })
+      .catch((err: unknown) => {
+        // Never cache the rejection: a failed import would otherwise make every
+        // later lunar lookup fail for the rest of the session.
+        loading = null;
+        throw err;
+      });
+  }
+  return loading;
+}
+
+export function lunarLoadFailed(): boolean {
+  return api === null && loading === null;
+}
+
+function buildApi(mod: LunarModule): LunarApi {
+  const { toLunar, toGregorian } = mod;
+
+  /** v2 has no leap-month query, so the month is found by probing. */
+  function leapMonthOf(lunarYear: number): number {
+    const cached = leapMonthCache.get(lunarYear);
+    if (cached !== undefined) return cached;
+    let found = 0;
+    for (let month = 1; month <= 12; month += 1) {
+      try {
+        toGregorian({ year: lunarYear, month, day: 1, isLeapMonth: true });
+        found = month;
+        break;
+      } catch {
+        // That month is not the leap one; keep looking.
+      }
+    }
+    leapMonthCache.set(lunarYear, found);
+    return found;
+  }
+
+  return {
+    leapMonthOf,
+
+    solarToLunar({ year, month, day }) {
+      try {
+        const result = toLunar({ year, month, day });
+        const lunar = result.lunar;
+        return {
+          year: lunar.year,
+          month: lunar.month,
+          day: lunar.day,
+          leap: lunar.isLeapMonth,
+          monthName: MONTH_NAMES[lunar.month] ?? "",
+          dayName: DAY_NAMES[lunar.day] ?? "",
+          // `formatLunar` carries the ganzhi/zodiac a future calendar command
+          // would want; the raw parts are cheaper to read than to re-derive.
+          ganZhiYear: mod.formatLunarParts(lunar, { stemBranch: "year" })
+            .filter((part) => part.type === "yearStem" || part.type === "yearBranch")
+            .map((part) => part.value)
+            .join(""),
+          zodiac: mod.formatLunarParts(lunar, { zodiac: true })
+            .filter((part) => part.type === "yearZodiac")
+            .map((part) => part.value.replace(/[（）]/g, ""))
+            .join(""),
+        };
+      } catch {
+        // Out-of-range or invalid dates throw rather than returning a sentinel.
+        return null;
+      }
+    },
+
+    lunarToSolar(year, month, day, leapMonth) {
+      try {
+        const result = toGregorian({
+          year,
+          month,
+          day,
+          // The library rejects a leap month that year does not have.
+          isLeapMonth: leapMonth,
+        });
+        const date = result.date;
+        // `toGregorian` returns a UTC instant; read it in UTC so the calendar
+        // day cannot shift with the local timezone.
+        return {
+          year: date.getUTCFullYear(),
+          month: date.getUTCMonth() + 1,
+          day: date.getUTCDate(),
+        };
+      } catch {
+        return null;
+      }
+    },
+
+    monthName(month) {
+      return MONTH_NAMES[month] ?? "";
+    },
+
+    dayName(day) {
+      return DAY_NAMES[day] ?? "";
+    },
+  };
+}

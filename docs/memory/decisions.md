@@ -2,6 +2,32 @@
 
 Entries are newest first.
 
+## 2026-09-24 - Lunar calendar uses `lunar` v2, not 6tail's lunar-typescript
+Decision:
+Lunar conversion goes through `src/lib/commands/anniversary/lunar.ts`, which wraps the `lunar` v2 package (MIT, full TS types, range 1890-2100) behind a small `LunarApi` surface. The library is imported on demand. Leap months are entered explicitly (`nr1001` = lunar leap Oct 1) rather than inferred; `leapMonthOf()` derives a year's leap month by probing, memoised.
+Reason:
+Measured, not assumed. `lunar-typescript` / `lunar-javascript` (6tail) are monolithic and cannot be tree-shaken: importing only `Solar` still shipped 325KB minified (~100KB gzipped). `lunar` v2 ships 12KB minified (~4KB gzipped), and the lazy chunk in the real build is 8.9KB. Both were verified equally accurate — every Spring Festival, Mid-Autumn and Dragon Boat date matched, and a full-range comparison of derived leap months against 6tail's official `getLeapMonth()` agreed on all 211 years (1890-2100) with 605 sampled conversions identical. `lunar` v2 was chosen over `solarlunar` too: wider range, richer data (ganzhi, zodiac, festivals) for future calendar commands, and explicit throws instead of `-1` sentinels.
+Note:
+v2 has no "which month is leap in year Y" query; the probe is the documented workaround and costs ~0.03ms. A leap flag cannot be derived from the year alone in general — a year repeating month 5 leaves "month 5" ambiguous — which is why the input carries it.
+
+## 2026-09-24 - Anniversary dates are typed compactly in one field
+Decision:
+Dates are entered without separators: `1001` is Oct 1, `20261001` adds a start year, `n1001` marks lunar, `nr1001` marks a lunar leap month. The create form has exactly two inputs (name, date) — no month/day spinners, no calendar toggle, no leap checkbox, no separate start-year field. The date field echoes back what it resolved to.
+Reason:
+Fewer, larger inputs with immediate feedback beat a form of small widgets. The year inside the date IS the start year, so a second year input was redundant; and a leap-month checkbox is wrong because whether a month repeats is a property of the year, not a choice the user makes.
+
+## 2026-09-24 - Storage writes go through one atomic JSON helper
+Decision:
+Every persisted file uses `src-tauri/src/storage/json_file.rs`: write a temp file, then `fs::rename` over the target with no `remove_file` first (`fs::rename` already replaces an existing destination on Windows and Unix). A file that fails to parse is renamed to `<name>.corrupt-<epoch>` and rebuilt — settings and usage fall back to defaults, the app cache to a fresh scan, the clip index to an empty list. `usage_count` increments take a process-wide mutex.
+Reason:
+Remove-then-rename left a window where the user's file did not exist at all. One unreadable byte in `settings.json` made every later `update_setting` fail, so settings could never be changed again, and `usage_count.json` used `unwrap_or_default()`, silently zeroing every launch count.
+
+## 2026-09-24 - CSP stays null until it can be verified in a packaged build
+Decision:
+Leave `app.security.csp` as `null`. If it is ever set, `script-src` must keep `'unsafe-inline'` (the SvelteKit static build emits an inline bootstrap script that Tauri does not nonce) and `img-src`/`connect-src` must allow `asset:` plus `http://asset.localhost` for clipboard images and the QR decode fallback.
+Reason:
+A CSP that blocks the inline bootstrap leaves a blank window, and the packaged webview cannot be verified from this environment; an unverified security config is worse than a documented one.
+
 ## 2026-08-30 - Palette chrome uses Raycast-like tokens
 Decision:
 Dark canvas is `#07080a`, panels `#111214`, hairlines `rgb(255 255 255 / 0.06)`. Rows select and hover with translucent fills, not a 2px accent border. Home-list fade-stagger runs only when the empty palette opens.

@@ -19,6 +19,7 @@ export const HOME_COMMAND_ORDER = [
   "snippet",
   "todo",
   "calc",
+  "anniversary",
   "emoji",
   "translate",
   "color",

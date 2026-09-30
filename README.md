@@ -14,7 +14,7 @@ Rikki stays in the tray and opens a glass palette on a hotkey. Type to launch in
 ## Features
 
 - **App search** from the empty palette — icons, launch-frequency ranking, and pinyin matching (`wx` → 微信). No `open` prefix.
-- **Prefix commands** for clipboard, snippets, todos, calc, emoji, translate, color, JSON, Base64, timestamps, and QR codes.
+- **Prefix commands** for clipboard, snippets, todos, calc, anniversaries, emoji, translate, color, JSON, Base64, timestamps, and QR codes.
 - **Web search** with `gg`, `bd`, `bing`, `ddg`, `sogou`, or any unmatched query of 2+ characters (default engine from settings).
 - **Resident process** with a tray icon. Hide the palette; the hotkey still works.
 - **简体中文 / English**, following the OS or a setting. Dark and light themes.
@@ -54,6 +54,7 @@ Type the prefix and a space to open the panel. Root search (no prefix) launches 
 | `sn` | `snippet` | Copy snippet | `sn add` or `Ctrl+N` creates; `{{date}}` / `{{time}}` / `{{clipboard}}` expand on copy |
 | `todo` | | Add a todo | Stays open |
 | `calc` | | Copy result | History is saved |
+| `ann` | `anniversary` | Edit selected, or create | Birthdays and anniversaries, solar or lunar. Type a date to count down without saving: `1001`, `20261001`, `n1001` (lunar), `nr1001` (lunar leap month) |
 | `em` | `emoji` | Copy glyph | Browse categories, then search English keywords |
 | `tr` | `translate` | Translate, then copy | Baidu AppID and secret in settings |
 | `color` | `clr` | Copy HEX | Also from a bare `#ff6363` |

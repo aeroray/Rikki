@@ -1,3 +1,4 @@
+pub mod anniversary;
 pub mod apps;
 pub mod backup;
 pub mod calc;

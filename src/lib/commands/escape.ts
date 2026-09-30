@@ -1,3 +1,4 @@
+import { closeAnniversaryDrill } from "$lib/commands/anniversary/actions";
 import { closeEmojiDrill } from "$lib/commands/emoji/actions";
 import { closeJsonEdit } from "$lib/commands/json/actions";
 import { closeSettingsDrill } from "$lib/commands/settings/actions";
@@ -15,6 +16,7 @@ export function escapePalette(): void {
     return;
   }
   if (closeSettingsDrill()) return;
+  if (closeAnniversaryDrill()) return;
   if (closeEmojiDrill()) return;
   if (closeJsonEdit()) return;
   if (cancelSnippetDraft()) return;

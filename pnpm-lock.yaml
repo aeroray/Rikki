@@ -29,6 +29,9 @@ importers:
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
+      lunar:
+        specifier: ^2.0.0
+        version: 2.0.0
       mathjs:
         specifier: ^15.2.0
         version: 15.2.0
@@ -901,6 +904,10 @@ packages:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
     engines: {node: '>=8'}
 
+  lunar@2.0.0:
+    resolution: {integrity: sha512-xdz1adPhSteIZSq8F320CoR03mf7J7fKvLHncdzsiv3h5FcbEj4USUl6Pc8uG1EN17EBmMME8plqB+yukyfBTw==}
+    engines: {node: '>=16.20.0'}
+
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
@@ -1690,6 +1697,8 @@ snapshots:
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
+
+  lunar@2.0.0: {}
 
   magic-string@0.30.21:
     dependencies:

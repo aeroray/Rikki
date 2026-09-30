@@ -12,6 +12,9 @@ mod storage;
 #[cfg(desktop)]
 mod tray;
 
+use commands::anniversary::{
+    create_anniversary, delete_anniversary, get_anniversaries, update_anniversary,
+};
 use commands::apps::{bump_usage, get_installed_apps, get_usage_counts, launch_app, AppIndex};
 use commands::backup::{export_backup, import_backup};
 use commands::calc::{get_calc_history, save_calc_history};
@@ -343,6 +346,10 @@ pub fn run() {
             request_hide_window,
             get_todos,
             save_todos,
+            get_anniversaries,
+            create_anniversary,
+            update_anniversary,
+            delete_anniversary,
             get_calc_history,
             save_calc_history,
             get_clipboard_history,

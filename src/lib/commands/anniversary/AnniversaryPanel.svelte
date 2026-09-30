@@ -1,0 +1,111 @@
+<script lang="ts">
+  import { anniversaryRows, startAnniversaryCreate } from "$lib/commands/anniversary/actions";
+  import AnniversaryCreate from "$lib/commands/anniversary/AnniversaryCreate.svelte";
+  import AnniversaryItem from "$lib/commands/anniversary/AnniversaryItem.svelte";
+  import AnniversaryPreview from "$lib/commands/anniversary/AnniversaryPreview.svelte";
+  import { parseAnniversaryScreen } from "$lib/commands/anniversary/parse";
+  import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import { i18n } from "$lib/i18n";
+  import { anniversaries } from "$lib/stores/anniversaries.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { CalendarHeart } from "@lucide/svelte";
+
+  const screen = $derived(parseAnniversaryScreen(ui.commandRest));
+  // One clock reading per render keeps every row's countdown consistent.
+  const now = $derived(new Date());
+  const visible = $derived.by(() => {
+    // Reading `lunarReady` here is what makes the rows recompute when the lunar
+    // tables land: `lunarApi()` is a plain module value, invisible to Svelte, so
+    // without this dependency every lunar row stayed on "loading" forever.
+    anniversaries.lunarReady;
+    return anniversaryRows(ui.commandRest, now);
+  });
+  const querying = $derived(screen.type === "filter" && Boolean(screen.query.trim()));
+
+  $effect(() => {
+    // Kick off the tables on first paint for a list that already has lunar rows.
+    anniversaries.lunarReady;
+    anniversaries.items;
+    if (anniversaries.awaitingLunar) void anniversaries.ensureLunar();
+  });
+
+  $effect(() => {
+    anniversaries.clampSelection(visible.length);
+  });
+
+  $effect(() => {
+    if (ui.view !== "anniversary" && anniversaries.draft) anniversaries.closeDraft();
+  });
+</script>
+
+{#if anniversaries.draft}
+  <AnniversaryCreate />
+{:else if screen.type === "preview"}
+  <AnniversaryPreview query={screen.query} {now} />
+{:else}
+  <div class="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-1">
+    {#if anniversaries.items.length === 0}
+      <div class="flex flex-1 flex-col items-center justify-center px-6 text-center">
+        <span class="flex size-10 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
+          <CalendarHeart class="size-4" strokeWidth={1.5} aria-hidden="true" />
+        </span>
+        <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("anniversary.emptyTitle")}</p>
+        <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">
+          {i18n.t("anniversary.emptyBody")}
+        </p>
+        <button
+          type="button"
+          class="pressable mt-4 flex h-10 items-center gap-2 rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
+          onclick={() => startAnniversaryCreate()}
+        >
+          {i18n.t("anniversary.emptyCreate")}
+        </button>
+        <p class="mt-3 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
+          <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">ann 10-01</kbd>
+          <span>{i18n.t("anniversary.or")}</span>
+          <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">Ctrl+N</kbd>
+        </p>
+      </div>
+    {:else if visible.length === 0}
+      <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">
+        {i18n.t("anniversary.noMatch")}
+      </p>
+    {:else}
+      <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">
+        {querying ? i18n.t("anniversary.matches") : i18n.t("anniversary.all")}
+        <span class="tabular-nums">{visible.length}</span>
+      </p>
+      <ScrollArea
+        class="min-h-0 flex-1"
+        viewportClass="flex flex-col gap-2"
+        role="listbox"
+        tabindex={-1}
+        aria-label={i18n.t("anniversary.all")}
+      >
+        {#each visible as row, index (row.item.id)}
+          <AnniversaryItem
+            item={row.item}
+            occurrence={row.occurrence}
+            selected={index === anniversaries.selectedIndex}
+            onedit={() => {
+              anniversaries.selectedIndex = index;
+              anniversaries.openEdit(row.item);
+            }}
+            onremove={() => void anniversaries.remove(row.item.id)}
+          />
+        {/each}
+      </ScrollArea>
+    {/if}
+    <p class="palette-hint">
+      {#if anniversaries.notice}
+        {anniversaries.notice}
+      {:else if anniversaries.items.length === 0}
+        {i18n.t("anniversary.emptyHint")}
+      {:else if screen.type === "invalid"}
+        {i18n.t("anniversary.invalidDate")}
+      {:else}
+        {i18n.t("anniversary.footer")}
+      {/if}
+    </p>
+  </div>
+{/if}
