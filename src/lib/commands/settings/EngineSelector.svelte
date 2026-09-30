@@ -1,7 +1,8 @@
 <script lang="ts">
+  import EngineMark from "$lib/components/EngineMark.svelte";
   import { engineDisplayName, type SearchEngine } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
-  import { Check, Globe, Trash2 } from "@lucide/svelte";
+  import { Check, Trash2 } from "@lucide/svelte";
 
   let {
     engine,
@@ -37,8 +38,11 @@
     class="pressable flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"
     onclick={onselect}
   >
+    <!-- The same mark the search field shows for this engine, so the picker and
+         the field cannot disagree about which engine a row means. A custom
+         engine has no mark, and `EngineMark` falls back to the magnifier. -->
     <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-ink-muted">
-      <Globe class="size-4" strokeWidth={1.5} aria-hidden="true" />
+      <EngineMark engineId={engine.id} />
     </span>
     <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-[1.45] text-ink">
       {engineDisplayName(engine)}

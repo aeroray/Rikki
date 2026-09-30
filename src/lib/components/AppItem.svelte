@@ -19,6 +19,7 @@
   let row: HTMLButtonElement | undefined = $state();
   let broken = $state(false);
   const iconSrc = $derived(assetUrl(app.icon));
+  const hasIcon = $derived(Boolean(iconSrc) && !broken);
 
   $effect(() => {
     app.icon;
@@ -39,10 +40,15 @@
   class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"
   onclick={onselect}
 >
+  <!-- The tile is the design's stand-in for a glyph. An extracted icon is a
+       transparent PNG with a shape of its own, so it is drawn straight onto the
+       canvas: an opaque tile behind it is a white square in light mode. -->
   <span
-    class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface-1 text-ink-muted media-outline"
+    class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm text-ink-muted {hasIcon
+      ? ''
+      : 'bg-surface-1'}"
   >
-    {#if iconSrc && !broken}
+    {#if hasIcon}
       <img
         src={iconSrc}
         alt=""

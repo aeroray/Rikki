@@ -2,6 +2,27 @@
 
 Entries are newest first.
 
+## 2026-09-30 - Icon caches are versioned, and only placeholders get a background
+Decision:
+ICON_FORMAT_VERSION is part of the icon filename (2-{hash}.png), and the icon
+containers in AppItem and BrowserSelector add g-surface-1 only when there
+is no real icon.
+Reason:
+The cache is keyed by the source path alone, so a change to the extractor leaves
+every icon already on disk untouched and never re-extracted — the fix would have
+looked like it did nothing. Bumping the version makes prune_icons drop the old
+names and re-extract. Separately, --color-surface-1 is #ffffff in the light
+theme, so painting it behind a real icon puts a white square behind anything whose
+artwork is not a full-bleed rectangle: Chrome's round mark was the visible case,
+and only in light mode. A placeholder needs a background; a real icon does not.
+Note:
+Two alpha defects were found in the Windows extractor at the same time, both
+measured rather than reasoned about. DrawIconEx returns premultiplied alpha, so
+writing it straight into a PNG darkened every antialiased edge by its own alpha;
+and an icon with no alpha channel at all — the AND-mask case — came back fully
+transparent, which the old "all bytes zero" guard did not catch, so an invisible
+PNG was cached as a success and never retried. The guard now asks whether any
+pixel is visible, and synthesises alpha from the mask when none is.
 ## 2026-09-30 - Browsers show their own icon; search engines show their brand
 Decision:
 The browser picker renders each browser's real icon — extracted by `apps_icons` into `app_data_dir/apps/icons/browsers/`, named by the hash of the executable path, extracted once and then cached — and falls back to the existing `Compass` tile when there is none. The search field's leading icon becomes the engine's mark for `gg`/`bd`/`bing`/`ddg`/`sogou` and for the fallback-search row, and stays the magnifier everywhere else, custom engines included. The marks come from `@iconify-icons/cib` (CoreUI Brands, CC0), one module per icon, drawn monochrome through `currentColor` in `components/EngineMark.svelte`.

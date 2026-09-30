@@ -75,10 +75,19 @@ impl IconCache {
     }
 }
 
+/// Bumped whenever what `extract_icon` produces changes.
+///
+/// The cache is keyed by nothing but the path an icon came from, so without
+/// this an icon written by an older build would go on being served — and the
+/// fix that made mask-only icons visible, or that stopped edges being darkened,
+/// would only reach an app that had never been listed before.
+const ICON_FORMAT_VERSION: u32 = 2;
+
 fn icon_filename(path: &str) -> String {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     path.hash(&mut hasher);
-    format!("{:016x}.png", hasher.finish())
+    // Older names are not asked for, which is what `prune_icons` clears away.
+    format!("v{ICON_FORMAT_VERSION}-{:016x}.png", hasher.finish())
 }
 
 fn prune_icons(dir: &Path, keep: &HashSet<PathBuf>) {
@@ -137,13 +146,8 @@ fn write_png(dest: &Path, width: u32, height: u32, rgba: Vec<u8>) -> Result<(), 
 fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
     use std::mem::size_of;
     use windows::core::HSTRING;
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
-        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
-    };
     use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
-    use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, DrawIconEx, DI_NORMAL};
+    use windows::Win32::UI::WindowsAndMessaging::DestroyIcon;
 
     let wide = HSTRING::from(app_path);
     let mut info = SHFILEINFOW::default();
@@ -160,7 +164,158 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
         return Err("no shell icon".into());
     }
 
-    let pixels = unsafe {
+    let pixels = visible_rgba(info.hIcon);
+    unsafe {
+        let _ = DestroyIcon(info.hIcon);
+    }
+
+    // An icon with nothing visible in it is worse than no icon: the row would
+    // draw an empty tile, and the file would go on being a cache hit.
+    let Some(pixels) = pixels.filter(|rgba| rgba.chunks_exact(4).any(|pixel| pixel[3] != 0)) else {
+        return Err("icon has nothing visible in it".into());
+    };
+    write_png(dest, ICON_SIZE, ICON_SIZE, pixels)
+}
+
+/// Straight RGBA for an icon, or `None` when it carries no transparency to take
+/// its shape from.
+///
+/// Two things have to be undone here, and both are about the alpha channel.
+/// `DrawIconEx` draws onto a bitmap that starts out fully transparent and
+/// treats that as a blend, so the icon comes back with its colour already
+/// multiplied by its alpha — which a PNG, whose alpha is straight, must not
+/// keep. And a Windows icon is as often a 32bpp bitmap whose alpha channel is
+/// entirely zero with the real shape in the AND mask; `DrawIconEx` blits the
+/// colour for those and never writes the alpha byte, so the whole icon comes
+/// out invisible.
+#[cfg(target_os = "windows")]
+fn visible_rgba(icon: windows::Win32::UI::WindowsAndMessaging::HICON) -> Option<Vec<u8>> {
+    let drawn = draw_icon(icon);
+    if drawn.chunks_exact(4).any(|pixel| pixel[3] != 0) {
+        return Some(un_premultiply(&drawn));
+    }
+    // The colour is a blit rather than a blend on this path, so it is already
+    // straight and only the alpha byte has to be filled in.
+    let mask = mask_alpha(icon)?;
+    let mut rgba = drawn;
+    for (pixel, alpha) in rgba.chunks_exact_mut(4).zip(mask) {
+        pixel[3] = alpha;
+    }
+    Some(rgba)
+}
+
+/// Every colour channel un-multiplied by the alpha it was multiplied with.
+///
+/// Measured on a half-transparent red: `DrawIconEx` answers `(128, 0, 0, 128)`
+/// for a source of `(255, 0, 0, 128)`, and drawn as it stands that pixel is
+/// darkened by its own alpha a second time.
+#[cfg(target_os = "windows")]
+fn un_premultiply(rgba: &[u8]) -> Vec<u8> {
+    let mut straight = Vec::with_capacity(rgba.len());
+    for pixel in rgba.chunks_exact(4) {
+        let alpha = u32::from(pixel[3]);
+        for channel in &pixel[..3] {
+            straight.push(if alpha == 0 || alpha == 255 {
+                *channel
+            } else {
+                ((u32::from(*channel) * 255 + alpha / 2) / alpha).min(255) as u8
+            });
+        }
+        straight.push(pixel[3]);
+    }
+    straight
+}
+
+/// The icon's AND mask as one alpha value per pixel, or `None` when there is no
+/// mask to read.
+#[cfg(target_os = "windows")]
+fn mask_alpha(icon: windows::Win32::UI::WindowsAndMessaging::HICON) -> Option<Vec<u8>> {
+    use std::mem::size_of;
+    use windows::Win32::Graphics::Gdi::{DeleteObject, GetObjectW, BITMAP, HGDIOBJ};
+    use windows::Win32::UI::WindowsAndMessaging::{GetIconInfo, ICONINFO};
+
+    unsafe {
+        let mut info = ICONINFO::default();
+        GetIconInfo(icon, &mut info).ok()?;
+        // A monochrome icon has no colour bitmap and keeps both halves of the
+        // image in the mask, which is not the shape this reads.
+        let mut bitmap = BITMAP::default();
+        let shaped = !info.hbmColor.is_invalid()
+            && GetObjectW(
+                HGDIOBJ(info.hbmMask.0),
+                size_of::<BITMAP>() as i32,
+                Some((&mut bitmap as *mut BITMAP).cast()),
+            ) == size_of::<BITMAP>() as i32
+            && bitmap.bmWidth == ICON_SIZE as i32
+            && bitmap.bmHeight == ICON_SIZE as i32;
+        let alpha = if shaped { read_mask(info.hbmMask) } else { None };
+        // `GetIconInfo` hands over copies, and they are the caller's to free.
+        let _ = DeleteObject(HGDIOBJ(info.hbmMask.0));
+        let _ = DeleteObject(HGDIOBJ(info.hbmColor.0));
+        alpha
+    }
+}
+
+/// The AND mask read as alpha: a set bit leaves the destination alone, so the
+/// icon is drawn — opaque — where the bit is clear.
+#[cfg(target_os = "windows")]
+fn read_mask(mask: windows::Win32::Graphics::Gdi::HBITMAP) -> Option<Vec<u8>> {
+    use std::mem::size_of;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, GetDC, GetDIBits, ReleaseDC, BITMAPINFO, BITMAPINFOHEADER,
+        BI_RGB, DIB_RGB_COLORS,
+    };
+
+    unsafe {
+        let hdc_screen = GetDC(HWND::default());
+        let hdc = CreateCompatibleDC(hdc_screen);
+        // `GetDIBits` converts the 1bpp mask into the 32bpp DIB it is asked
+        // for: black where the icon is drawn, white where it is not.
+        let mut bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: ICON_SIZE as i32,
+                biHeight: -(ICON_SIZE as i32),
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut read = vec![0u8; (ICON_SIZE * ICON_SIZE * 4) as usize];
+        let rows = GetDIBits(
+            hdc,
+            mask,
+            0,
+            ICON_SIZE,
+            Some(read.as_mut_ptr().cast()),
+            &mut bmi,
+            DIB_RGB_COLORS,
+        );
+        let _ = DeleteDC(hdc);
+        ReleaseDC(HWND::default(), hdc_screen);
+        if rows != ICON_SIZE as i32 {
+            return None;
+        }
+        Some(read.chunks_exact(4).map(|pixel| 255 - pixel[0]).collect())
+    }
+}
+
+/// An icon drawn into a 32×32 RGBA buffer, as GDI hands it over: premultiplied
+/// wherever the icon has an alpha channel of its own.
+#[cfg(target_os = "windows")]
+fn draw_icon(icon: windows::Win32::UI::WindowsAndMessaging::HICON) -> Vec<u8> {
+    use std::mem::size_of;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
+        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{DrawIconEx, DI_NORMAL};
+
+    unsafe {
         let hdc_screen = GetDC(HWND::default());
         let hdc = CreateCompatibleDC(hdc_screen);
         let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
@@ -186,7 +341,7 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
                     hdc,
                     0,
                     0,
-                    info.hIcon,
+                    icon,
                     ICON_SIZE as i32,
                     ICON_SIZE as i32,
                     0,
@@ -206,18 +361,12 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
                 SelectObject(hdc, old);
                 let _ = DeleteObject(HGDIOBJ(hbmp.0));
             }
-            Err(err) => eprintln!("rikki: icon bitmap for {app_path}: {err}"),
+            Err(err) => eprintln!("rikki: icon bitmap: {err}"),
         }
         let _ = DeleteDC(hdc);
         ReleaseDC(HWND::default(), hdc_screen);
-        let _ = DestroyIcon(info.hIcon);
         rgba
-    };
-
-    if pixels.iter().all(|byte| *byte == 0) {
-        return Err("empty icon".into());
     }
-    write_png(dest, ICON_SIZE, ICON_SIZE, pixels)
 }
 
 #[cfg(target_os = "macos")]
@@ -313,14 +462,36 @@ fn decode_icns(icns_path: &Path, dest: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::icon_filename;
+    use std::collections::HashSet;
 
     #[test]
     fn icon_filename_is_stable_for_same_path() {
         let a = icon_filename(r"C:\Start Menu\Chrome.lnk");
         let b = icon_filename(r"C:\Start Menu\Chrome.lnk");
         assert_eq!(a, b);
+        // The version is what stops an icon an older build wrote from being
+        // served as though it were this build's.
+        assert!(a.starts_with(&format!("v{}", super::ICON_FORMAT_VERSION)));
         assert!(a.ends_with(".png"));
         assert_ne!(a, icon_filename(r"C:\Start Menu\Edge.lnk"));
+    }
+
+    /// The version in the name only replaces what an older build wrote if the
+    /// older names are actually dropped.
+    #[test]
+    fn an_icon_from_an_older_version_is_pruned() {
+        let dir = std::env::temp_dir().join("rikki icon prune test");
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let stale = dir.join("0000000000000001.png");
+        let current = dir.join(icon_filename(r"C:\Start Menu\Chrome.lnk"));
+        std::fs::write(&stale, b"").expect("write the stale icon");
+        std::fs::write(&current, b"").expect("write the current icon");
+
+        super::prune_icons(&dir, &HashSet::from([current.clone()]));
+
+        assert!(!stale.exists(), "an icon nothing asked for has to go");
+        assert!(current.exists());
+        std::fs::remove_dir_all(dir).ok();
     }
 
     #[cfg(target_os = "macos")]
@@ -354,5 +525,146 @@ mod tests {
         assert_eq!((written.width(), written.height()), (4, 4));
         assert!(!dest.with_extension("png.tmp").exists());
         std::fs::remove_dir_all(dir).ok();
+    }
+
+    /// One RGBA pixel out of a buffer of `ICON_SIZE` square.
+    #[cfg(target_os = "windows")]
+    fn pixel(rgba: &[u8], x: usize, y: usize) -> [u8; 4] {
+        let offset = (y * super::ICON_SIZE as usize + x) * 4;
+        rgba[offset..offset + 4].try_into().expect("four channels")
+    }
+
+    /// A 32×32 icon with a red disc on a transparent field, built the way an
+    /// executable stores one: `alpha` is what the colour bitmap's alpha channel
+    /// holds, and the shape is punched into the AND mask.
+    ///
+    /// An `alpha` of zero is the case that matters, and the one Windows icons
+    /// most often have: the colour bitmap claims to be opaque everywhere and
+    /// the mask is the only thing that says otherwise.
+    #[cfg(target_os = "windows")]
+    fn synthetic_icon(alpha: u8) -> windows::Win32::UI::WindowsAndMessaging::HICON {
+        use std::mem::size_of;
+        use windows::Win32::Foundation::{BOOL, HWND};
+        use windows::Win32::Graphics::Gdi::{
+            CreateBitmap, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC,
+            ReleaseDC, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
+        };
+        use windows::Win32::UI::WindowsAndMessaging::{CreateIconIndirect, ICONINFO};
+
+        const SIZE: i32 = super::ICON_SIZE as i32;
+        unsafe {
+            let hdc_screen = GetDC(HWND::default());
+            let hdc = CreateCompatibleDC(hdc_screen);
+            let bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: SIZE,
+                    biHeight: -SIZE,
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: BI_RGB.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let mut bits: *mut core::ffi::c_void = std::ptr::null_mut();
+            let color = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
+                .expect("colour bitmap");
+            // Monochrome scan lines are padded to two bytes.
+            let stride = (SIZE as usize + 15) / 16 * 2;
+            let pixels = std::slice::from_raw_parts_mut(bits as *mut u8, (SIZE * SIZE * 4) as usize);
+            // A mask that starts out entirely set — transparent — so that only
+            // the disc drawn below is punched through it.
+            let mut mask_bits = vec![0xffu8; stride * SIZE as usize];
+            let (mid, radius) = (SIZE / 2, SIZE / 3);
+            for y in 0..SIZE {
+                for x in 0..SIZE {
+                    let (dx, dy) = (x - mid, y - mid);
+                    if dx * dx + dy * dy < radius * radius {
+                        let i = ((y * SIZE + x) * 4) as usize;
+                        pixels[i..i + 4].copy_from_slice(&[0, 0, 255, alpha]);
+                        mask_bits[y as usize * stride + x as usize / 8] &= !(0x80u8 >> (x % 8));
+                    }
+                }
+            }
+            let mask = CreateBitmap(SIZE, SIZE, 1, 1, Some(mask_bits.as_ptr().cast()));
+            let icon = CreateIconIndirect(&ICONINFO {
+                fIcon: BOOL(1),
+                xHotspot: 0,
+                yHotspot: 0,
+                hbmMask: mask,
+                hbmColor: color,
+            })
+            .expect("synthetic icon");
+            let _ = DeleteObject(HGDIOBJ(color.0));
+            let _ = DeleteObject(HGDIOBJ(mask.0));
+            let _ = DeleteDC(hdc);
+            ReleaseDC(HWND::default(), hdc_screen);
+            icon
+        }
+    }
+
+    /// An icon whose colour bitmap has no alpha channel keeps its shape in the
+    /// AND mask, and `DrawIconEx` copies the colour but not the mask. Before
+    /// the mask was read, every such icon — most of the older ones — was
+    /// written with alpha zero on every pixel: invisible, and a cache hit for
+    /// good, because the file exists and looks like a successful extraction.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn an_icon_without_an_alpha_channel_takes_its_shape_from_the_mask() {
+        let dir = std::env::temp_dir().join("rikki icon mask test");
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let dest = dir.join("icon.png");
+
+        let icon = synthetic_icon(0);
+        let rgba = super::visible_rgba(icon).expect("an icon with a mask has a shape");
+        unsafe {
+            let _ = windows::Win32::UI::WindowsAndMessaging::DestroyIcon(icon);
+        }
+        super::write_png(&dest, super::ICON_SIZE, super::ICON_SIZE, rgba).expect("write the icon");
+
+        let written = image::open(&dest).expect("read the icon back").to_rgba8();
+        assert_eq!(
+            written.get_pixel(0, 0).0,
+            [0, 0, 0, 0],
+            "the corner is outside the mask, so it must stay transparent"
+        );
+        assert_eq!(
+            written.get_pixel(16, 16).0,
+            [255, 0, 0, 255],
+            "the disc is inside the mask, so it must stay opaque"
+        );
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    /// `DrawIconEx` blends the icon onto the transparent bitmap it is given, so
+    /// the colour comes back already multiplied by its alpha — measured as
+    /// `(128, 0, 0, 128)` for a source of `(255, 0, 0, 128)`. A PNG's alpha is
+    /// straight, so keeping that value darkens the pixel by its own alpha a
+    /// second time when it is drawn: every anti-aliased edge, on every icon.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn a_half_transparent_icon_keeps_its_colour() {
+        let icon = synthetic_icon(128);
+        let rgba = super::visible_rgba(icon).expect("an icon with alpha has a shape");
+        unsafe {
+            let _ = windows::Win32::UI::WindowsAndMessaging::DestroyIcon(icon);
+        }
+
+        assert_eq!(pixel(&rgba, 16, 16), [255, 0, 0, 128]);
+        assert_eq!(pixel(&rgba, 0, 0), [0, 0, 0, 0]);
+    }
+
+    /// The arithmetic of the above, on a buffer rather than through GDI.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn a_premultiplied_buffer_is_un_multiplied() {
+        let premultiplied = [128, 0, 0, 128, 255, 0, 0, 255, 0, 0, 0, 0];
+
+        assert_eq!(
+            super::un_premultiply(&premultiplied),
+            [255, 0, 0, 128, 255, 0, 0, 255, 0, 0, 0, 0],
+            "only the partial alpha is touched; opaque and transparent pass through"
+        );
     }
 }
