@@ -228,7 +228,7 @@
                   <button
                     type="button"
                     class="pressable flex size-6 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
-                    aria-label={i18n.t("translate.playSentence")}
+                    aria-label={i18n.t("translate.playMachine")}
                     onclick={() => void translate.playSentence()}
                   >
                     <Volume2 class="size-3.5" strokeWidth={1.5} aria-hidden="true" />
@@ -249,7 +249,7 @@
                   <button
                     type="button"
                     class="pressable flex size-6 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
-                    aria-label={i18n.t("translate.playSentence")}
+                    aria-label={i18n.t("translate.playLlm")}
                     onclick={() => void translate.playSentence(true)}
                   >
                     <Volume2 class="size-3.5" strokeWidth={1.5} aria-hidden="true" />
