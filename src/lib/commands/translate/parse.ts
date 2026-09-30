@@ -84,7 +84,16 @@ export function guessSourceLang(text: string): TargetLangCode | null {
 
 export function autoTranslateTarget(text: string, targets: TranslateTargets): TargetLangCode {
   const source = guessSourceLang(text);
-  if (source && source === targets.defaultTarget) return targets.secondTarget;
+  if (source && source === targets.defaultTarget) {
+    // Both targets can end up identical: Rust defaults the second one to "en"
+    // and an English locale also seeds "en" as the default. Translating en→en
+    // returns the input untouched, so `tr hello` looked broken on any
+    // non-Chinese system. Fall back to the other language.
+    if (targets.secondTarget === targets.defaultTarget) {
+      return targets.defaultTarget === "zh" ? "en" : "zh";
+    }
+    return targets.secondTarget;
+  }
   return targets.defaultTarget;
 }
 

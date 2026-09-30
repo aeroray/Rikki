@@ -534,7 +534,16 @@ class SettingsStore {
     applyTheme(this.theme);
     this.syncLocale();
     this.translateDefaultTarget = parseTargetLangCode(next.translateDefaultTarget) ?? preferredTranslateLang();
-    this.translateSecondTarget = parseTargetLangCode(next.translateSecondTarget) ?? "en";
+    // Keep the two targets distinct. The stored second target is "en" by
+    // default while an English locale seeds "en" as the default, and offering
+    // "English" twice in settings is both confusing and useless.
+    const second = parseTargetLangCode(next.translateSecondTarget);
+    this.translateSecondTarget =
+      !second || second === this.translateDefaultTarget
+        ? this.translateDefaultTarget === "zh"
+          ? "en"
+          : "zh"
+        : second;
     this.clipTextRetentionDays = parseClipRetentionDays(next.clipTextRetentionDays);
   }
 
