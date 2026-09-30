@@ -40,3 +40,12 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
+
+[lints.rust]
+# MSVC's link.exe prints a localized "正在创建库 <lib> 和对象 <obj>" note every time
+# it writes the cdylib import library, and Rust's `linker_messages` lint reports
+# that as a warning on every single build. It is not actionable, and `/NOLOGO`
+# does not suppress it (Rust already passes /NOLOGO). Allowing the lint is the
+# only way to silence it; the trade-off is that genuine linker warnings such as
+# LNK4006 or LNK4098 would no longer be shown.
+linker_messages = "allow"
