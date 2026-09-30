@@ -130,13 +130,17 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<div class="app-frame">
+<!-- The window shell is inlined rather than named: it is used exactly once, and
+     the open/exiting states are Svelte-driven, so a pair of modifier classes in
+     CSS would have to be kept in step with the two ternaries below anyway. -->
+<div class="box-border size-full p-2">
 <div
-  class="app-shell relative"
-  class:is-open={ui.shellOpen && !ui.shellExiting}
-  class:is-exiting={ui.shellExiting}
+  class="relative box-border size-full rounded-lg bg-[var(--app-shell-bg)] [box-shadow:var(--app-shell-shadow)] backdrop-blur-[20px] transition-[opacity,transform] ease-out motion-reduce:scale-100 motion-reduce:opacity-100 motion-reduce:transition-none {ui.shellOpen &&
+  !ui.shellExiting
+    ? 'scale-100 opacity-100'
+    : 'scale-95 opacity-0'} {ui.shellExiting ? 'duration-100' : 'duration-150'}"
 >
-<div class="app-shell-clip relative">
+<div class="relative flex size-full flex-col overflow-hidden rounded-[inherit]">
   <SearchBar />
 
   <div id="command-results" class="flex min-h-0 flex-1 flex-col" class:pb-14={Boolean(ui.notice)}>

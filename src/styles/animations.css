@@ -19,55 +19,17 @@
   }
 }
 
-.app-shell {
-  opacity: 0;
-  transform: scale(0.95);
-  transition:
-    opacity 0.15s ease-out,
-    transform 0.15s ease-out;
-}
-
-.app-shell.is-open {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.app-shell.is-exiting {
-  opacity: 0;
-  transform: scale(0.95);
-  transition:
-    opacity 0.1s ease-out,
-    transform 0.1s ease-out;
-}
-
-.search-glow {
-  box-shadow: 0 0 0 1px transparent;
-  transition: box-shadow 0.15s ease;
-}
-
-.search-glow:focus-within {
-  animation: glowPulse 1.2s ease-in-out infinite;
-}
-
-.row-fade {
-  animation: rowFade 0.12s ease-out both;
-}
-
+/*
+ * Only two things need CSS here rather than a `motion-reduce:` variant:
+ *
+ *  - the global press-scale override, which targets bare elements (`button`,
+ *    `[role="option"]`) so there is no class to hang a variant on;
+ *  - `row-fade`, whose animation is declared once as a `@utility`.
+ *
+ * Every other reduced-motion rule now lives at its call site as
+ * `motion-reduce:*`, which keeps the fallback next to the thing it overrides.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .app-shell,
-  .app-shell.is-open,
-  .app-shell.is-exiting {
-    animation: none;
-    transition: none;
-    opacity: 1;
-    transform: none;
-  }
-
-  .search-glow:focus-within {
-    animation: none;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary-focus) 55%, transparent);
-  }
-
   .row-fade {
     animation: none;
   }

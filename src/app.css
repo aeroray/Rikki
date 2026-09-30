@@ -69,57 +69,52 @@ kbd {
   font-family: inherit;
 }
 
-.media-outline {
+/*
+ * Everything below is a Tailwind v4 `@utility`, not ad-hoc CSS. Declaring them
+ * this way keeps them inside Tailwind's system: they participate in variant
+ * composition and ordering like a built-in, and `@apply` can consume them.
+ *
+ * They are utilities rather than inline classes because they are reused: an
+ * inline `transition-colors duration-150 …` chain repeated 28 times is how the
+ * set drifts apart in the first place.
+ */
+
+/* A framed image sits on an unpredictable background, so it needs a hairline. */
+@utility media-outline {
   outline: 1px solid var(--image-outline);
   outline-offset: -1px;
 }
 
-.pressable {
+/* Press feedback shared by every clickable row, tile and button. */
+@utility pressable {
   transition-property: background-color, color, transform, opacity;
   transition-duration: 150ms;
   transition-timing-function: ease;
 }
 
-.row-hit {
+/*
+ * A selectable list row. Selection is driven by `aria-selected` so the visual
+ * state cannot drift from the accessible one, and the hover tint is suppressed
+ * on the selected row.
+ */
+@utility row-hit {
   border-radius: var(--radius-md);
   background-color: transparent;
   transition-property: background-color, transform;
   transition-duration: 150ms;
   transition-timing-function: ease;
+
+  &:hover:not([aria-selected="true"]):not(.is-selected) {
+    background-color: var(--row-hover);
+  }
+
+  &[aria-selected="true"],
+  &.is-selected {
+    background-color: var(--row-selected);
+  }
 }
 
-.row-hit:hover:not([aria-selected="true"]):not(.is-selected) {
-  background-color: var(--row-hover);
-}
-
-.row-hit[aria-selected="true"],
-.row-hit.is-selected {
-  background-color: var(--row-selected);
-}
-
-.app-frame {
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  padding: 8px;
-}
-
-.app-shell {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  border-radius: var(--radius-lg);
-  background: var(--app-shell-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: var(--app-shell-shadow);
-}
-
-.app-shell-clip {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  border-radius: inherit;
+/* Enter animation for a freshly computed result. */
+@utility row-fade {
+  animation: rowFade 0.12s ease-out both;
 }
