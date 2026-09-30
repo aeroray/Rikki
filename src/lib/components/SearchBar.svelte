@@ -530,10 +530,6 @@
         }
         return;
       }
-      if (settings.engineDraft) {
-        if (event.key === "Enter") event.preventDefault();
-        return;
-      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
         startEngineCreate();

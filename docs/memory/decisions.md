@@ -86,7 +86,7 @@ Solid black, off-grid padding, and a hard selected outline read as cheap next to
 
 ## 2026-08-30 - Home list ranks by command usage
 Decision:
-Empty-home commands sort by `usage_count.json` key `command:{id}` descending, then a default rank with clip and snippet first. Count once per visit when a prefix panel or web prefix + space becomes active; restoring the last query does not count.
+Empty-home commands sort by `usage_count.json` key `command:{id}` descending, then a default rank with clip and snippet first. Count once per visit when a prefix panel or web prefix + space becomes active; restoring the last query does not count. The empty home is only the command list; it has no instructional copy.
 Reason:
 Map insertion order looked alphabetical, and a fresh install should still surface the commands people open most.
 
@@ -191,14 +191,10 @@ Decision:
 Snippets can be marked `sensitive`. The list shows `******` instead of the body; Enter still copies. Edit shows the full text. This is peek protection, not encryption.
 Reason:
 API keys and passwords should not sit in plaintext in a Glanceable list, but a launcher should not add a password vault.
-Decision:
-Copying a snippet writes the system clipboard but does not add a clip history row.
-Reason:
-The text is a stored template, not a new copy, and recording it cluttered clip.
 
 ## 2026-08-28 - Snippets are search-to-copy
 Decision:
-`sn` / `snippet` lists snippets and copies on Enter. `sn add` or Ctrl+N opens the create form, rows can edit/delete, and copy expands `{{date}}`, `{{time}}`, and `{{clipboard}}`. There is no auto-expand while typing, and no one-shot `sn add 标题 内容`.
+`sn` / `snippet` lists snippets and copies on Enter. Copying writes the system clipboard but adds no clip history row, because a stored template is not a new copy and recording it cluttered clip. `sn add` or Ctrl+N opens the create form, rows can edit/delete, and copy expands `{{date}}`, `{{time}}`, and `{{clipboard}}`. There is no auto-expand while typing, and no one-shot `sn add 标题 内容`.
 Reason:
 System-wide expansion needs input monitoring and misfires; clip-style search-and-copy matches the launcher.
 
