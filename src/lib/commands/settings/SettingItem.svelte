@@ -3,6 +3,7 @@
   import { Globe, Keyboard, KeyRound, Languages, Palette, Timer, Eraser, Download, Upload } from "@lucide/svelte";
 
   let {
+    id,
     title,
     value,
     icon,
@@ -10,6 +11,8 @@
     onselect,
     current = true,
   }: {
+    /** The `aria-activedescendant` target, built from the item id. */
+    id: string;
     title: string;
     value: string;
     icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
@@ -38,13 +41,12 @@
 </script>
 
 <!-- The id is what `aria-activedescendant` names while the arrows walk the list.
-     This row is handed a title rather than the item id, and the title is unique
-     across the settings list, so the title is what both this row and SearchBar
-     build the id from — encoded, because an id may not contain whitespace. -->
+     It comes from the item id, not the title: the title is unique today but
+     changes with the interface language, so an id built from it would move. -->
 <button
   bind:this={row}
   type="button"
-  id="setting-{encodeURIComponent(title)}"
+  {id}
   role="option"
   aria-selected={selected}
   class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"

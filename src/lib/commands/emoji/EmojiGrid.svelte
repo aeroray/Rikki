@@ -18,6 +18,7 @@
 >
   {#each items as item, index (item.id)}
     <EmojiCell
+      id="emoji-{item.id}"
       native={item.native}
       name={item.name}
       selected={index === emojis.selectedIndex}

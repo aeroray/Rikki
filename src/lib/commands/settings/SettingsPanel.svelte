@@ -233,6 +233,7 @@
         {:else}
           {#each settings.listItems as item, index (item.id)}
             <SettingItem
+              id="setting-{item.id}"
               title={item.title}
               value={item.value}
               icon={item.icon}

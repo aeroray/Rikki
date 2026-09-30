@@ -1,10 +1,13 @@
 <script lang="ts">
   let {
+    id,
     native,
     name,
     selected,
     onselect,
   }: {
+    /** The `aria-activedescendant` target, built from the item id. */
+    id: string;
     native: string;
     name: string;
     selected: boolean;
@@ -19,13 +22,13 @@
 </script>
 
 <!-- The id is what `aria-activedescendant` points at while the arrows walk the
-     grid. A cell is handed the glyph and nothing else, and glyphs are unique in
-     the dataset, so the glyph is what this cell and SearchBar both build it
-     from. -->
+     grid. It comes from the item id rather than the glyph: the glyph happens to
+     be unique in today's dataset, but the id is the stable key the grid already
+     renders with. -->
 <button
   bind:this={cell}
   type="button"
-  id="emoji-{native}"
+  {id}
   role="option"
   aria-selected={selected}
   aria-label={name}

@@ -134,6 +134,7 @@
         {#each emojis.categories as category, index (category.id)}
           <button
             type="button"
+            id="emoji-category-{category.id}"
             role="option"
             aria-selected={index === emojis.selectedIndex}
             class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"

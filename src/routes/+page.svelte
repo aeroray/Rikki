@@ -96,33 +96,58 @@
     else if (ui.view === "empty") ui.leaveCommand();
   });
 
+  /**
+   * The palette's Tab shortcuts live here and nowhere else.
+   *
+   * They used to exist twice — once on the search input and once here as a
+   * fallback — which meant two copies to keep in step, and the fallback only
+   * worked at all because the input's copy called `stopPropagation`. One
+   * implementation can also be given the guard the input's copy could not need:
+   * Tab must keep moving focus inside a form.
+   */
   function onWindowKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       event.preventDefault();
       escapePalette();
       return;
     }
-    if (event.key === "Tab" && ui.view === "qr") {
-      event.preventDefault();
-      void saveQrPng();
-    }
-    if (event.key === "Tab" && ui.view === "json" && !json.editing) {
-      event.preventDefault();
-      json.toggleCompact();
-    }
-    if (event.key === "Tab" && ui.view === "base64") {
-      event.preventDefault();
-      toggleBase64Mode();
-    }
-    if (event.key === "Tab" && clipboard.confirm) {
-      event.preventDefault();
-      return;
-    }
-    if (event.key === "Tab" && ui.view === "clip") {
+
+    if (event.key !== "Tab" || event.ctrlKey || event.metaKey || event.altKey) return;
+
+    // Tab belongs to the field it is pressed in. These shortcuts apply while the
+    // search input, or nothing in particular, holds focus.
+    const active = document.activeElement;
+    const inAnotherField =
+      active instanceof HTMLElement &&
+      active.id !== "palette-search" &&
+      active.closest("input, textarea, [contenteditable='true']") !== null;
+    if (inAnotherField) return;
+
+    // A dialog owns the keyboard while it is open, so Tab moves inside it.
+    if (ui.pendingConfirm || clipboard.confirm) return;
+
+    if (ui.view === "clip") {
       event.preventDefault();
       toggleSelectedImagePreview();
+      return;
     }
-    if (event.key === "Tab" && ui.view === "translate" && translate.wordMode) {
+    if (ui.view === "json") {
+      if (json.editing) return;
+      event.preventDefault();
+      json.toggleCompact();
+      return;
+    }
+    if (ui.view === "base64") {
+      event.preventDefault();
+      toggleBase64Mode();
+      return;
+    }
+    if (ui.view === "qr") {
+      event.preventDefault();
+      void saveQrPng();
+      return;
+    }
+    if (ui.view === "translate" && translate.wordMode) {
       event.preventDefault();
       translate.swap();
     }

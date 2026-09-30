@@ -83,13 +83,12 @@
       return row ? `anniversary-${row.item.id}` : undefined;
     }
     if (ui.view === "emoji") {
-      // The category list is rendered inline by the panel, which this component
-      // cannot reach, so only the grid's cells carry ids. A cell receives the
-      // glyph and nothing else, so the glyph is the identity both sides build the
-      // id from; it is unique across the dataset.
-      if (parseEmojiScreen(ui.commandRest).type === "categories") return undefined;
+      if (parseEmojiScreen(ui.commandRest).type === "categories") {
+        const category = emojis.categories[emojis.selectedIndex];
+        return category ? `emoji-category-${category.id}` : undefined;
+      }
       const item = emojis.visible(ui.commandRest)[emojis.selectedIndex];
-      return item ? `emoji-${item.native}` : undefined;
+      return item ? `emoji-${item.id}` : undefined;
     }
     if (ui.view === "settings") {
       if (settings.engineDraft) return undefined;
@@ -113,9 +112,7 @@
         return option ? `retention-${option.id}` : undefined;
       }
       const item = settings.listItems[index];
-      // `SettingItem` is handed a title instead of its id, so the title — unique
-      // across the list — is what both sides derive the row id from.
-      return item ? `setting-${encodeURIComponent(item.title)}` : undefined;
+      return item ? `setting-${item.id}` : undefined;
     }
     return undefined;
   });
@@ -268,12 +265,6 @@
 
     if (ui.view === "clip") {
       const items = clipboard.filtered(ui.commandRest);
-      if (event.key === "Tab") {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleSelectedImagePreview();
-        return;
-      }
       if (event.key === "ArrowDown" && items.length > 0) {
         event.preventDefault();
         clipboard.selectedIndex = Math.min(items.length - 1, clipboard.selectedIndex + 1);
@@ -466,12 +457,6 @@
 
     if (ui.view === "json") {
       if (json.editing) return;
-      if (event.key === "Tab") {
-        event.preventDefault();
-        event.stopPropagation();
-        json.toggleCompact();
-        return;
-      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "e") {
         event.preventDefault();
         json.startEdit();
@@ -485,12 +470,6 @@
     }
 
     if (ui.view === "base64") {
-      if (event.key === "Tab") {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleBase64Mode();
-        return;
-      }
       if (event.key === "Enter") {
         event.preventDefault();
         void copyBase64Result();
@@ -507,12 +486,6 @@
     }
 
     if (ui.view === "qr") {
-      if (event.key === "Tab") {
-        event.preventDefault();
-        event.stopPropagation();
-        void saveQrPng();
-        return;
-      }
       if (event.key === "Enter") {
         event.preventDefault();
         void copyQrSvg();
@@ -537,13 +510,6 @@
     }
 
     if (ui.view === "translate") {
-      if (event.key === "Tab") {
-        if (!translate.wordMode) return;
-        event.preventDefault();
-        event.stopPropagation();
-        translate.swap();
-        return;
-      }
       if (event.key === "Enter") {
         event.preventDefault();
         void translate.submit();
@@ -670,6 +636,7 @@
   <span class="sr-only">{i18n.t("search.placeholder")}</span>
   <input
     bind:this={inputEl}
+    id="palette-search"
     bind:value={ui.searchText}
     class="w-full bg-transparent text-[16px] font-medium leading-[1.45] tracking-[-0.05px] text-ink outline-none placeholder:font-normal placeholder:text-ink-tertiary"
     placeholder={i18n.t("search.placeholder")}
