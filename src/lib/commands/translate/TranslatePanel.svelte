@@ -209,11 +209,13 @@
 
   <PanelFooter shortcuts={footerShortcuts}>
     {#snippet children()}
-      <!-- Every target is on screen, so the list answers "what can I switch to"
-           without a Tab press, and picking one is a click rather than a walk. -->
+      <!-- Four targets fit the bar with room to spare, so the row is clipped
+           rather than scrollable: `overflow-x-auto` would draw the platform's
+           own scrollbar, which is the one thing the palette never shows. If the
+           list ever grows, it needs the custom track rather than this. -->
       <div
         bind:this={picker}
-        class="flex items-center gap-0.5 overflow-x-auto"
+        class="flex items-center gap-0.5 overflow-hidden"
         role="radiogroup"
         aria-label={i18n.t("translate.keyCycleTarget")}
       >

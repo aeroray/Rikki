@@ -8,7 +8,7 @@ Decision:
 Reason:
 Baidu required the user to register an app and paste an AppID and a secret before the command did anything at all, and its results were poor — a launcher should not open with a configuration task. Sogou's Hunyuan endpoint is the one its own translate page calls for free text and it returns a model translation rather than a phrase-table lookup, while Youdao's dictionary is public and returns exactly what a word card needs. Sogou rejects `auto` as the source, so guessing is the only way to send a request at all, and one remembered target means the common zh↔en case needs no trip to a settings screen.
 Note:
-The dictionary is Youdao's rather than Sogou's because Sogou's is signed — see the tombstone. Pronunciation audio is fetched in Rust and returned base64 to play from a `data:` URL, so the webview still has no network access of its own and the CSP only gained `media-src 'self' data:`. The translate settings screen was deleted: there is nothing left to configure.
+The dictionary is Youdao's rather than Sogou's because Sogou's is signed rather than public. Pronunciation audio is fetched in Rust and returned base64 to play from a `data:` URL, so the webview still has no network access of its own and the CSP only gained `media-src 'self' data:`. The translate settings screen was deleted: there is nothing left to configure.
 
 ## 2026-09-30 - Commands answer to Chinese and pinyin, not just a Latin prefix
 Decision:
@@ -78,12 +78,6 @@ Every persisted file uses `src-tauri/src/storage/json_file.rs`: write a temp fil
 Reason:
 Remove-then-rename left a window where the user's file did not exist at all. One unreadable byte in `settings.json` made every later `update_setting` fail, so settings could never be changed again, and `usage_count.json` used `unwrap_or_default()`, silently zeroing every launch count.
 
-## 2026-09-24 - CSP stays null until it can be verified in a packaged build
-Decision:
-Leave `app.security.csp` as `null`. If it is ever set, `script-src` must keep `'unsafe-inline'` (the SvelteKit static build emits an inline bootstrap script that Tauri does not nonce) and `img-src`/`connect-src` must allow `asset:` plus `http://asset.localhost` for clipboard images and the QR decode fallback.
-Reason:
-A CSP that blocks the inline bootstrap leaves a blank window, and the packaged webview cannot be verified from this environment; an unverified security config is worse than a documented one.
-
 ## 2026-08-30 - Palette chrome uses Raycast-like tokens
 Decision:
 Dark canvas is `#07080a`, panels `#111214`, hairlines `rgb(255 255 255 / 0.06)`. Rows select and hover with translucent fills, not a 2px accent border. Home-list fade-stagger runs only when the empty palette opens.
@@ -109,18 +103,10 @@ Reason:
 Leaving to copy a setting must not dump the user back to an empty palette.
 
 ## 2026-08-29 - Clip cleanup lives in settings
-Superseded: 2026-08-29 - Clip cleanup is a button, not a timer.
 Decision:
 Retention stays 7 / 30 / never. Cleaning expired unpinned text and extra images is a settings action with a confirm. Clearing unpinned clip history is Shift+Delete in the clip panel, also with a confirm.
 Reason:
 The clip panel is for browsing and pasting; bulk delete belongs with retention or a shortcut, not two footer buttons.
-
-## 2026-08-29 - Clip cleanup is a button, not a timer
-Superseded by: 2026-08-29 - Clip cleanup lives in settings.
-Decision:
-Settings store `clipTextRetentionDays` as 7, 30, or never (null/0, default 7). The clip panel has a cleanup button that deletes unpinned texts older than that window and extra images over 200; pinned rows stay. It is disabled when retention is off.
-Reason:
-Text has no count cap, so cleanup must be explicit, and the button copy should state the range before anything is deleted.
 
 ## 2026-08-29 - Backups overwrite todos, snippets, and settings
 Decision:
@@ -139,13 +125,6 @@ Decision:
 Do not window emoji or clip lists. Emoji search still caps at 96. `@emoji-mart/data` and mathjs load on first use; command panels stay static imports.
 Reason:
 Estimated-height windowing left empty space when scrolling; a 400px palette already scrolled smoothly with the full DOM.
-
-## 2026-08-29 - Window emoji/clip lists; lazy-load heavy packs
-Superseded by: 2026-08-29 - No list virtualization; lazy-load heavy packs.
-Decision:
-Emoji grids and clip lists window with a tiny helper (no virtual-list lib). Emoji search caps at 96. `@emoji-mart/data` and mathjs load on first use; command panels stay static imports.
-Reason:
-Full emoji/clip DOM was the remaining jank; splitting every panel would delay first paint of the empty palette.
 
 ## 2026-08-29 - Copy uses the clipboard plugin and flashes on failure
 Decision:
@@ -177,32 +156,11 @@ Typing `#ff6363`, `rgb()`, or `hsl()` (including alpha) opens the color panel wi
 Reason:
 Raycast shows a color preview from a bare hex; a prefix would hide the common case.
 
-## 2026-08-29 - Palette restores last query after a casual hide
-Superseded by the 2026-08-29 entry of the same title (Escape now clears a panel instead of hiding with it).
-Decision:
-Blur, Escape, or hotkey hide keeps the last query and page. Launching, copying, or opening a web search resets on the next show.
-Reason:
-Leaving to copy a setting must not dump the user back to an empty palette.
-
-## 2026-08-29 - Translate uses Baidu's free API
-Superseded by: 2026-09-30 - Translate is keyless: Sogou for sentences, Youdao for words.
-Decision:
-`tr` calls Baidu Translate with credentials only in Rust; AppID, secret, and URL save as you type. Bare `tr` uses persisted default/second targets. Enter submits the request; a second Enter copies. Dictionary extras appear only when Baidu returns `dict` (console dictionary resource). Not TTS.
-Reason:
-Credentials must survive switching away to copy a key, and the API already returns dictionary fields the UI was dropping.
-
 ## 2026-08-29 - UI language follows the system
 Decision:
 Settings persist `locale` as `system` | `zh-CN` | `en` (default system). Any OS `zh*` locale becomes Simplified Chinese; everything else is English. zh-CN command titles stay `中文 · English`; English UI shows the English title only.
 Reason:
 English users cannot use Chinese labels or pinyin; following the OS avoids a first-launch language prompt.
-
-## 2026-08-29 - Command titles are Chinese then English
-Superseded by: 2026-08-29 - UI language follows the system.
-Decision:
-Command titles show Chinese, a middle dot, then the English name (`待办 · Todo`). The empty palette is only the command list; it has no instructional copy.
-Reason:
-Hints overlapped the list, and Chinese users need to see the English prefix without a language setting.
 
 ## 2026-08-29 - Web search prefixes open the browser
 Decision:
@@ -215,12 +173,6 @@ Decision:
 `em` / `emoji` browses `@emoji-mart/data` categories, with English keyword search as a helper. Copy writes the native glyph, shows a notice, then hides after 1.2s. Search uses the palette field, not a second box.
 Reason:
 The dataset already classifies Unicode emoji; Chinese users can browse, and a second search field would fight the launcher chrome.
-
-## 2026-08-29 - Command titles are Chinese then English
-Decision:
-Command titles show Chinese, a middle dot, then the English name (`待办 · Todo`). The empty palette is only the command list; it has no instructional copy.
-Reason:
-Hints overlapped the list, and Chinese users need to see the English prefix without a language setting.
 
 ## 2026-08-28 - Settings live in the palette; unmatched queries search the web
 Decision:

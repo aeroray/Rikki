@@ -58,9 +58,12 @@ fn default_locale() -> String {
 
 /// Sogou language codes accepted as a translate target. One source of truth so
 /// the validator and the error message cannot drift apart.
-const TRANSLATE_TARGET_LANGS: &[&str] = &[
-    "zh-CHS", "zh-CHT", "en", "ja", "ko", "fr", "de", "es", "ru", "pt", "it", "vi", "th", "ar",
-];
+///
+/// Deliberately four. The palette shows every target at once, and a list long
+/// enough to need scrolling stops being readable at a glance — which is the only
+/// reason the list is on screen at all. Must stay in step with `SUPPORTED_TARGETS`
+/// in `src/lib/commands/translate/parse.ts`.
+const TRANSLATE_TARGET_LANGS: &[&str] = &["zh-CHS", "en", "ja", "ko"];
 
 fn valid_translate_target(code: &str) -> bool {
     TRANSLATE_TARGET_LANGS.contains(&code)

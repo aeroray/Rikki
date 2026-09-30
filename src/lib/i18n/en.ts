@@ -364,13 +364,4 @@ export const en: Record<MessageKey, string> = {
   "translate.language.en": "English",
   "translate.language.ja": "Japanese",
   "translate.language.ko": "Korean",
-  "translate.language.fr": "French",
-  "translate.language.de": "German",
-  "translate.language.es": "Spanish",
-  "translate.language.ru": "Russian",
-  "translate.language.pt": "Portuguese",
-  "translate.language.it": "Italian",
-  "translate.language.vi": "Vietnamese",
-  "translate.language.th": "Thai",
-  "translate.language.ar": "Arabic",
 };

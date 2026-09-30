@@ -26,15 +26,6 @@ export const SUPPORTED_TARGETS: ReadonlyArray<{
   { code: "en", labelKey: "translate.language.en", short: "EN" },
   { code: "ja", labelKey: "translate.language.ja", short: "日本語" },
   { code: "ko", labelKey: "translate.language.ko", short: "한국어" },
-  { code: "fr", labelKey: "translate.language.fr", short: "FR" },
-  { code: "de", labelKey: "translate.language.de", short: "DE" },
-  { code: "es", labelKey: "translate.language.es", short: "ES" },
-  { code: "ru", labelKey: "translate.language.ru", short: "RU" },
-  { code: "pt", labelKey: "translate.language.pt", short: "PT" },
-  { code: "it", labelKey: "translate.language.it", short: "IT" },
-  { code: "vi", labelKey: "translate.language.vi", short: "VI" },
-  { code: "th", labelKey: "translate.language.th", short: "TH" },
-  { code: "ar", labelKey: "translate.language.ar", short: "AR" },
 ];
 
 /** The target the interface language itself translates into. */

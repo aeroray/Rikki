@@ -362,15 +362,6 @@ export const zhCN = {
   "translate.language.en": "英文",
   "translate.language.ja": "日文",
   "translate.language.ko": "韩文",
-  "translate.language.fr": "法文",
-  "translate.language.de": "德文",
-  "translate.language.es": "西班牙文",
-  "translate.language.ru": "俄文",
-  "translate.language.pt": "葡萄牙文",
-  "translate.language.it": "意大利文",
-  "translate.language.vi": "越南文",
-  "translate.language.th": "泰文",
-  "translate.language.ar": "阿拉伯文",
 } as const;
 
 export type MessageKey = keyof typeof zhCN;

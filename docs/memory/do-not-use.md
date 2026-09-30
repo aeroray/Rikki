@@ -2,9 +2,6 @@
 
 Tombstones are newest first.
 
-## Tombstone: Sogou's signed dictionary endpoint
-Do not retry `fanyi.sogou.com/api/transpc/text/result`. Reason: it is not a published API — `s` is a hash of the text plus a `secretCode` taken from the page's initial state, and only the request shape and that constant came back from the page bundle; md5, sha1 and sha256 over several orderings of `from`/`to`/`text` and the secret all returned error `s10`. The secret can rotate without notice, so a reverse-engineered constant is a liability. Youdao's public dictionary covers the same word card. Date: 2026-09-30.
-
 ## Tombstone: translate settings and a source-language picker
 Do not reintroduce unless the user explicitly reverses this. Reason: there is nothing left to configure — the source is guessed from the script because Sogou rejects `auto`, the target is one remembered setting (`translateTarget`) that `Tab` cycles, and a target that collides with the source falls back to the interface language. Date: 2026-09-30.
 
