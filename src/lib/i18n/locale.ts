@@ -5,9 +5,11 @@ export const LOCALES: Locale[] = ["zh-CN", "en"];
 export const LOCALE_PREFS: LocalePref[] = ["system", "zh-CN", "en"];
 
 export function detectSystemLocale(): Locale {
-  const lang =
-    typeof navigator === "undefined" ? "" : `${navigator.language} ${navigator.languages?.join(" ") ?? ""}`;
-  return /\bzh\b/i.test(lang) ? "zh-CN" : "en";
+  // Only the primary language decides. Scanning every entry in
+  // `navigator.languages` meant a machine whose main language is English but
+  // which lists Chinese as a secondary preference started up in Chinese.
+  const lang = typeof navigator === "undefined" ? "" : navigator.language;
+  return /^zh\b/i.test(lang) ? "zh-CN" : "en";
 }
 
 export function parseLocalePref(value: string | undefined | null): LocalePref {

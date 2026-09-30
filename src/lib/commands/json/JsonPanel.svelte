@@ -94,9 +94,11 @@
         {inspected.ok ? i18n.t("json.valid") : inspected.empty ? i18n.t("json.editing") : i18n.t("json.invalid")}
       </p>
       {#if !inspected.ok && !inspected.empty}
-        <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
-          {i18n.t("json.errorAt", { line: inspected.error.line, column: inspected.error.column })}
-        </p>
+        {#if inspected.error.line > 0}
+          <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+            {i18n.t("json.errorAt", { line: inspected.error.line, column: inspected.error.column })}
+          </p>
+        {/if}
         <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{inspected.error.message}</p>
       {/if}
       <textarea
@@ -128,9 +130,14 @@
       <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("json.emptyHint")}</p>
     {:else}
       <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("json.invalid")}</p>
-      <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
-        {i18n.t("json.errorAt", { line: inspected.error.line, column: inspected.error.column })}
-      </p>
+      <!-- V8 omits the position for several common errors (`[1,2,]`, a bare
+           word, a truncated document), and `locateError` then reports 0/0.
+           Printing "line 0, column 0" is worse than saying nothing. -->
+      {#if inspected.error.line > 0}
+        <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary tabular-nums">
+          {i18n.t("json.errorAt", { line: inspected.error.line, column: inspected.error.column })}
+        </p>
+      {/if}
       <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">{inspected.error.message}</p>
       <ScrollArea class="mt-3 min-h-0 flex-1" viewportClass="flex flex-col">
         <button

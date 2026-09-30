@@ -62,10 +62,33 @@
   $effect(() => {
     ui.showNonce;
     ui.imagePreviewSrc;
+    // Closing either dialog removes the button that had focus, which drops focus
+    // to <body> with nobody to take it back.
+    ui.pendingConfirm;
+    clipboard.confirm;
     if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft && !settings.translateDraft) {
       requestAnimationFrame(() => inputEl?.focus());
     }
   });
+
+  /**
+   * Keep the keyboard alive.
+   *
+   * Every shortcut in the palette is bound to the search input, so a list row or
+   * a dialog button that takes focus disables the whole thing silently: nothing
+   * looks different, but typing, the arrows and Enter all stop working until Esc
+   * happens to reset the search. Rows are reachable by Tab as well as by click,
+   * so this catches both. Text fields are exempt, because the panels that own one
+   * are supposed to keep it.
+   */
+  function onFocusIn(event: FocusEvent) {
+    const target = event.target as HTMLElement | null;
+    if (!target || target === inputEl) return;
+    if (target.closest("input, textarea, [contenteditable='true']")) return;
+    if (target === document.body || target.closest('[role="option"], [role="gridcell"]')) {
+      inputEl?.focus();
+    }
+  }
 
   function onInput() {
     ui.selectedIndex = 0;
@@ -78,6 +101,10 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    // IME composition owns Escape: while a candidate list is open it means
+    // "cancel the candidate", not "clear the search and leave the command".
+    if (event.isComposing || composing) return;
+
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -85,7 +112,14 @@
       return;
     }
 
-    if (event.isComposing || composing) return;
+    // A destructive action waiting on confirmation takes every key. Escape is
+    // already handled above, where `escapePalette` cancels it.
+    if (ui.pendingConfirm) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Enter") ui.runConfirm();
+      return;
+    }
 
     if (clipboard.confirm) {
       if (event.key === "Enter") {
@@ -410,7 +444,11 @@
       if (event.key === "Delete" && screen === "engine") {
         event.preventDefault();
         const engine = settings.engines[settings.selectedIndex];
-        if (engine?.custom) void settings.removeEngine(engine.id);
+        // Removing a custom engine throws away the name and URL that were typed
+        // in, so it asks first like the system commands do.
+        if (engine?.custom) {
+          ui.requestConfirm(engine.name, () => void settings.removeEngine(engine.id), i18n.t("settings.engineDeleteBody"));
+        }
         return;
       }
       const count = settings.countFor(screen);
@@ -455,11 +493,14 @@
     }
 
     if (ui.view === "suggest") {
-      if (ui.matchedCommand && ui.commandRest.trim()) {
+      const hit = ui.rootHits[ui.selectedIndex];
+      // The pinned command row sits at index 0. Running it unconditionally meant
+      // Enter executed it even after the highlight had moved onto an app row, so
+      // the keyboard disagreed with the highlight and with what a click does.
+      if (ui.selectedIndex === 0 && ui.matchedCommand && ui.commandRest.trim()) {
         ui.matchedCommand.run(ui.commandRest);
         return;
       }
-      const hit = ui.rootHits[ui.selectedIndex];
       if (hit?.kind === "app") {
         void apps.launch(hit.app.path).then((ok) => {
           if (ok) ui.beginHide({ reset: true });
@@ -486,6 +527,8 @@
     }
   }
 </script>
+
+<svelte:window onfocusin={onFocusIn} />
 
 <label
   class="m-3 flex items-center gap-2 rounded-lg bg-surface-1 px-4 py-3 transition-shadow duration-150 ease-out focus-within:animate-[glowPulse_1.2s_ease-in-out_infinite] motion-reduce:focus-within:animate-none motion-reduce:focus-within:outline motion-reduce:focus-within:outline-1 motion-reduce:focus-within:outline-primary-focus/55"

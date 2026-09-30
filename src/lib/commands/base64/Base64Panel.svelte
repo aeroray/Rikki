@@ -8,8 +8,8 @@
   const inspected = $derived(inspectBase64(ui.searchText, ui.commandRest));
 
   // Key glyphs are not translated: they name physical keys, which read the same
-  // in every locale. An invalid input has nothing to offer, so the footer still
-  // renders but stays empty rather than showing a hint that does not apply.
+  // in every locale. Tab stays advertised even for input that cannot be decoded,
+  // because switching to encode still turns that same text into base64.
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
     if (inspected.ok) {
       return [
@@ -17,8 +17,7 @@
         { keys: "Tab", label: i18n.t("base64.keySwitch") },
       ];
     }
-    if (inspected.empty) return [{ keys: "Tab", label: i18n.t("base64.keySwitch") }];
-    return [];
+    return [{ keys: "Tab", label: i18n.t("base64.keySwitch") }];
   });
 </script>
 

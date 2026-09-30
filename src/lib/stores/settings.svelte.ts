@@ -595,7 +595,10 @@ class SettingsStore {
       applyTheme("dark");
       this.syncLocale();
       this.translateDefaultTarget = preferredTranslateLang();
-      this.translateSecondTarget = "en";
+      // Same invariant `apply` maintains: the two targets have to differ, or
+      // translating out of the default language becomes a no-op. Hardcoding
+      // "en" here put "English" in both slots on an English system.
+      this.translateSecondTarget = this.translateDefaultTarget === "zh" ? "en" : "zh";
     }
   }
 }

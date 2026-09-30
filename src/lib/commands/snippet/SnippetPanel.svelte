@@ -107,10 +107,11 @@
               {snippet}
               selected={index === snippets.selectedIndex}
               onselect={() => {
-                if (snippet.sensitive) {
-                  snippets.selectedIndex = index;
-                  return;
-                }
+                // Clicking copies, including for a sensitive snippet: masking is
+                // about what the list shows, not about withholding the content,
+                // and Enter copies it regardless. Selecting without copying left
+                // mouse users unable to use the row at all, with no explanation.
+                snippets.selectedIndex = index;
                 void snippets.copy(snippet.id);
               }}
               onedit={() => snippets.openEdit(snippet)}

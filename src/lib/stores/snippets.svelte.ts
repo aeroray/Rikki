@@ -116,6 +116,9 @@ class SnippetStore {
       ui.searchText = "sn ";
       return true;
     } catch {
+      // Returning false alone left the draft open with nothing on screen to say
+      // why, so a failing write looked like the shortcut had not registered.
+      this.flash(i18n.t("snippet.saveFailed"));
       return false;
     }
   }
@@ -140,6 +143,7 @@ class SnippetStore {
       this.flash(i18n.t("snippet.updated", { title: snippet.title }));
       return true;
     } catch {
+      this.flash(i18n.t("snippet.saveFailed"));
       return false;
     }
   }

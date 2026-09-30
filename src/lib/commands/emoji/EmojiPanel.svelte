@@ -42,7 +42,9 @@
   const footerMessage = $derived.by((): string | null => {
     if (emojis.notice) return emojis.notice;
     if (screen.type === "categories") return null;
-    return overlay ? i18n.t("emoji.loading") : null;
+    // The loading overlay already says this, and it is painted over the footer,
+    // so repeating it here only produced a half-hidden second copy.
+    return null;
   });
 
   $effect(() => {
