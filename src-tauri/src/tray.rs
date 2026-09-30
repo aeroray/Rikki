@@ -14,12 +14,33 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .tooltip(tooltip())
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "tray-show" => show_palette(app),
-            "tray-quit" => app.exit(0),
-            _ => {}
+        .on_menu_event(|app, event| {
+            // A native popup menu can leave the ShowCursor counter below zero,
+            // which keeps the cursor invisible until the process exits. Repair
+            // it as soon as the menu reports a selection, before doing anything
+            // that might take time.
+            crate::cursor::ensure_cursor_visible();
+            match event.id.as_ref() {
+                "tray-show" => show_palette(app),
+                "tray-quit" => app.exit(0),
+                _ => {}
+            }
         })
         .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                // The right-click is about to open the native menu, which can
+                // leave the ShowCursor counter negative. Sweep the cursor back
+                // over the next moment: a menu dismissed without a selection
+                // never fires `on_menu_event`, so this is the only repair that
+                // covers that case.
+                crate::cursor::repair_cursor_soon();
+            }
+
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,

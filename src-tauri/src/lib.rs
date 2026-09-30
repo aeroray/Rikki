@@ -7,6 +7,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 mod apps;
 mod apps_icons;
 mod commands;
+mod cursor;
 mod input;
 mod storage;
 #[cfg(desktop)]
@@ -133,6 +134,11 @@ pub(crate) fn show_palette(app: &tauri::AppHandle) {
     let Some(window) = palette_window(app) else {
         return;
     };
+    // The tray menu is a native popup that can leave the ShowCursor counter
+    // negative, which hides the cursor until the process exits. Showing the
+    // palette is the first thing that happens after the menu closes, so the
+    // repair belongs here as well as on the menu event itself.
+    cursor::ensure_cursor_visible();
     mark_shown(app);
     bump_hide_seq(app, false);
     let _ = window.center();
