@@ -1,30 +1,38 @@
-export type DictPart = {
-  part: string;
-  means: string[];
-};
-
-export type TranslateExample = {
-  orig: string;
-  trans: string;
-};
-
-export type WordForm = {
-  kind: string;
-  values: string[];
-};
-
-export type TranslateResponse = {
+/** What `translate` returns. `from`/`to` are the codes the service actually used. */
+export type Translation = {
+  text: string;
   from: string;
   to: string;
-  sourceText: string;
-  translatedText: string;
-  phonetic?: string | null;
-  phoneticUk?: string | null;
-  phoneticUs?: string | null;
-  tags: string[];
+};
+
+/** One sense of a word. `partOfSpeech` is empty when the dictionary gave none. */
+export type WordDefinition = {
+  partOfSpeech: string;
+  meaning: string;
+};
+
+/** One inflected form, e.g. `{ name: "复数", value: "hellos" }`. */
+export type WordForm = {
+  name: string;
+  value: string;
+};
+
+export type WordExample = {
+  en: string;
+  zh: string;
+};
+
+/**
+ * A dictionary entry. `lookup_word` returning null — not an error — is how the
+ * panel knows the text is a sentence and has no card to render.
+ */
+export type WordEntry = {
+  headword: string;
+  usPhone: string | null;
+  ukPhone: string | null;
+  hasUsAudio: boolean;
+  hasUkAudio: boolean;
+  definitions: WordDefinition[];
   forms: WordForm[];
-  similar: string[];
-  parts: DictPart[];
-  sentences: TranslateExample[];
-  hasDict: boolean;
+  examples: WordExample[];
 };

@@ -147,9 +147,9 @@
       void saveQrPng();
       return;
     }
-    if (ui.view === "translate" && translate.wordMode) {
+    if (ui.view === "translate") {
       event.preventDefault();
-      translate.swap();
+      translate.cycleTarget();
     }
   }
 </script>

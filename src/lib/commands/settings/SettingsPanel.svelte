@@ -2,19 +2,17 @@
   import EngineCreate from "$lib/commands/settings/EngineCreate.svelte";
   import EngineSelector from "$lib/commands/settings/EngineSelector.svelte";
   import HotkeyRecorder from "$lib/commands/settings/HotkeyRecorder.svelte";
-  import { parseSettingsScreen } from "$lib/commands/settings/parse";
+  import { parseSettingsScreen, type SettingsScreen } from "$lib/commands/settings/parse";
   import SettingItem from "$lib/commands/settings/SettingItem.svelte";
   import ThemeSelector from "$lib/commands/settings/ThemeSelector.svelte";
   import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
   import ClipRetentionSelector from "$lib/commands/settings/ClipRetentionSelector.svelte";
-  import TranslateSettings from "$lib/commands/settings/TranslateSettings.svelte";
   import {
     openEngineSettings,
     openHotkeySettings,
     openLanguageSettings,
     openRetentionSettings,
     openThemeSettings,
-    openTranslateSettings,
     startEngineCreate,
     startClipCleanup,
   } from "$lib/commands/settings/actions";
@@ -28,19 +26,12 @@
   import { onDestroy, untrack } from "svelte";
 
   const screen = $derived(parseSettingsScreen(ui.commandRest));
-  let lastScreen = $state<"list" | "engine" | "theme" | "hotkey" | "language" | "translate" | "retention" | null>(null);
+  let lastScreen = $state<SettingsScreen | null>(null);
 
   onDestroy(() => {
     settings.cancelReturn();
     clipboard.closeConfirm();
     if (settings.engineDraft) settings.closeEngineDraft();
-    if (settings.translateDraft) settings.closeTranslateDraft();
-  });
-
-  $effect.pre(() => {
-    if (ui.view === "settings" && parseSettingsScreen(ui.commandRest) === "translate") {
-      if (!settings.translateDraft) untrack(() => settings.openTranslateDraft());
-    }
   });
 
   $effect(() => {
@@ -49,7 +40,6 @@
       settings.cancelReturn();
       clipboard.closeConfirm();
       if (settings.engineDraft) settings.closeEngineDraft();
-      if (settings.translateDraft) settings.closeTranslateDraft();
       return;
     }
     const next = parseSettingsScreen(ui.commandRest);
@@ -67,10 +57,7 @@
       } else if (next === "retention") {
         const index = settings.retentionOptions.findIndex((option) => option.id === settings.clipTextRetentionDays);
         settings.selectedIndex = index >= 0 ? index : 0;
-      } else if (next === "translate") {
-        if (!settings.translateDraft) untrack(() => settings.openTranslateDraft());
       } else {
-        if (settings.translateDraft) settings.closeTranslateDraft();
         settings.selectedIndex = 0;
       }
     }
@@ -140,8 +127,6 @@
 
 {#if settings.engineDraft}
   <EngineCreate />
-{:else if screen === "translate"}
-  <TranslateSettings />
 {:else if screen === "hotkey"}
   <HotkeyRecorder />
 {:else}
@@ -245,7 +230,6 @@
                 if (item.id === "theme") openThemeSettings();
                 if (item.id === "hotkey") openHotkeySettings();
                 if (item.id === "language") openLanguageSettings();
-                if (item.id === "translate") openTranslateSettings();
                 if (item.id === "retention") openRetentionSettings();
                 if (item.id === "cleanup") startClipCleanup();
                 if (item.id === "export") void settings.exportBackup();

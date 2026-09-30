@@ -1,644 +1,472 @@
-use serde::{Deserialize, Serialize};
+//! Translation.
+//!
+//! Two sources, neither of which needs an API key:
+//!
+//!  - **Sentences** go to Sogou's Hunyuan endpoint. It is the one the Sogou
+//!    translate page itself calls for free text, and it returns a model
+//!    translation rather than a phrase-table lookup.
+//!  - **Words** go to Youdao's public dictionary. Sogou has a dictionary
+//!    endpoint too, but it is signed — `s` is a hash of the text plus a
+//!    `secretCode` lifted out of the page's initial state — and it is not a
+//!    published API, so the secret can rotate without notice and reproducing the
+//!    hash means shipping a reverse-engineered constant. Youdao's is public and
+//!    returns exactly what a word card needs: US and UK phonetics with matching
+//!    audio, part-of-speech definitions, word forms and bilingual examples.
+//!
+//! The dictionary sits behind `lookup_word`, so swapping the source later is a
+//! change to this file and nothing else.
+//!
+//! This replaces a Baidu integration that required the user to register an app
+//! and paste an AppID and secret before the command worked at all.
+
+use serde::Serialize;
 use serde_json::Value;
-use tauri::AppHandle;
+use std::time::Duration;
 
-use crate::storage::settings_store;
+const MAX_CHARS: usize = 2_000;
+const MAX_BYTES: usize = 1024 * 1024;
+const TIMEOUT: Duration = Duration::from_secs(30);
 
-const MAX_CHARS: usize = 1000;
+const SOGOU_TRANSLATE: &str = "https://fanyi.sogou.com/api/transpc/hunyuan/translate";
+const SOGOU_HOME: &str = "https://fanyi.sogou.com/text";
+const YOUDAO_DICT: &str = "https://dict.youdao.com/jsonapi";
+const YOUDAO_VOICE: &str = "https://dict.youdao.com/dictvoice";
+
+/// Both sites reject requests that do not look like they came from their own page.
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DictPart {
-    pub part: String,
-    pub means: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct Example {
-    pub orig: String,
-    pub trans: String,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct WordForm {
-    pub kind: String,
-    pub values: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TranslateResponse {
+pub struct Translation {
+    pub text: String,
     pub from: String,
     pub to: String,
-    pub source_text: String,
-    pub translated_text: String,
-    pub phonetic: Option<String>,
-    pub phonetic_uk: Option<String>,
-    pub phonetic_us: Option<String>,
-    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WordDefinition {
+    /// The part of speech as the dictionary writes it, e.g. `int.` or `n.`.
+    pub part_of_speech: String,
+    pub meaning: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WordForm {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WordExample {
+    pub en: String,
+    pub zh: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WordEntry {
+    pub headword: String,
+    pub us_phone: Option<String>,
+    pub uk_phone: Option<String>,
+    /// Whether an audio clip exists, so the panel can hide a button that would
+    /// do nothing.
+    pub has_us_audio: bool,
+    pub has_uk_audio: bool,
+    pub definitions: Vec<WordDefinition>,
     pub forms: Vec<WordForm>,
-    pub similar: Vec<String>,
-    pub parts: Vec<DictPart>,
-    pub sentences: Vec<Example>,
-    pub has_dict: bool,
+    pub examples: Vec<WordExample>,
 }
 
-#[derive(Debug, Deserialize)]
-struct BaiduResponse {
-    error_code: Option<Value>,
-    error_msg: Option<String>,
-    from: Option<String>,
-    to: Option<String>,
-    trans_result: Option<Vec<BaiduTrans>>,
-    dict: Option<Value>,
+fn client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(TIMEOUT)
+        .build()
+        .map_err(|error| format!("http client: {error}"))
 }
 
-#[derive(Debug, Deserialize)]
-struct BaiduTrans {
-    src: Option<String>,
-    dst: Option<String>,
-    dict: Option<Value>,
-    sentences: Option<Value>,
+/// Reads a response body with a ceiling, so a hostile or broken endpoint cannot
+/// make the app allocate without limit.
+async fn bounded(response: reqwest::Response) -> Result<Vec<u8>, String> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_BYTES as u64)
+    {
+        return Err("response too large".into());
+    }
+    let mut collected = Vec::new();
+    let mut response = response;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| format!("read response: {error}"))?
+    {
+        if collected.len() + chunk.len() > MAX_BYTES {
+            return Err("response too large".into());
+        }
+        collected.extend_from_slice(&chunk);
+    }
+    Ok(collected)
 }
 
-#[tauri::command]
-pub async fn translate(app: AppHandle, text: String, source: String, target: String) -> Result<TranslateResponse, String> {
-    let text = text.trim().to_string();
-    if text.is_empty() {
+/// Trims the input and caps it, since both endpoints choke on length.
+fn prepare(text: &str) -> Result<String, String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
         return Err("empty".into());
     }
-    if text.chars().count() > MAX_CHARS {
-        return Err("too_long".into());
-    }
+    Ok(trimmed.chars().take(MAX_CHARS).collect())
+}
 
-    let settings = settings_store::load_settings(&app)?;
-    let app_id = settings.baidu_translate_app_id.trim().to_string();
-    let secret = settings.baidu_translate_secret_key.trim().to_string();
-    if app_id.is_empty() || secret.is_empty() {
-        return Err("not_configured".into());
-    }
-
-    let from = to_baidu(&source)?;
-    let to = to_baidu(&target)?;
-    let endpoint = settings_store::resolved_translate_url(&settings);
-
-    let salt = rand::random::<u32>().to_string();
-    let sign_input = format!("{app_id}{text}{salt}{secret}");
-    let sign = format!("{:x}", md5::compute(sign_input.as_bytes()));
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|_| "network".to_string())?;
-    let resp = client
-        .post(&endpoint)
+#[tauri::command(async)]
+pub async fn translate(text: String, from: String, to: String) -> Result<Translation, String> {
+    let text = prepare(&text)?;
+    let response = client()?
+        .post(SOGOU_TRANSLATE)
+        .header("Referer", SOGOU_HOME)
+        .header("Origin", "https://fanyi.sogou.com")
+        .header("Accept", "application/json, text/plain, */*")
         .form(&[
-            ("q", text.as_str()),
-            ("from", from.as_str()),
-            ("to", to.as_str()),
-            ("appid", app_id.as_str()),
-            ("salt", salt.as_str()),
-            ("sign", sign.as_str()),
+            ("text", text.as_str()),
+            ("from_lang", from.as_str()),
+            ("to_lang", to.as_str()),
         ])
         .send()
         .await
-        .map_err(|_| "network".to_string())?;
+        .map_err(|error| format!("translate request: {error}"))?;
 
-    let body = resp.json::<BaiduResponse>().await.map_err(|_| "network".to_string())?;
-    if let Some(code) = body.error_code.as_ref() {
-        let code = code_string(code);
-        if !code.is_empty() && code != "0" && code != "52000" {
-            return Err(map_baidu_error(&code, body.error_msg.as_deref()));
+    if !response.status().is_success() {
+        return Err(format!("translate http {}", response.status().as_u16()));
+    }
+    let bytes = bounded(response).await?;
+    let json: Value =
+        serde_json::from_slice(&bytes).map_err(|error| format!("translate response: {error}"))?;
+    parse_sogou(&json, &from, &to)
+}
+
+fn parse_sogou(json: &Value, from: &str, to: &str) -> Result<Translation, String> {
+    if let Some(status) = json.get("status").and_then(Value::as_i64) {
+        if status != 0 {
+            return Err(format!("translate failed (status {status})"));
         }
     }
-
-    let row = body.trans_result.as_ref().and_then(|rows| rows.first());
-    let source_text = row.and_then(|item| item.src.clone()).unwrap_or(text);
-    let translated_text = body
-        .trans_result
-        .as_ref()
-        .map(|rows| {
-            rows.iter()
-                .filter_map(|item| item.dst.as_deref())
-                .collect::<Vec<_>>()
-                .join("\n")
-        })
+    let data = json.get("data").ok_or("translate response has no data")?;
+    if let Some(code) = data.get("code").and_then(Value::as_i64) {
+        if code != 0 {
+            let message = data
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("translate failed");
+            return Err(message.to_string());
+        }
+    }
+    let text = data
+        .get("content")
+        .and_then(Value::as_str)
+        .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| "unknown".to_string())?;
-
-    let mut phonetic = None;
-    let mut phonetic_uk = None;
-    let mut phonetic_us = None;
-    let mut tags = Vec::new();
-    let mut forms = Vec::new();
-    let mut similar = Vec::new();
-    let mut parts = Vec::new();
-    let mut sentences = Vec::new();
-    let dict_value = row.and_then(|item| item.dict.as_ref()).or(body.dict.as_ref());
-    if let Some(dict) = dict_value {
-        extract_dict(
-            dict,
-            &mut phonetic,
-            &mut phonetic_uk,
-            &mut phonetic_us,
-            &mut tags,
-            &mut forms,
-            &mut similar,
-            &mut parts,
-            &mut sentences,
-        );
-    }
-    if let Some(examples) = row.and_then(|item| item.sentences.as_ref()) {
-        extract_sentences(examples, &mut sentences);
-    }
-    let has_dict = dict_value.is_some()
-        || phonetic.is_some()
-        || phonetic_uk.is_some()
-        || phonetic_us.is_some()
-        || !tags.is_empty()
-        || !forms.is_empty()
-        || !similar.is_empty()
-        || !parts.is_empty()
-        || !sentences.is_empty();
-
-    Ok(TranslateResponse {
-        from: from_baidu(body.from.as_deref().unwrap_or(&from)),
-        to: from_baidu(body.to.as_deref().unwrap_or(&to)),
-        source_text,
-        translated_text,
-        phonetic,
-        phonetic_uk,
-        phonetic_us,
-        tags,
-        forms,
-        similar,
-        parts,
-        sentences,
-        has_dict,
+        .ok_or("translate returned nothing")?;
+    Ok(Translation {
+        text: text.to_string(),
+        // Sogou echoes what it actually used, which is worth keeping: it does
+        // not accept `auto`, so the caller guesses the source and this is the
+        // only confirmation that the guess was taken.
+        from: data
+            .get("from_lang")
+            .and_then(Value::as_str)
+            .unwrap_or(from)
+            .to_string(),
+        to: data
+            .get("to_lang")
+            .and_then(Value::as_str)
+            .unwrap_or(to)
+            .to_string(),
     })
 }
 
-fn to_baidu(code: &str) -> Result<String, String> {
-    let code = code.trim().to_ascii_lowercase();
-    let mapped = match code.as_str() {
-        "zh" | "zh-cn" | "cht" | "yue" => "zh",
-        "en" => "en",
-        "ja" | "jp" => "jp",
-        "ko" | "kor" => "kor",
-        "fr" | "fra" => "fra",
-        "de" => "de",
-        "es" | "spa" => "spa",
-        "ru" => "ru",
-        "th" => "th",
-        "vi" | "vie" => "vie",
-        "auto" => "auto",
-        _ => return Err("lang".into()),
+#[tauri::command(async)]
+pub async fn lookup_word(text: String) -> Result<Option<WordEntry>, String> {
+    let text = prepare(&text)?;
+    let response = client()?
+        .get(YOUDAO_DICT)
+        .query(&[("q", text.as_str())])
+        .send()
+        .await
+        .map_err(|error| format!("dictionary request: {error}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("dictionary http {}", response.status().as_u16()));
+    }
+    let bytes = bounded(response).await?;
+    // A word with no entry is a normal outcome, not an error: it means the text
+    // is a sentence, and the caller falls back to the translator.
+    let Ok(json) = serde_json::from_slice::<Value>(&bytes) else {
+        return Ok(None);
     };
-    Ok(mapped.into())
+    Ok(parse_youdao(&json, &text))
 }
 
-fn from_baidu(code: &str) -> String {
-    match code.trim().to_ascii_lowercase().as_str() {
-        "jp" => "ja".into(),
-        "kor" => "ko".into(),
-        "fra" => "fr".into(),
-        "spa" => "es".into(),
-        "vie" => "vi".into(),
-        "cht" | "yue" | "zh-cn" => "zh".into(),
-        other => other.into(),
-    }
-}
+fn parse_youdao(json: &Value, fallback_headword: &str) -> Option<WordEntry> {
+    let word = json.get("ec")?.get("word")?.get(0)?;
 
-fn code_string(value: &Value) -> String {
-    match value {
-        Value::String(text) => text.clone(),
-        Value::Number(num) => num.to_string(),
-        _ => String::new(),
-    }
-}
+    let definitions = word
+        .get("trs")
+        .and_then(Value::as_array)
+        .map(|groups| {
+            groups
+                .iter()
+                .filter_map(|group| group.get("tr")?.as_array())
+                .flatten()
+                .filter_map(|entry| entry.get("l")?.get("i")?.as_array())
+                .flatten()
+                .filter_map(Value::as_str)
+                .map(split_part_of_speech)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
-fn map_baidu_error(code: &str, message: Option<&str>) -> String {
-    match code {
-        "54001" | "52003" | "90107" => "invalid".into(),
-        "54003" | "54004" | "54005" => "quota".into(),
-        "58001" => "lang".into(),
-        "52001" | "52002" => "network".into(),
-        _ => message.filter(|text| !text.is_empty()).unwrap_or("unknown").to_string(),
-    }
-}
+    let forms = word
+        .get("wfs")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("wf"))
+                .filter_map(|wf| {
+                    Some(WordForm {
+                        name: wf.get("name")?.as_str()?.to_string(),
+                        value: wf.get("value")?.as_str()?.to_string(),
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
-fn extract_dict(
-    raw: &Value,
-    phonetic: &mut Option<String>,
-    phonetic_uk: &mut Option<String>,
-    phonetic_us: &mut Option<String>,
-    tags: &mut Vec<String>,
-    forms: &mut Vec<WordForm>,
-    similar: &mut Vec<String>,
-    parts: &mut Vec<DictPart>,
-    sentences: &mut Vec<Example>,
-) {
-    let value = dict_root(raw);
-    if let Some(simple) = value.get("simple_means") {
-        collect_phonetics(simple, phonetic, phonetic_uk, phonetic_us);
-        collect_tags(simple, tags);
-        collect_forms(simple, forms);
-        collect_parts(simple, parts);
-        collect_word_means(simple, parts);
-    }
-    collect_phonetics(&value, phonetic, phonetic_uk, phonetic_us);
-    collect_parts(&value, parts);
-    extract_edict(&value, similar, sentences);
-    if let Some(examples) = value.get("sentences") {
-        extract_sentences(examples, sentences);
-    }
-}
+    let examples = json
+        .get("blng_sents_part")
+        .and_then(|part| part.get("sentence-pair"))
+        .and_then(Value::as_array)
+        .map(|pairs| {
+            pairs
+                .iter()
+                .filter_map(|pair| {
+                    let en = pair.get("sentence")?.as_str()?.trim();
+                    let zh = pair.get("sentence-translation")?.as_str()?.trim();
+                    if en.is_empty() || zh.is_empty() {
+                        return None;
+                    }
+                    Some(WordExample {
+                        en: en.to_string(),
+                        zh: zh.to_string(),
+                    })
+                })
+                .take(3)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
-fn dict_root(raw: &Value) -> Value {
-    let value = parse_maybe_json(raw);
-    value
-        .get("word_result")
-        .cloned()
-        .map(|inner| parse_maybe_json(&inner))
-        .unwrap_or(value)
-}
+    // An entry with nothing to show is not worth rendering.
+    if definitions.is_empty() && forms.is_empty() && examples.is_empty() {
+        return None;
+    }
 
-fn collect_phonetics(
-    value: &Value,
-    phonetic: &mut Option<String>,
-    phonetic_uk: &mut Option<String>,
-    phonetic_us: &mut Option<String>,
-) {
-    if phonetic_uk.is_none() {
-        *phonetic_uk = first_string(value, &["ph_en"]);
-    }
-    if phonetic_us.is_none() {
-        *phonetic_us = first_string(value, &["ph_am"]);
-    }
-    if phonetic.is_none() {
-        *phonetic = first_string(value, &["word_symbol", "phone", "ph_other", "ph_en", "ph_am"]);
-    }
-}
-
-fn collect_tags(value: &Value, out: &mut Vec<String>) {
-    let Some(tags) = value.get("tags") else {
-        return;
+    let phone = |key: &str| {
+        word.get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
     };
-    for key in ["core", "other"] {
-        for tag in flatten_strings(tags.get(key).unwrap_or(&Value::Null)) {
-            if !tag.is_empty() && !out.iter().any(|item| item == &tag) {
-                out.push(tag);
-            }
-        }
-    }
-}
-
-fn collect_word_means(value: &Value, parts: &mut Vec<DictPart>) {
-    let means = flatten_strings(value.get("word_means").unwrap_or(&Value::Null));
-    if means.is_empty() {
-        return;
-    }
-    if parts
-        .iter()
-        .any(|part| part.means.iter().any(|item| means.contains(item)))
-    {
-        return;
-    }
-    parts.push(DictPart {
-        part: String::new(),
-        means,
-    });
-}
-
-fn collect_forms(value: &Value, out: &mut Vec<WordForm>) {
-    let Some(exchange) = value.get("exchange") else {
-        return;
-    };
-    const KINDS: [(&str, &str); 7] = [
-        ("word_pl", "pl"),
-        ("word_third", "third"),
-        ("word_past", "past"),
-        ("word_done", "done"),
-        ("word_ing", "ing"),
-        ("word_er", "er"),
-        ("word_est", "est"),
-    ];
-    for (key, kind) in KINDS {
-        let values = flatten_strings(exchange.get(key).unwrap_or(&Value::Null));
-        if !values.is_empty() && !out.iter().any(|item| item.kind == kind) {
-            out.push(WordForm {
-                kind: kind.into(),
-                values,
-            });
-        }
-    }
-}
-
-fn extract_edict(value: &Value, similar: &mut Vec<String>, sentences: &mut Vec<Example>) {
-    let Some(edict) = value.get("edict") else {
-        return;
-    };
-    if edict.as_str().is_some_and(|text| text.is_empty()) {
-        return;
-    }
-    let edict = parse_maybe_json(edict);
-    let items = edict.get("item").cloned().unwrap_or(edict);
-    for item in value_items(&items) {
-        for group in value_items(item.get("tr_group").unwrap_or(&Value::Null)) {
-            for word in flatten_strings(group.get("similar_word").unwrap_or(&Value::Null)) {
-                if !word.is_empty() && !similar.iter().any(|item| item == &word) {
-                    similar.push(word);
-                }
-            }
-            let defs = flatten_strings(group.get("tr").unwrap_or(&Value::Null));
-            let examples = flatten_strings(group.get("example").unwrap_or(&Value::Null));
-            for example in examples {
-                let trans = defs.first().cloned().unwrap_or_default();
-                if sentences.iter().any(|row| row.orig == example) {
-                    continue;
-                }
-                sentences.push(Example {
-                    orig: example,
-                    trans,
-                });
-            }
-        }
-    }
-}
-
-fn value_items(value: &Value) -> Vec<Value> {
-    match value {
-        Value::Array(items) => items.clone(),
-        Value::Object(_) => vec![value.clone()],
-        _ => Vec::new(),
-    }
-}
-
-fn parse_maybe_json(raw: &Value) -> Value {
-    match raw {
-        Value::String(text) => serde_json::from_str(text).unwrap_or_else(|_| raw.clone()),
-        Value::Array(items) => items.first().map(parse_maybe_json).unwrap_or_else(|| raw.clone()),
-        other => other.clone(),
-    }
-}
-
-fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
-    match value {
-        Value::Object(map) => {
-            for key in keys {
-                if let Some(text) = map
-                    .get(*key)
-                    .and_then(Value::as_str)
-                    .map(str::trim)
-                    .filter(|item| !item.is_empty())
-                {
-                    return Some(text.to_string());
-                }
-            }
-            for nested in map.values() {
-                if let Some(found) = first_string(nested, keys) {
-                    return Some(found);
-                }
-            }
-            None
-        }
-        Value::Array(items) => items.iter().find_map(|item| first_string(item, keys)),
-        _ => None,
-    }
-}
-
-fn collect_parts(value: &Value, out: &mut Vec<DictPart>) {
-    match value {
-        Value::Array(items) => {
-            for item in items {
-                if item.get("part").is_some() || item.get("part_name").is_some() || item.get("means").is_some() {
-                    push_part(item, out);
-                } else {
-                    collect_parts(item, out);
-                }
-            }
-        }
-        Value::Object(map) => {
-            if map.contains_key("part") || map.contains_key("part_name") || map.contains_key("means") {
-                push_part(value, out);
-            }
-            if let Some(parts) = map.get("parts") {
-                collect_parts(parts, out);
-            }
-            if let Some(symbols) = map.get("symbols") {
-                collect_parts(symbols, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn push_part(value: &Value, out: &mut Vec<DictPart>) {
-    let part = value
-        .get("part")
-        .or_else(|| value.get("part_name"))
+    let headword = word
+        .get("return-phrase")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .trim()
+        .unwrap_or(fallback_headword)
         .to_string();
-    let means = value.get("means").map(flatten_strings).unwrap_or_default();
-    if part.is_empty() && means.is_empty() {
-        return;
-    }
-    if out.iter().any(|item| item.part == part && item.means == means) {
-        return;
-    }
-    out.push(DictPart { part, means });
+
+    Some(WordEntry {
+        headword,
+        us_phone: phone("usphone"),
+        uk_phone: phone("ukphone"),
+        has_us_audio: word.get("usspeech").is_some_and(|value| !value.is_null()),
+        has_uk_audio: word.get("ukspeech").is_some_and(|value| !value.is_null()),
+        definitions,
+        forms,
+        examples,
+    })
 }
 
-fn extract_sentences(value: &Value, out: &mut Vec<Example>) {
-    let value = parse_maybe_json(value);
-    let items = match &value {
-        Value::Array(items) => items.clone(),
-        Value::Object(_) => vec![value],
-        _ => return,
-    };
-    for item in items {
-        let orig = item
-            .get("orig")
-            .or_else(|| item.get("en"))
-            .or_else(|| item.get("src"))
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        let trans = item
-            .get("trans")
-            .or_else(|| item.get("zh"))
-            .or_else(|| item.get("dst"))
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        if orig.is_empty() && trans.is_empty() {
-            continue;
+/// Splits `int. 喂，你好` into its part of speech and the meaning.
+///
+/// The dictionary writes them as one string, and the part of speech is the only
+/// structure in it — everything after the first run of letters and a period is
+/// prose that may contain anything, including periods.
+fn split_part_of_speech(raw: &str) -> WordDefinition {
+    let trimmed = raw.trim();
+    let head: String = trimmed
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphabetic() || *ch == '.' || *ch == '&')
+        .collect();
+    let is_part_of_speech = head.ends_with('.')
+        && head.len() <= 12
+        && head.chars().any(|ch| ch.is_ascii_alphabetic());
+    if is_part_of_speech {
+        WordDefinition {
+            part_of_speech: head.clone(),
+            meaning: trimmed[head.len()..].trim().to_string(),
         }
-        if out.iter().any(|example| example.orig == orig && example.trans == trans) {
-            continue;
+    } else {
+        WordDefinition {
+            part_of_speech: String::new(),
+            meaning: trimmed.to_string(),
         }
-        out.push(Example { orig, trans });
     }
 }
 
-fn flatten_strings(value: &Value) -> Vec<String> {
-    match value {
-        Value::String(text) => {
-            let trimmed = text.trim();
-            if trimmed.is_empty() {
-                Vec::new()
-            } else {
-                vec![trimmed.to_string()]
-            }
-        }
-        Value::Array(items) => items.iter().flat_map(flatten_strings).collect(),
-        Value::Object(map) => {
-            if let Some(text) = map
-                .get("text")
-                .or_else(|| map.get("word_mean"))
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|item| !item.is_empty())
-            {
-                let mut out = vec![text.to_string()];
-                if let Some(means) = map.get("means") {
-                    out.extend(flatten_strings(means));
-                }
-                out
-            } else if let Some(means) = map.get("means") {
-                flatten_strings(means)
-            } else {
-                Vec::new()
-            }
-        }
-        _ => Vec::new(),
+/// Fetches a pronunciation clip and returns it base64-encoded.
+///
+/// The webview has no network access of its own — the CSP allows `self` and the
+/// IPC only — so the audio comes back through the same channel as everything
+/// else and is played from a data URL.
+#[tauri::command(async)]
+pub async fn pronounce(text: String, accent: String) -> Result<String, String> {
+    let text = prepare(&text)?;
+    // 1 is UK, 2 is US, matching the `type` parameter the dictionary page uses.
+    let kind = if accent == "uk" { "1" } else { "2" };
+    let response = client()?
+        .get(YOUDAO_VOICE)
+        .query(&[("audio", text.as_str()), ("type", kind)])
+        .send()
+        .await
+        .map_err(|error| format!("pronounce request: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!("pronounce http {}", response.status().as_u16()));
     }
+    let bytes = bounded(response).await?;
+    if bytes.is_empty() {
+        return Err("no audio".into());
+    }
+    Ok(base64(&bytes))
+}
+
+fn base64(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        out.push(TABLE[(n >> 18) as usize & 63] as char);
+        out.push(TABLE[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 {
+            TABLE[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            TABLE[n as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    out
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        extract_dict, from_baidu, to_baidu, DictPart, Example, WordForm,
-    };
-    use serde_json::json;
+    use super::*;
 
     #[test]
-    fn maps_iso_codes_to_baidu() {
-        assert_eq!(to_baidu("ja").unwrap(), "jp");
-        assert_eq!(to_baidu("ko").unwrap(), "kor");
-        assert_eq!(to_baidu("fr").unwrap(), "fra");
-        assert_eq!(to_baidu("auto").unwrap(), "auto");
-    }
-
-    #[test]
-    fn maps_baidu_codes_to_iso() {
-        assert_eq!(from_baidu("jp"), "ja");
-        assert_eq!(from_baidu("kor"), "ko");
-        assert_eq!(from_baidu("zh"), "zh");
-    }
-
-    #[test]
-    fn extracts_nested_word_result_dict() {
-        let dict = json!({
-            "lang": "1",
-            "word_result": {
-                "edict": {
-                    "item": [{
-                        "pos": "noun",
-                        "tr_group": [{
-                            "tr": ["an expression of greeting"],
-                            "example": ["every morning they exchanged polite hellos"],
-                            "similar_word": ["hullo", "hi"]
-                        }]
-                    }],
-                    "word": "hello"
-                },
-                "simple_means": {
-                    "word_name": "hello",
-                    "word_means": ["哈罗，喂，你好"],
-                    "tags": { "core": ["高考", "CET4"], "other": [""] },
-                    "exchange": { "word_pl": ["hellos"] },
-                    "symbols": [{
-                        "ph_en": "həˈləʊ",
-                        "ph_am": "həˈloʊ",
-                        "parts": [{ "part": "int./n.", "means": ["哈罗，喂，你好"] }]
-                    }]
-                }
-            }
+    fn reads_a_sogou_translation() {
+        let json = serde_json::json!({
+            "status": 0,
+            "data": { "code": 0, "content": "你好", "from_lang": "en", "to_lang": "zh-CHS" }
         });
-        let mut phonetic = None;
-        let mut phonetic_uk = None;
-        let mut phonetic_us = None;
-        let mut tags = Vec::new();
-        let mut forms = Vec::new();
-        let mut similar = Vec::new();
-        let mut parts = Vec::new();
-        let mut sentences = Vec::new();
-        extract_dict(
-            &dict,
-            &mut phonetic,
-            &mut phonetic_uk,
-            &mut phonetic_us,
-            &mut tags,
-            &mut forms,
-            &mut similar,
-            &mut parts,
-            &mut sentences,
-        );
-        assert_eq!(phonetic_uk.as_deref(), Some("həˈləʊ"));
-        assert_eq!(phonetic_us.as_deref(), Some("həˈloʊ"));
-        assert!(tags.contains(&"高考".into()));
-        assert!(tags.contains(&"CET4".into()));
+        let out = parse_sogou(&json, "en", "zh-CHS").expect("translation");
+        assert_eq!(out.text, "你好");
+        assert_eq!(out.from, "en");
+        assert_eq!(out.to, "zh-CHS");
+    }
+
+    #[test]
+    fn reports_a_sogou_error_instead_of_an_empty_translation() {
+        let json = serde_json::json!({
+            "status": 0,
+            "data": { "code": 1, "message": "不支持的语言" }
+        });
+        assert_eq!(parse_sogou(&json, "en", "xx").unwrap_err(), "不支持的语言");
+    }
+
+    #[test]
+    fn reads_a_youdao_word_entry() {
+        let json = serde_json::json!({
+            "ec": { "word": [{
+                "return-phrase": "hello",
+                "usphone": "həˈloʊ",
+                "ukphone": "həˈləʊ",
+                "usspeech": "hello&type=2",
+                "ukspeech": "hello&type=1",
+                "trs": [{ "tr": [{ "l": { "i": ["int. 喂，你好"] } }] }],
+                "wfs": [{ "wf": { "name": "复数", "value": "hellos" } }]
+            }]},
+            "blng_sents_part": { "sentence-pair": [
+                { "sentence": "Hello there.", "sentence-translation": "你好。" }
+            ]}
+        });
+        let entry = parse_youdao(&json, "hello").expect("entry");
+        assert_eq!(entry.headword, "hello");
+        assert_eq!(entry.us_phone.as_deref(), Some("həˈloʊ"));
+        assert_eq!(entry.uk_phone.as_deref(), Some("həˈləʊ"));
+        assert!(entry.has_us_audio && entry.has_uk_audio);
         assert_eq!(
-            forms,
-            vec![WordForm {
-                kind: "pl".into(),
-                values: vec!["hellos".into()]
+            entry.definitions,
+            vec![WordDefinition {
+                part_of_speech: "int.".into(),
+                meaning: "喂，你好".into(),
             }]
         );
-        assert_eq!(similar, vec!["hullo".to_string(), "hi".into()]);
-        assert!(parts.iter().any(|part: &DictPart| part.part == "int./n."));
-        assert!(sentences.iter().any(|row: &Example| row.orig.contains("exchanged")));
+        assert_eq!(entry.forms[0].value, "hellos");
+        assert_eq!(entry.examples[0].zh, "你好。");
+    }
+
+    /// A sentence has no entry, which is how the caller knows to translate it
+    /// instead. Returning `Some` with empty fields would render an empty card.
+    #[test]
+    fn treats_a_sentence_as_having_no_entry() {
+        let json = serde_json::json!({ "ec": { "word": [{ "return-phrase": "hi there" }] } });
+        assert!(parse_youdao(&json, "hi there").is_none());
+    }
+
+    /// The part of speech is the only structure in the string, and meanings
+    /// contain periods, so only a leading short token counts as one.
+    #[test]
+    fn splits_the_part_of_speech_without_eating_the_meaning() {
+        let out = split_part_of_speech("n. 招呼，问候。也用于问候语。");
+        assert_eq!(out.part_of_speech, "n.");
+        assert_eq!(out.meaning, "招呼，问候。也用于问候语。");
+
+        let plain = split_part_of_speech("没有词性的释义");
+        assert_eq!(plain.part_of_speech, "");
+        assert_eq!(plain.meaning, "没有词性的释义");
     }
 
     #[test]
-    fn extracts_dict_when_wrapped_as_json_string() {
-        let inner = serde_json::json!({
-            "word_result": {
-                "simple_means": {
-                    "symbols": [{
-                        "ph_en": "test",
-                        "ph_am": "test",
-                        "parts": [{ "part": "n.", "means": ["测试"] }]
-                    }]
-                }
-            }
-        });
-        let dict = serde_json::Value::String(inner.to_string());
-        let mut phonetic = None;
-        let mut phonetic_uk = None;
-        let mut phonetic_us = None;
-        let mut tags = Vec::new();
-        let mut forms = Vec::new();
-        let mut similar = Vec::new();
-        let mut parts = Vec::new();
-        let mut sentences = Vec::new();
-        extract_dict(
-            &dict,
-            &mut phonetic,
-            &mut phonetic_uk,
-            &mut phonetic_us,
-            &mut tags,
-            &mut forms,
-            &mut similar,
-            &mut parts,
-            &mut sentences,
-        );
-        assert_eq!(phonetic_uk.as_deref(), Some("test"));
-        assert!(parts.iter().any(|part| part.part == "n."));
+    fn encodes_base64_with_padding() {
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"f"), "Zg==");
+        assert_eq!(base64(b"fo"), "Zm8=");
+        assert_eq!(base64(b"foo"), "Zm9v");
+        assert_eq!(base64(b"foob"), "Zm9vYg==");
+        assert_eq!(base64(b"hello world"), "aGVsbG8gd29ybGQ=");
+    }
+
+    #[test]
+    fn refuses_empty_input() {
+        assert!(prepare("   ").is_err());
     }
 }

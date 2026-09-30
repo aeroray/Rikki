@@ -46,11 +46,8 @@ export interface AppSettings {
   theme: ThemeId;
   hotkey: string;
   locale: string;
-  baiduTranslateAppId: string;
-  baiduTranslateSecretKey: string;
-  translationApiUrl: string;
-  translateDefaultTarget: string;
-  translateSecondTarget: string;
+  /** The Sogou language code the user last translated into; empty means unchosen. */
+  translateTarget: string;
   customSearchEngines: CustomSearchEngine[];
   clipTextRetentionDays: number | null;
   version: number;

@@ -8,8 +8,8 @@ export const translateCommand: Command = {
   prefix: "tr",
   title: "Translate",
   titleZh: "翻译",
-  description: "Translate text with Baidu",
-  descriptionZh: "用百度翻译文本",
+  description: "Translate text into another language",
+  descriptionZh: "把文本翻译成其他语言",
   icon: "Languages",
   run() {
     if (!ui.commandRest.trim()) {

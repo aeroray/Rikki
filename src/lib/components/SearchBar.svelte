@@ -94,7 +94,7 @@
       if (settings.engineDraft) return undefined;
       const screen = parseSettingsScreen(ui.commandRest);
       const index = settings.selectedIndex;
-      if (screen === "hotkey" || screen === "translate") return undefined;
+      if (screen === "hotkey") return undefined;
       if (screen === "engine") {
         const engine = settings.engines[index];
         return engine ? `engine-${engine.id}` : undefined;
@@ -163,7 +163,7 @@
     // announced until focus is inside it. Pulling focus back to the input here
     // would undo that on the very frame it happens.
     if (ui.pendingConfirm || clipboard.confirm) return;
-    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft && !settings.translateDraft) {
+    if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft) {
       requestAnimationFrame(() => inputEl?.focus());
     }
   });
@@ -530,7 +530,7 @@
         }
         return;
       }
-      if (settings.translateDraft) {
+      if (settings.engineDraft) {
         if (event.key === "Enter") event.preventDefault();
         return;
       }

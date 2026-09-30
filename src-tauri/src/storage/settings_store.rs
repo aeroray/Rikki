@@ -10,7 +10,6 @@ use crate::storage::json_file;
 const SETTINGS_FILE: &str = "settings.json";
 const DEFAULT_ENGINE: &str = "bing";
 const SETTINGS_VERSION: u32 = 6;
-const DEFAULT_TRANSLATE_URL: &str = "https://api.fanyi.baidu.com/api/trans/vip/translate";
 const ENGINE_IDS: &[&str] = &["bing", "google", "baidu", "duckduckgo", "sogou"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,16 +31,11 @@ pub struct Settings {
     pub hotkey: String,
     #[serde(default = "default_locale")]
     pub locale: String,
+    /// The language the user last chose to translate into, as a Sogou language code.
+    /// Empty means "not chosen yet", and the frontend then picks the sensible
+    /// default for the interface language.
     #[serde(default)]
-    pub baidu_translate_app_id: String,
-    #[serde(default)]
-    pub baidu_translate_secret_key: String,
-    #[serde(default = "default_translate_url")]
-    pub translation_api_url: String,
-    #[serde(default)]
-    pub translate_default_target: String,
-    #[serde(default = "default_translate_second_target")]
-    pub translate_second_target: String,
+    pub translate_target: String,
     #[serde(default)]
     pub custom_search_engines: Vec<CustomSearchEngine>,
     #[serde(default = "default_clip_text_retention_days")]
@@ -62,18 +56,14 @@ fn default_locale() -> String {
     "system".into()
 }
 
-fn default_translate_url() -> String {
-    DEFAULT_TRANSLATE_URL.into()
-}
+/// Sogou language codes accepted as a translate target. One source of truth so
+/// the validator and the error message cannot drift apart.
+const TRANSLATE_TARGET_LANGS: &[&str] = &[
+    "zh-CHS", "zh-CHT", "en", "ja", "ko", "fr", "de", "es", "ru", "pt", "it", "vi", "th", "ar",
+];
 
-fn default_translate_second_target() -> String {
-    "en".into()
-}
-
-const TRANSLATE_LANGS: &[&str] = &["zh", "en", "ja", "ko", "fr", "de", "es", "ru", "th", "vi"];
-
-fn valid_translate_lang(code: &str) -> bool {
-    TRANSLATE_LANGS.contains(&code)
+fn valid_translate_target(code: &str) -> bool {
+    TRANSLATE_TARGET_LANGS.contains(&code)
 }
 
 fn default_clip_text_retention_days() -> Option<u32> {
@@ -117,11 +107,7 @@ fn default_settings() -> Settings {
         theme: default_theme(),
         hotkey: String::new(),
         locale: default_locale(),
-        baidu_translate_app_id: String::new(),
-        baidu_translate_secret_key: String::new(),
-        translation_api_url: default_translate_url(),
-        translate_default_target: String::new(),
-        translate_second_target: default_translate_second_target(),
+        translate_target: String::new(),
         custom_search_engines: Vec::new(),
         clip_text_retention_days: default_clip_text_retention_days(),
         version: default_version(),
@@ -138,19 +124,6 @@ fn is_known_engine(settings: &Settings, id: &str) -> bool {
             .custom_search_engines
             .iter()
             .any(|engine| engine.id == id)
-}
-
-pub fn resolved_translate_url(settings: &Settings) -> String {
-    let url = settings.translation_api_url.trim();
-    if valid_translate_url(url) {
-        url.to_string()
-    } else {
-        default_translate_url()
-    }
-}
-
-fn valid_translate_url(url: &str) -> bool {
-    url.trim().starts_with("https://api.fanyi.baidu.com/")
 }
 
 pub fn resolved_hotkey(settings: &Settings) -> String {
@@ -197,29 +170,9 @@ fn normalize(mut settings: Settings) -> Settings {
     if settings.locale != "system" && settings.locale != "zh-CN" && settings.locale != "en" {
         settings.locale = default_locale();
     }
-    settings.baidu_translate_app_id = settings.baidu_translate_app_id.trim().to_string();
-    settings.baidu_translate_secret_key = settings.baidu_translate_secret_key.trim().to_string();
-    let url = settings.translation_api_url.trim();
-    if url.is_empty() || !valid_translate_url(url) {
-        settings.translation_api_url = default_translate_url();
-    } else {
-        settings.translation_api_url = url.to_string();
-    }
-    settings.translate_default_target = settings
-        .translate_default_target
-        .trim()
-        .to_ascii_lowercase();
-    settings.translate_second_target = settings
-        .translate_second_target
-        .trim()
-        .to_ascii_lowercase();
-    if !settings.translate_default_target.is_empty()
-        && !valid_translate_lang(&settings.translate_default_target)
-    {
-        settings.translate_default_target.clear();
-    }
-    if !valid_translate_lang(&settings.translate_second_target) {
-        settings.translate_second_target = default_translate_second_target();
+    settings.translate_target = settings.translate_target.trim().to_string();
+    if !valid_translate_target(&settings.translate_target) {
+        settings.translate_target.clear();
     }
     if !is_known_engine(&settings, &settings.default_search_engine) {
         settings.default_search_engine = default_engine();
@@ -296,35 +249,15 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
             }
             settings.locale = value.to_string();
         }
-        "baiduTranslateAppId" | "baidu_translate_app_id" => {
-            settings.baidu_translate_app_id = value.trim().to_string();
-        }
-        "baiduTranslateSecretKey" | "baidu_translate_secret_key" => {
-            settings.baidu_translate_secret_key = value.trim().to_string();
-        }
-        "translationApiUrl" | "translation_api_url" => {
-            let url = value.trim();
-            if url.is_empty() {
-                settings.translation_api_url = default_translate_url();
-            } else if !valid_translate_url(url) {
-                return Err("translate URL must be https://api.fanyi.baidu.com/…".into());
-            } else {
-                settings.translation_api_url = url.to_string();
+        "translateTarget" | "translate_target" => {
+            let code = value.trim();
+            if !valid_translate_target(code) {
+                return Err(format!(
+                    "unknown translate target: {value} (expected one of {})",
+                    TRANSLATE_TARGET_LANGS.join(", ")
+                ));
             }
-        }
-        "translateDefaultTarget" | "translate_default_target" => {
-            let code = value.trim().to_ascii_lowercase();
-            if !valid_translate_lang(&code) {
-                return Err(format!("unknown translate language: {value}"));
-            }
-            settings.translate_default_target = code;
-        }
-        "translateSecondTarget" | "translate_second_target" => {
-            let code = value.trim().to_ascii_lowercase();
-            if !valid_translate_lang(&code) {
-                return Err(format!("unknown translate language: {value}"));
-            }
-            settings.translate_second_target = code;
+            settings.translate_target = code.to_string();
         }
         "clipTextRetentionDays" | "clip_text_retention_days" => {
             let days = value.trim();
@@ -383,8 +316,8 @@ pub fn delete_custom_engine(app: &AppHandle, id: &str) -> Result<Settings, Strin
 #[cfg(test)]
 mod tests {
     use super::{
-        default_settings, normalize, valid_custom_url, CustomSearchEngine, Settings,
-        DEFAULT_ENGINE,
+        default_settings, normalize, valid_custom_url, CustomSearchEngine, Settings, DEFAULT_ENGINE,
+        TRANSLATE_TARGET_LANGS,
     };
 
     fn sample() -> Settings {
@@ -405,8 +338,7 @@ mod tests {
         let json = serde_json::to_string(&settings).expect("serialize");
         assert!(json.contains("defaultSearchEngine"));
         assert!(json.contains("customSearchEngines"));
-        assert!(json.contains("translateDefaultTarget"));
-        assert!(json.contains("translateSecondTarget"));
+        assert!(json.contains("translateTarget"));
         assert!(json.contains("clipTextRetentionDays"));
         assert!(!json.contains("default_search_engine"));
         let parsed: Settings = serde_json::from_str(&json).expect("deserialize");
@@ -459,36 +391,32 @@ mod tests {
         assert_eq!(settings.default_search_engine, "custom_1");
         assert_eq!(settings.theme, "light");
         assert_eq!(settings.locale, "en");
-        assert_eq!(settings.translation_api_url, "https://api.fanyi.baidu.com/api/trans/vip/translate");
     }
 
     #[test]
-    fn missing_translate_targets_use_empty_default_and_english_second() {
-        let parsed: Settings = serde_json::from_str(r#"{"version":4}"#).expect("deserialize");
-        assert!(parsed.translate_default_target.is_empty());
-        assert_eq!(parsed.translate_second_target, "en");
+    fn missing_translate_target_defaults_to_empty() {
+        let parsed: Settings = serde_json::from_str(r#"{"version":6}"#).expect("deserialize");
+        assert!(parsed.translate_target.is_empty());
     }
 
     #[test]
-    fn invalid_translate_langs_normalize() {
+    fn unknown_translate_target_normalizes_to_empty() {
         let settings = normalize(Settings {
-            translate_default_target: "ZZ".into(),
-            translate_second_target: "zz".into(),
+            translate_target: "zz".into(),
             ..default_settings()
         });
-        assert!(settings.translate_default_target.is_empty());
-        assert_eq!(settings.translate_second_target, "en");
+        assert!(settings.translate_target.is_empty());
     }
 
     #[test]
-    fn translate_lang_codes_normalize_case() {
-        let settings = normalize(Settings {
-            translate_default_target: "ZH".into(),
-            translate_second_target: "JA".into(),
-            ..default_settings()
-        });
-        assert_eq!(settings.translate_default_target, "zh");
-        assert_eq!(settings.translate_second_target, "ja");
+    fn accepted_translate_targets_are_kept_and_trimmed() {
+        for code in TRANSLATE_TARGET_LANGS {
+            let settings = normalize(Settings {
+                translate_target: format!("  {code}  "),
+                ..default_settings()
+            });
+            assert_eq!(&settings.translate_target, code);
+        }
     }
 
     #[test]

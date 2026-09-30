@@ -10,12 +10,6 @@ import {
   type ThemeId,
 } from "$lib/commands/settings/engines";
 import { eventToHotkey, formatHotkey } from "$lib/commands/settings/hotkey";
-import {
-  parseTargetLangCode,
-  preferredTranslateLang,
-  translateLangKey,
-  type TargetLangCode,
-} from "$lib/commands/translate/parse";
 import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
@@ -26,10 +20,10 @@ import { todos } from "$lib/stores/todos.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export type SettingItem = {
-  id: "engine" | "theme" | "hotkey" | "language" | "translate" | "retention" | "cleanup" | "export" | "import";
+  id: "engine" | "theme" | "hotkey" | "language" | "retention" | "cleanup" | "export" | "import";
   title: string;
   value: string;
-  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
+  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "Timer" | "Eraser" | "Download" | "Upload";
   current?: boolean;
 };
 
@@ -51,36 +45,21 @@ export type RetentionOption = {
   id: ClipRetentionDays;
 };
 
-export type TranslateDraft = {
-  appId: string;
-  secret: string;
-  url: string;
-};
-
-const DEFAULT_TRANSLATE_URL = "https://api.fanyi.baidu.com/api/trans/vip/translate";
-
 class SettingsStore {
   engineId = $state("bing");
   theme = $state<ThemeId>("dark");
   hotkey = $state("");
   localePref = $state<LocalePref>("system");
-  baiduAppId = $state("");
-  baiduSecret = $state("");
-  translateApiUrl = $state(DEFAULT_TRANSLATE_URL);
-  translateDefaultTarget = $state<TargetLangCode>("zh");
-  translateSecondTarget = $state<TargetLangCode>("en");
+  translateTarget = $state("");
   clipTextRetentionDays = $state<ClipRetentionDays>(7);
   customEngines = $state<SearchEngine[]>([]);
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
   recording = $state(false);
   engineDraft = $state<EngineDraft | null>(null);
-  translateDraft = $state<TranslateDraft | null>(null);
   private ready: Promise<void>;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private returnTimer: ReturnType<typeof setTimeout> | null = null;
-  private persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private persistPending = new Map<string, string>();
 
   constructor() {
     this.ready = this.hydrate();
@@ -88,7 +67,6 @@ class SettingsStore {
       // Without this the 1.5s "return to the settings list" timer fired after
       // the palette was hidden and overwrote whatever the user typed next.
       this.cancelReturn();
-      void this.flushTranslatePersist();
     });
     // Losing focus ends a capture on the Rust side, which re-registers the old
     // shortcut, but it cannot reach into this store. Without this the recorder
@@ -124,8 +102,6 @@ class SettingsStore {
 
   readonly retentionLabel = $derived(this.retentionPrefLabel(this.clipTextRetentionDays));
 
-  readonly translateConfigured = $derived(Boolean(this.baiduAppId.trim() && this.baiduSecret.trim()));
-
   readonly listItems = $derived.by((): SettingItem[] => [
     {
       id: "engine",
@@ -150,12 +126,6 @@ class SettingsStore {
       title: i18n.t("settings.language"),
       value: this.localeLabel,
       icon: "Languages",
-    },
-    {
-      id: "translate",
-      title: i18n.t("settings.translate"),
-      value: this.translateConfigured ? i18n.t("settings.translate.configured") : i18n.t("settings.translate.missing"),
-      icon: "KeyRound",
     },
     {
       id: "retention",
@@ -220,7 +190,6 @@ class SettingsStore {
         return this.locales.length;
       case "retention":
         return this.retentionOptions.length;
-      case "translate":
       case "hotkey":
         return 0;
       default:
@@ -248,73 +217,6 @@ class SettingsStore {
     ui.focusField = "search";
   }
 
-  openTranslateDraft() {
-    this.translateDraft = {
-      appId: this.baiduAppId,
-      secret: this.baiduSecret,
-      url: this.translateApiUrl || DEFAULT_TRANSLATE_URL,
-    };
-    if (!this.baiduAppId.trim()) ui.focusField = "translate-appid";
-    else if (!this.baiduSecret.trim()) ui.focusField = "translate-secret";
-    else ui.focusField = "translate-appid";
-  }
-
-  closeTranslateDraft() {
-    void this.flushTranslatePersist();
-    this.translateDraft = null;
-    ui.focusField = "search";
-  }
-
-  queueTranslateField(
-    key: "baiduTranslateAppId" | "baiduTranslateSecretKey" | "translationApiUrl",
-    value: string,
-  ) {
-    if (key === "baiduTranslateAppId") this.baiduAppId = value;
-    else if (key === "baiduTranslateSecretKey") this.baiduSecret = value;
-    else this.translateApiUrl = value;
-    this.persistPending.set(key, value);
-    const previous = this.persistTimers.get(key);
-    if (previous) clearTimeout(previous);
-    this.persistTimers.set(
-      key,
-      setTimeout(() => {
-        this.persistTimers.delete(key);
-        void this.flushTranslateKey(key);
-      }, 280),
-    );
-  }
-
-  async flushTranslatePersist(): Promise<void> {
-    const keys = [...this.persistPending.keys()];
-    for (const key of keys) await this.flushTranslateKey(key);
-  }
-
-  private async flushTranslateKey(key: string): Promise<void> {
-    const value = this.persistPending.get(key);
-    if (value === undefined) return;
-    const persistValue = key === "translationApiUrl" ? value.trim() || DEFAULT_TRANSLATE_URL : value.trim();
-    // Validate before clearing the pending value: dropping it first silently
-    // discarded a rejected URL, leaving the field showing a value that was
-    // never saved and no message explaining why.
-    if (key === "translationApiUrl" && persistValue && !persistValue.startsWith("https://api.fanyi.baidu.com/")) {
-      this.persistPending.delete(key);
-      this.flash(i18n.t("settings.translate.urlInvalid"));
-      return;
-    }
-    this.persistPending.delete(key);
-    const timer = this.persistTimers.get(key);
-    if (timer) {
-      clearTimeout(timer);
-      this.persistTimers.delete(key);
-    }
-    await this.ready;
-    try {
-      await invoke<AppSettings>("update_setting", { key, value: persistValue });
-    } catch {
-      this.flash(i18n.t("settings.translate.saveFail"));
-    }
-  }
-
   async setEngine(id: string): Promise<boolean> {
     return this.patch("defaultSearchEngine", id, i18n.t("engine.switched", { name: engineDisplayName(getSearchEngine(id, this.customEngines)) }));
   }
@@ -325,28 +227,22 @@ class SettingsStore {
     return ok;
   }
 
-  async setTranslateDefaultTarget(id: string): Promise<boolean> {
-    const code = parseTargetLangCode(id);
-    if (!code) return false;
-    this.cancelReturn();
-    return this.patch(
-      "translateDefaultTarget",
-      code,
-      i18n.t("settings.translate.langSaved", { name: i18n.t(translateLangKey(code)) }),
-      true,
-    );
-  }
-
-  async setTranslateSecondTarget(id: string): Promise<boolean> {
-    const code = parseTargetLangCode(id);
-    if (!code) return false;
-    this.cancelReturn();
-    return this.patch(
-      "translateSecondTarget",
-      code,
-      i18n.t("settings.translate.langSaved", { name: i18n.t(translateLangKey(code)) }),
-      true,
-    );
+  /**
+   * Persists the target the translate panel picked with Tab.
+   *
+   * Deliberately quiet: that panel writes its own footer, and the settings
+   * list's "return to the list" timer has nothing to do with it.
+   */
+  async setTranslateTarget(code: string): Promise<boolean> {
+    await this.ready;
+    try {
+      const next = await invoke<AppSettings>("update_setting", { key: "translateTarget", value: code });
+      this.apply(next);
+      return true;
+    } catch {
+      ui.flash(i18n.t("translate.targetSaveFailed"));
+      return false;
+    }
   }
 
   async setLocale(id: LocalePref): Promise<boolean> {
@@ -462,7 +358,6 @@ class SettingsStore {
 
   async importBackup(): Promise<void> {
     await this.ready;
-    this.discardPendingTranslatePersist();
     try {
       const result = await invoke<BackupImportResult>("import_backup");
       if (result.cancelled) return;
@@ -512,12 +407,6 @@ class SettingsStore {
     }, 1500);
   }
 
-  private discardPendingTranslatePersist() {
-    for (const timer of this.persistTimers.values()) clearTimeout(timer);
-    this.persistTimers.clear();
-    this.persistPending.clear();
-  }
-
   private flash(message: string) {
     this.notice = message;
     if (this.noticeTimer) clearTimeout(this.noticeTimer);
@@ -532,15 +421,9 @@ class SettingsStore {
     this.theme = next.theme === "light" ? "light" : "dark";
     this.hotkey = next.hotkey?.trim() ?? "";
     this.localePref = parseLocalePref(next.locale);
-    if (!this.persistPending.has("baiduTranslateAppId")) {
-      this.baiduAppId = next.baiduTranslateAppId?.trim() ?? "";
-    }
-    if (!this.persistPending.has("baiduTranslateSecretKey")) {
-      this.baiduSecret = next.baiduTranslateSecretKey?.trim() ?? "";
-    }
-    if (!this.persistPending.has("translationApiUrl")) {
-      this.translateApiUrl = next.translationApiUrl?.trim() || DEFAULT_TRANSLATE_URL;
-    }
+    // Rust normalizes this against the codes it accepts, so anything left here
+    // is already either valid or empty; empty means the user has not chosen.
+    this.translateTarget = next.translateTarget?.trim() ?? "";
     this.customEngines = (next.customSearchEngines ?? []).map((engine) => ({
       id: engine.id,
       name: engine.name,
@@ -549,17 +432,6 @@ class SettingsStore {
     }));
     applyTheme(this.theme);
     this.syncLocale();
-    this.translateDefaultTarget = parseTargetLangCode(next.translateDefaultTarget) ?? preferredTranslateLang();
-    // Keep the two targets distinct. The stored second target is "en" by
-    // default while an English locale seeds "en" as the default, and offering
-    // "English" twice in settings is both confusing and useless.
-    const second = parseTargetLangCode(next.translateSecondTarget);
-    this.translateSecondTarget =
-      !second || second === this.translateDefaultTarget
-        ? this.translateDefaultTarget === "zh"
-          ? "en"
-          : "zh"
-        : second;
     this.clipTextRetentionDays = parseClipRetentionDays(next.clipTextRetentionDays);
   }
 
@@ -576,45 +448,17 @@ class SettingsStore {
 
   private async hydrate() {
     try {
-      const next = await invoke<AppSettings>("get_settings");
-      const seedDefault = !parseTargetLangCode(next.translateDefaultTarget);
-      const seedSecond = !parseTargetLangCode(next.translateSecondTarget);
-      this.apply(next);
-      if (seedDefault || seedSecond) {
-        try {
-          if (seedDefault) {
-            await invoke<AppSettings>("update_setting", {
-              key: "translateDefaultTarget",
-              value: this.translateDefaultTarget,
-            });
-          }
-          if (seedSecond) {
-            await invoke<AppSettings>("update_setting", {
-              key: "translateSecondTarget",
-              value: this.translateSecondTarget,
-            });
-          }
-        } catch {
-          /* in-memory values still apply until the next save */
-        }
-      }
+      this.apply(await invoke<AppSettings>("get_settings"));
     } catch {
       this.engineId = "bing";
       this.theme = "dark";
       this.hotkey = "";
       this.localePref = "system";
-      this.baiduAppId = "";
-      this.baiduSecret = "";
-      this.translateApiUrl = DEFAULT_TRANSLATE_URL;
+      this.translateTarget = "";
       this.customEngines = [];
       this.clipTextRetentionDays = 7;
       applyTheme("dark");
       this.syncLocale();
-      this.translateDefaultTarget = preferredTranslateLang();
-      // Same invariant `apply` maintains: the two targets have to differ, or
-      // translating out of the default language becomes a no-op. Hardcoding
-      // "en" here put "English" in both slots on an English system.
-      this.translateSecondTarget = this.translateDefaultTarget === "zh" ? "en" : "zh";
     }
   }
 }
