@@ -11,21 +11,30 @@ import type { MessageKey } from "$lib/i18n/zh-CN";
  * These are Sogou codes. The service writes Chinese as `zh-CHS` — plain `zh` is
  * rejected — and it does not accept `auto` for the source, which is why the
  * source is always guessed below rather than asked for.
+ *
+ * `short` is the language's own name, which is why it is a literal rather than
+ * an i18n key: a language list is conventionally written in the languages
+ * themselves, so "日本語" needs no translation into either interface language,
+ * and the abbreviations keep the whole list inside the footer.
  */
-export const SUPPORTED_TARGETS: ReadonlyArray<{ code: string; labelKey: MessageKey }> = [
-  { code: "zh-CHS", labelKey: "translate.language.zh" },
-  { code: "en", labelKey: "translate.language.en" },
-  { code: "ja", labelKey: "translate.language.ja" },
-  { code: "ko", labelKey: "translate.language.ko" },
-  { code: "fr", labelKey: "translate.language.fr" },
-  { code: "de", labelKey: "translate.language.de" },
-  { code: "es", labelKey: "translate.language.es" },
-  { code: "ru", labelKey: "translate.language.ru" },
-  { code: "pt", labelKey: "translate.language.pt" },
-  { code: "it", labelKey: "translate.language.it" },
-  { code: "vi", labelKey: "translate.language.vi" },
-  { code: "th", labelKey: "translate.language.th" },
-  { code: "ar", labelKey: "translate.language.ar" },
+export const SUPPORTED_TARGETS: ReadonlyArray<{
+  code: string;
+  labelKey: MessageKey;
+  short: string;
+}> = [
+  { code: "zh-CHS", labelKey: "translate.language.zh", short: "中文" },
+  { code: "en", labelKey: "translate.language.en", short: "EN" },
+  { code: "ja", labelKey: "translate.language.ja", short: "日本語" },
+  { code: "ko", labelKey: "translate.language.ko", short: "한국어" },
+  { code: "fr", labelKey: "translate.language.fr", short: "FR" },
+  { code: "de", labelKey: "translate.language.de", short: "DE" },
+  { code: "es", labelKey: "translate.language.es", short: "ES" },
+  { code: "ru", labelKey: "translate.language.ru", short: "RU" },
+  { code: "pt", labelKey: "translate.language.pt", short: "PT" },
+  { code: "it", labelKey: "translate.language.it", short: "IT" },
+  { code: "vi", labelKey: "translate.language.vi", short: "VI" },
+  { code: "th", labelKey: "translate.language.th", short: "TH" },
+  { code: "ar", labelKey: "translate.language.ar", short: "AR" },
 ];
 
 /** The target the interface language itself translates into. */

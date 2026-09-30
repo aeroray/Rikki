@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-09-30 - Translate is keyless: Sogou for sentences, Youdao for words
+Decision:
+`tr` posts sentences to Sogou's Hunyuan endpoint (`text`/`from_lang`/`to_lang`, no key and no signature) and single words to Youdao's public dictionary, which returns US and UK phonetics with matching audio, part-of-speech definitions, word forms and bilingual examples. The dictionary sits behind `lookup_word`, so a word it does not know falls through to the translator. One setting, `translateTarget`, holds the target and `Tab` cycles it; the source is guessed from the script, and a target that would equal the source falls back to the interface language.
+Reason:
+Baidu required the user to register an app and paste an AppID and a secret before the command did anything at all, and its results were poor — a launcher should not open with a configuration task. Sogou's Hunyuan endpoint is the one its own translate page calls for free text and it returns a model translation rather than a phrase-table lookup, while Youdao's dictionary is public and returns exactly what a word card needs. Sogou rejects `auto` as the source, so guessing is the only way to send a request at all, and one remembered target means the common zh↔en case needs no trip to a settings screen.
+Note:
+The dictionary is Youdao's rather than Sogou's because Sogou's is signed — see the tombstone. Pronunciation audio is fetched in Rust and returned base64 to play from a `data:` URL, so the webview still has no network access of its own and the CSP only gained `media-src 'self' data:`. The translate settings screen was deleted: there is nothing left to configure.
+
 ## 2026-09-30 - Commands answer to Chinese and pinyin, not just a Latin prefix
 Decision:
 `rankCommand` scores `pinyin-pro` against every Chinese name a command has, and the whole vocabulary (Chinese names, a few Latin additions) lives in one table, `src/lib/commands/aliases.ts`, merged in `register()`. `match()` and `fuzzyScore` normalise full-width forms and the ideographic space to ASCII first. A vitest suite guards the table: every command has an entry, no entry outlives its command, no two commands claim the same spelling, and every spelling resolves through `match()`.
@@ -177,6 +185,7 @@ Reason:
 Leaving to copy a setting must not dump the user back to an empty palette.
 
 ## 2026-08-29 - Translate uses Baidu's free API
+Superseded by: 2026-09-30 - Translate is keyless: Sogou for sentences, Youdao for words.
 Decision:
 `tr` calls Baidu Translate with credentials only in Rust; AppID, secret, and URL save as you type. Bare `tr` uses persisted default/second targets. Enter submits the request; a second Enter copies. Dictionary extras appear only when Baidu returns `dict` (console dictionary resource). Not TTS.
 Reason:

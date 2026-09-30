@@ -4,9 +4,9 @@
    *
    * Extracted so the pinned `PanelFooter` and the sub-screens that carry their
    * own bottom row (`AnniversaryCreate`, `SnippetCreate`, `EngineCreate`,
-   * `TranslateSettings`, `HotkeyRecorder`) render shortcuts the same way. Those
-   * screens used to spell the same keys out as prose, which is how "Ctrl+Enter
-   * 保存 · Esc 取消" ended up written four different ways.
+   * `HotkeyRecorder`) render shortcuts the same way. Those screens used to spell
+   * the same keys out as prose, which is how "Ctrl+Enter 保存 · Esc 取消" ended
+   * up written four different ways.
    */
   let { keys, label }: { keys: string; label: string } = $props();
 </script>

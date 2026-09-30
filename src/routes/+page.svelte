@@ -149,7 +149,7 @@
     }
     if (ui.view === "translate") {
       event.preventDefault();
-      translate.cycleTarget();
+      void translate.cycleTarget(event.shiftKey);
     }
   }
 </script>

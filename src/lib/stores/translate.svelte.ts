@@ -39,6 +39,10 @@ class TranslateStore {
   private inflight: Query | null = null;
   private audio: HTMLAudioElement | null = null;
   private audioSeq = 0;
+  /** The last dictionary answer, and the text it describes. */
+  private entryCache: { text: string; value: WordEntry | null } | null = null;
+  private entryInflight: { text: string; promise: Promise<WordEntry | null> } | null = null;
+  private targetTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** What the text on screen would be sent as, before anything is requested. */
   readonly query = $derived(this.resolve(ui.commandRest.trim()));
@@ -49,17 +53,44 @@ class TranslateStore {
   });
 
   /**
-   * Read by the palette's central Tab handler in `routes/+page.svelte` before
-   * it calls `swap()`. That guard predates this panel having two shapes: Tab
-   * now moves the target language, which is worth offering in every state —
-   * including before anything is typed, since the choice is remembered.
+   * How long the target has to hold still before the text is re-translated.
+   * Long enough to cover a run of Tab presses, short enough to feel immediate.
    */
-  readonly wordMode = true;
+  private static readonly SETTLE_MS = 250;
 
   constructor() {
     // A clip still playing after the palette hides has no visible owner and no
     // way left to stop it.
-    ui.onHideFlush(() => this.stopAudio());
+    ui.onHideFlush(() => {
+      this.stopAudio();
+      this.cancelScheduledRun();
+    });
+  }
+
+  /**
+   * The dictionary answer for a text, fetched at most once.
+   *
+   * It does not depend on the target language, so re-running the translation to
+   * change the target used to re-fetch the same word: translating a word and
+   * pressing Tab twice made three dictionary requests for one word, two of them
+   * thrown away on arrival.
+   */
+  private lookup(text: string): Promise<WordEntry | null> {
+    if (!isWordLike(text)) return Promise.resolve(null);
+    if (this.entryCache?.text === text) return Promise.resolve(this.entryCache.value);
+    const pending = this.entryInflight;
+    if (pending && pending.text === text) return pending.promise;
+    const promise = invoke<WordEntry | null>("lookup_word", { text })
+      // A missing word card is not a failed translation, so a dictionary error
+      // degrades to the sentence shape rather than failing the request.
+      .catch(() => null)
+      .then((value) => {
+        if (this.entryInflight?.promise === promise) this.entryInflight = null;
+        this.entryCache = { text, value };
+        return value;
+      });
+    this.entryInflight = { text, promise };
+    return promise;
   }
 
   private resolve(text: string): Query {
@@ -90,6 +121,9 @@ class TranslateStore {
     this.result = null;
     this.error = null;
     this.done = null;
+    // A run scheduled by a target change describes the text that was just
+    // replaced, so it must not land.
+    this.cancelScheduledRun();
   }
 
   /** Enter: copies a finished translation, and otherwise starts one. */
@@ -108,11 +142,7 @@ class TranslateStore {
     this.error = null;
     this.result = null;
     this.stopAudio();
-    // The dictionary is a bonus on top of the translation, not a prerequisite:
-    // letting it fail here would turn a missing word card into a failed request.
-    const entry = isWordLike(query.text)
-      ? invoke<WordEntry | null>("lookup_word", { text: query.text }).catch(() => null)
-      : Promise.resolve(null);
+    const entry = this.lookup(query.text);
     try {
       const [word, translation] = await Promise.all([
         entry,
@@ -140,27 +170,53 @@ class TranslateStore {
   }
 
   /**
-   * Tab, routed here by the palette's central key handler.
+   * Tab and Shift+Tab, routed here by the palette's central key handler.
    *
-   * The handler still calls `swap()` because it predates this panel, where Tab
-   * swapped the translation direction. It now moves to the next target
-   * language, and the store owns it because the choice has to be persisted.
+   * The choice is persisted, which is why the store owns this rather than the
+   * panel. Nothing is requested until the target stops moving — see
+   * `scheduleRun`.
    */
-  swap(): void {
-    void this.cycleTarget();
-  }
-
-  async cycleTarget(): Promise<void> {
+  async cycleTarget(backwards = false): Promise<void> {
     const current = this.query.target;
     const index = SUPPORTED_TARGETS.findIndex((target) => target.code === current);
-    const next = SUPPORTED_TARGETS[(index + 1) % SUPPORTED_TARGETS.length];
+    const step = backwards ? -1 : 1;
+    const next = SUPPORTED_TARGETS[
+      (index + step + SUPPORTED_TARGETS.length) % SUPPORTED_TARGETS.length
+    ];
     if (!next) return;
     if (!(await settings.setTranslateTarget(next.code))) return;
-    // Re-read rather than reusing `current`: the target just changed, and
-    // translating the old one would leave the result disagreeing with the
-    // footer, which reports the new one.
-    const query = this.query;
-    if (query.text) await this.run(query);
+    this.scheduleRun();
+  }
+
+  /** Picking a language from the footer's list, rather than stepping to it. */
+  async setTarget(code: string): Promise<void> {
+    if (code === this.query.target) return;
+    if (!(await settings.setTranslateTarget(code))) return;
+    this.scheduleRun();
+  }
+
+  /**
+   * Re-translates once the target stops moving.
+   *
+   * Pressing Tab four times to reach Japanese used to fire four translations,
+   * three of them discarded on arrival — wasteful, and enough to trip a rate
+   * limit. The footer updates on every press; only the last one is requested.
+   * The dictionary is not re-fetched either way, because it does not depend on
+   * the target.
+   */
+  private scheduleRun() {
+    this.cancelScheduledRun();
+    this.targetTimer = setTimeout(() => {
+      this.targetTimer = null;
+      const query = this.query;
+      if (query.text) void this.run(query);
+    }, TranslateStore.SETTLE_MS);
+  }
+
+  private cancelScheduledRun() {
+    if (!this.targetTimer) return;
+    clearTimeout(this.targetTimer);
+    this.targetTimer = null;
   }
 
   async copy(): Promise<boolean> {

@@ -353,7 +353,6 @@ export const en: Record<MessageKey, string> = {
   "translate.keyPlayUs": "US audio",
   "translate.keyPlayUk": "UK audio",
   "translate.keyRetry": "Retry",
-  "translate.footerTarget": "Target: {name}",
   "translate.audioFailed": "Couldn’t play that clip",
   "translate.targetSaveFailed": "Couldn’t save the target language; the next launch will use the previous one",
   "translate.examples": "Examples",

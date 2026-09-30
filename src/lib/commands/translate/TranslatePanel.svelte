@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Accent } from "$lib/stores/translate.svelte";
   import { translate } from "$lib/stores/translate.svelte";
+  import { SUPPORTED_TARGETS } from "$lib/commands/translate/parse";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import type { MessageKey } from "$lib/i18n/zh-CN";
   import { ui } from "$lib/stores/ui.svelte";
-  import { Volume2 } from "@lucide/svelte";
+  import { Languages, Volume2 } from "@lucide/svelte";
   import { untrack } from "svelte";
 
   type AccentInfo = {
@@ -87,7 +88,17 @@
     return shortcuts;
   });
 
-  const footerMessage = $derived(i18n.t("translate.footerTarget", { name: translate.targetName }));
+  // The language list is wider than the footer, so the one in use is kept in
+  // view. Without this, cycling past the visible end would change a setting the
+  // user can no longer see.
+  let picker = $state<HTMLDivElement | undefined>();
+
+  $effect(() => {
+    const active = translate.query.target;
+    picker
+      ?.querySelector(`[data-target="${active}"]`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />
@@ -97,15 +108,15 @@
 <div class="flex min-h-0 flex-1 flex-col">
   <div class="flex min-h-0 flex-1 flex-col px-3 pt-1">
     {#if translate.error !== null}
-      <div class="flex flex-1 flex-col justify-center px-1">
+      <div class="flex flex-col px-1 pt-2">
         <p class="text-[14px] font-medium leading-5 text-ink">{errorTitle}</p>
         {#if translate.error}
           <p class="mt-1 text-pretty text-[12px] leading-[1.5] text-ink-subtle">{translate.error}</p>
         {/if}
       </div>
     {:else if translate.loading}
-      <div class="flex flex-1 flex-col justify-center px-1">
-        <p class="text-[14px] leading-5 text-ink-subtle">{i18n.t("translate.loading")}</p>
+      <div class="flex flex-1 items-center justify-center px-1">
+        <p class="text-[13px] leading-5 text-ink-subtle">{i18n.t("translate.loading")}</p>
       </div>
     {:else if translate.result}
       {@const result = translate.result}
@@ -184,11 +195,44 @@
         </ScrollArea>
       {/if}
     {:else}
-      <div class="flex flex-1 flex-col justify-center px-1">
-        <p class="text-[14px] leading-5 text-ink-subtle">{i18n.t("translate.hint")}</p>
+      <!-- A hint alone, vertically centred in a tall empty column, reads as
+           something that failed to load. The icon and the centring say the
+           space is meant to be empty. -->
+      <div class="flex flex-1 flex-col items-center justify-center gap-2 px-1 text-center">
+        <Languages class="size-5 text-ink-tertiary" strokeWidth={1.5} aria-hidden="true" />
+        <p class="max-w-[36ch] text-[13px] leading-5 text-pretty text-ink-subtle">
+          {i18n.t("translate.hint")}
+        </p>
       </div>
     {/if}
   </div>
 
-  <PanelFooter shortcuts={footerShortcuts} message={footerMessage} />
+  <PanelFooter shortcuts={footerShortcuts}>
+    {#snippet children()}
+      <!-- Every target is on screen, so the list answers "what can I switch to"
+           without a Tab press, and picking one is a click rather than a walk. -->
+      <div
+        bind:this={picker}
+        class="flex items-center gap-0.5 overflow-x-auto"
+        role="radiogroup"
+        aria-label={i18n.t("translate.keyCycleTarget")}
+      >
+        {#each SUPPORTED_TARGETS as target (target.code)}
+          {@const active = target.code === translate.query.target}
+          <button
+            type="button"
+            data-target={target.code}
+            role="radio"
+            aria-checked={active}
+            class="shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-4 {active
+              ? 'bg-surface-2 font-medium text-ink'
+              : 'text-ink-subtle hover:text-ink'}"
+            onclick={() => void translate.setTarget(target.code)}
+          >
+            {target.short}
+          </button>
+        {/each}
+      </div>
+    {/snippet}
+  </PanelFooter>
 </div>

@@ -2,6 +2,12 @@
 
 Tombstones are newest first.
 
+## Tombstone: Sogou's signed dictionary endpoint
+Do not retry `fanyi.sogou.com/api/transpc/text/result`. Reason: it is not a published API — `s` is a hash of the text plus a `secretCode` taken from the page's initial state, and only the request shape and that constant came back from the page bundle; md5, sha1 and sha256 over several orderings of `from`/`to`/`text` and the secret all returned error `s10`. The secret can rotate without notice, so a reverse-engineered constant is a liability. Youdao's public dictionary covers the same word card. Date: 2026-09-30.
+
+## Tombstone: translate settings and a source-language picker
+Do not reintroduce unless the user explicitly reverses this. Reason: there is nothing left to configure — the source is guessed from the script because Sogou rejects `auto`, the target is one remembered setting (`translateTarget`) that `Tab` cycles, and a target that collides with the source falls back to the interface language. Date: 2026-09-30.
+
 ## Tombstone: clip in backups, cloud sync, and merge imports
 Do not reintroduce unless the user explicitly reverses this. Reason: backups are local full overwrite of todos, snippets, and settings; clip is ephemeral, and merge or cloud sync would add conflict UI the launcher does not need. Date: 2026-08-29.
 
@@ -20,11 +26,8 @@ Do not reintroduce unless the user explicitly reverses this. Reason: v1 is forma
 ## Tombstone: color picker, palettes, schemes, colorblind sim, and image sampling
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 is parse-and-convert plus clip recents; a screen picker needs extra permissions, and palettes or schemes add UI the launcher does not need. Date: 2026-08-29.
 
-## Tombstone: auto-flip zh/en from the UI locale
-Do not retarget bare `tr` from the current UI language, or hardcode Chinese↔English as the fallback pair. Reason: default and second targets are persisted settings, seeded once from the UI locale. Date: 2026-08-29.
-
-## Tombstone: offline translation, TTS, history, favorites, and language autocomplete
-Do not reintroduce unless the user explicitly reverses this. Reason: v1 is one live Baidu request with automatic word/sentence layout; extra surfaces add storage and UI the launcher does not need. Date: 2026-08-29.
+## Tombstone: offline translation, history, favorites, and language autocomplete
+Do not reintroduce unless the user explicitly reverses this. Reason: translation is two live keyless requests with automatic word/sentence layout; extra surfaces add storage and UI the launcher does not need. Word pronunciation is not covered — the card plays Youdao's US and UK clips. Date: 2026-08-29.
 
 ## Tombstone: extra UI locales and i18n libraries
 Do not reintroduce unless the user explicitly reverses this. Reason: v1 is 简体中文 and English via a small catalog; extra locales and a translation library add surface without demand. Date: 2026-08-29.

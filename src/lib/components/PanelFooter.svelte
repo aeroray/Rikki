@@ -1,5 +1,6 @@
 <script lang="ts">
   import KeyChip from "$lib/components/KeyChip.svelte";
+  import type { Snippet } from "svelte";
 
   /**
    * A pinned panel footer: shortcut chips on the left, optional status on the
@@ -28,6 +29,7 @@
   let {
     shortcuts = [],
     message = null,
+    children,
   }: {
     shortcuts?: FooterShortcut[];
     /**
@@ -36,13 +38,19 @@
      * hint and a remark about the current state.
      */
     message?: string | null;
+    /**
+     * Controls that belong in the chrome rather than the content — a mode
+     * picker, say. Takes the space the message would have used, because the two
+     * want the same room and a panel showing both would have room for neither.
+     */
+    children?: Snippet;
   } = $props();
 </script>
 
 <!-- With neither shortcuts nor a message there is nothing to say, and a bare
      hairline plus padding would just be a stray divider in the most cramped
      states (an empty or invalid panel). -->
-{#if shortcuts.length > 0 || message}
+{#if shortcuts.length > 0 || message || children}
   <div class="flex shrink-0 items-center gap-3 border-t border-hairline px-3 py-2">
     {#if shortcuts.length > 0}
       <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
@@ -54,7 +62,11 @@
       </ul>
     {/if}
 
-    {#if message}
+    {#if children}
+      <div class="min-w-0 flex-1">
+        {@render children()}
+      </div>
+    {:else if message}
       <p
         class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle"
         aria-live="polite"

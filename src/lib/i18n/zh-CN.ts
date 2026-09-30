@@ -351,7 +351,6 @@ export const zhCN = {
   "translate.keyPlayUs": "美音",
   "translate.keyPlayUk": "英音",
   "translate.keyRetry": "重试",
-  "translate.footerTarget": "目标：{name}",
   "translate.audioFailed": "无法播放这段发音",
   "translate.targetSaveFailed": "无法保存目标语言，下次启动会回到原来的设置",
   "translate.examples": "例句",
