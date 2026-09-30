@@ -3,7 +3,7 @@ import { searchUrl } from "$lib/commands/settings/engines";
 import { i18n } from "$lib/i18n";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openWebUrl } from "$lib/commands/web/open";
 
 export const FALLBACK_MIN_LENGTH = 2;
 
@@ -18,7 +18,7 @@ export async function runFallbackSearch(query: string): Promise<boolean> {
   const text = query.trim();
   if (text.length < FALLBACK_MIN_LENGTH) return false;
   try {
-    await openUrl(searchUrl(settings.engine, text));
+    await openWebUrl(searchUrl(settings.engine, text));
     ui.beginHide({ reset: true });
     return true;
   } catch {

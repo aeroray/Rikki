@@ -29,6 +29,10 @@ export const en: Record<MessageKey, string> = {
 
   "settings.title": "Settings",
   "settings.engine": "Default search engine",
+  "settings.browser": "Default browser",
+  "settings.browser.system": "System default",
+  "settings.browser.switched": "Switched to {name}",
+  "settings.browser.empty": "No other browsers found",
   "settings.theme": "Theme",
   "settings.hotkey": "Hotkey",
   "settings.language": "Language",

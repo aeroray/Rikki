@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from "$lib/i18n";
-  import { Globe, Keyboard, KeyRound, Languages, Palette, Timer, Eraser, Download, Upload } from "@lucide/svelte";
+  import { Compass, Download, Eraser, Globe, Keyboard, KeyRound, Languages, Palette, Timer, Upload } from "@lucide/svelte";
 
   let {
     id,
@@ -15,7 +15,7 @@
     id: string;
     title: string;
     value: string;
-    icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
+    icon: "Globe" | "Compass" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
     selected: boolean;
     onselect: () => void;
     current?: boolean;
@@ -23,6 +23,7 @@
 
   const icons = {
     Globe,
+    Compass,
     Palette,
     Keyboard,
     Languages,

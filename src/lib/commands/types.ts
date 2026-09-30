@@ -48,9 +48,19 @@ export interface AppSettings {
   locale: string;
   /** The language code the user last translated into; empty means unchosen. */
   translateTarget: string;
+  /** The browser links open in; empty means the system default. */
+  browser: string;
   customSearchEngines: CustomSearchEngine[];
   clipTextRetentionDays: number | null;
   version: number;
+}
+
+/** A browser found on this machine, as `list_browsers` reports it. */
+export interface InstalledBrowser {
+  id: string;
+  name: string;
+  /** The executable, and the value `settings.json` stores. */
+  path: string;
 }
 
 export interface Snippet {

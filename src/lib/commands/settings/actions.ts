@@ -9,6 +9,11 @@ export function openEngineSettings(): void {
   ui.focusField = "search";
 }
 
+export function openBrowserSettings(): void {
+  ui.searchText = "settings browser";
+  ui.focusField = "search";
+}
+
 export function openThemeSettings(): void {
   ui.searchText = "settings theme";
   ui.focusField = "search";
@@ -77,6 +82,11 @@ export async function handleSettingsEnter(): Promise<void> {
     if (engine) await settings.setEngine(engine.id);
     return;
   }
+  if (screen === "browser") {
+    const option = settings.browserOptions[settings.selectedIndex];
+    if (option) await settings.setBrowser(option.path);
+    return;
+  }
   if (screen === "theme") {
     const theme = settings.themes[settings.selectedIndex];
     if (theme) await settings.setTheme(theme.id);
@@ -96,6 +106,7 @@ export async function handleSettingsEnter(): Promise<void> {
 
   const item = settings.listItems[settings.selectedIndex];
   if (item?.id === "engine") openEngineSettings();
+  if (item?.id === "browser") openBrowserSettings();
   if (item?.id === "theme") openThemeSettings();
   if (item?.id === "hotkey") openHotkeySettings();
   if (item?.id === "language") openLanguageSettings();

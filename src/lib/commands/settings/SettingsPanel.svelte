@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrowserSelector from "$lib/commands/settings/BrowserSelector.svelte";
   import EngineCreate from "$lib/commands/settings/EngineCreate.svelte";
   import EngineSelector from "$lib/commands/settings/EngineSelector.svelte";
   import HotkeyRecorder from "$lib/commands/settings/HotkeyRecorder.svelte";
@@ -8,6 +9,7 @@
   import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
   import ClipRetentionSelector from "$lib/commands/settings/ClipRetentionSelector.svelte";
   import {
+    openBrowserSettings,
     openEngineSettings,
     openHotkeySettings,
     openLanguageSettings,
@@ -64,6 +66,18 @@
     settings.clampSelection(settings.countFor(next));
   });
 
+  // `list_browsers` answers after the picker is already on screen, and until it
+  // does the list holds only the system-default row. The highlight has to be
+  // placed again once the installed browsers arrive, or it would sit on the
+  // wrong row and Enter would change the setting to something the user did not
+  // point at.
+  $effect(() => {
+    if (!settings.browsersLoaded) return;
+    if (ui.view === "settings" && parseSettingsScreen(ui.commandRest) === "browser") {
+      settings.selectCurrentBrowser();
+    }
+  });
+
   $effect(() => {
     const onHotkey = ui.view === "settings" && parseSettingsScreen(ui.commandRest) === "hotkey";
     if (onHotkey) untrack(() => void settings.startRecording());
@@ -85,7 +99,12 @@
         { keys: "Esc", label: i18n.t("key.back") },
       ];
     }
-    if (screen === "theme" || screen === "language" || screen === "retention") {
+    if (
+      screen === "browser" ||
+      screen === "theme" ||
+      screen === "language" ||
+      screen === "retention"
+    ) {
       return [
         { keys: "Enter", label: i18n.t("key.confirm") },
         { keys: "Esc", label: i18n.t("key.back") },
@@ -105,12 +124,14 @@
 
   const footerMessage = $derived.by((): string | null => {
     if (settings.notice) return settings.notice;
-    if (
-      screen === "engine" ||
-      screen === "theme" ||
-      screen === "language" ||
-      screen === "retention"
-    ) {
+    if (screen === "browser") {
+      // Only once the read has come back: saying "nothing found" while the list
+      // is still on its way would be a lie for a frame.
+      return settings.browsersLoaded && settings.installedBrowsers.length === 0
+        ? i18n.t("settings.browser.empty")
+        : null;
+    }
+    if (screen === "engine" || screen === "theme" || screen === "language" || screen === "retention") {
       return null;
     }
     if (selectedItemId === "cleanup") {
@@ -138,6 +159,8 @@
         <p class="text-[12px] leading-[1.4] text-ink-subtle">
           {#if screen === "engine"}
             {i18n.t("settings.engine")}
+          {:else if screen === "browser"}
+            {i18n.t("settings.browser")}
           {:else if screen === "theme"}
             {i18n.t("settings.theme")}
           {:else if screen === "language"}
@@ -177,6 +200,19 @@
                 void settings.setEngine(engine.id);
               }}
               onremove={engine.custom ? () => void settings.removeEngine(engine.id) : undefined}
+            />
+          {/each}
+        {:else if screen === "browser"}
+          {#each settings.browserOptions as option, index (option.id)}
+            <BrowserSelector
+              id="browser-{index}"
+              {option}
+              selected={index === settings.selectedIndex}
+              current={option.path === settings.browserPath}
+              onselect={() => {
+                settings.selectedIndex = index;
+                void settings.setBrowser(option.path);
+              }}
             />
           {/each}
         {:else if screen === "theme"}
@@ -227,6 +263,7 @@
               onselect={() => {
                 settings.selectedIndex = index;
                 if (item.id === "engine") openEngineSettings();
+                if (item.id === "browser") openBrowserSettings();
                 if (item.id === "theme") openThemeSettings();
                 if (item.id === "hotkey") openHotkeySettings();
                 if (item.id === "language") openLanguageSettings();

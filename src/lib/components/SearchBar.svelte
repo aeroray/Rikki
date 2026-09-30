@@ -111,6 +111,11 @@
         const option = settings.retentionOptions[index];
         return option ? `retention-${option.id}` : undefined;
       }
+      if (screen === "browser") {
+        // Numbered rather than keyed by the executable path, which contains
+        // spaces and is not a valid id.
+        return settings.browserOptions[index] ? `browser-${index}` : undefined;
+      }
       const item = settings.listItems[index];
       return item ? `setting-${item.id}` : undefined;
     }

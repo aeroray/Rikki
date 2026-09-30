@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use crate::storage::json_file;
 
 const SETTINGS_FILE: &str = "settings.json";
 const DEFAULT_ENGINE: &str = "bing";
-const SETTINGS_VERSION: u32 = 6;
+const SETTINGS_VERSION: u32 = 7;
 const ENGINE_IDS: &[&str] = &["bing", "google", "baidu", "duckduckgo", "sogou"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +36,10 @@ pub struct Settings {
     /// default for the interface language.
     #[serde(default)]
     pub translate_target: String,
+    /// The executable of the browser links open in. Empty means the system
+    /// default, which is also what an unlaunchable path normalizes to.
+    #[serde(default)]
+    pub browser: String,
     #[serde(default)]
     pub custom_search_engines: Vec<CustomSearchEngine>,
     #[serde(default = "default_clip_text_retention_days")]
@@ -67,6 +71,19 @@ const TRANSLATE_TARGET_LANGS: &[&str] = &["zh-CHS", "en", "ja", "ko"];
 
 fn valid_translate_target(code: &str) -> bool {
     TRANSLATE_TARGET_LANGS.contains(&code)
+}
+
+/// An empty browser is legal here and means "the system default" — unlike the
+/// translate target, where empty is only a not-yet-chosen state. Anything else
+/// has to be a file we could launch: `settings.json` is editable by hand, and a
+/// browser that has since been uninstalled must not stay selected and leave
+/// every search unable to open a link.
+fn normalize_browser(value: &str) -> String {
+    let path = value.trim();
+    if path.is_empty() || !Path::new(path).is_file() {
+        return String::new();
+    }
+    path.to_string()
 }
 
 fn default_clip_text_retention_days() -> Option<u32> {
@@ -111,6 +128,7 @@ fn default_settings() -> Settings {
         hotkey: String::new(),
         locale: default_locale(),
         translate_target: String::new(),
+        browser: String::new(),
         custom_search_engines: Vec::new(),
         clip_text_retention_days: default_clip_text_retention_days(),
         version: default_version(),
@@ -177,6 +195,7 @@ fn normalize(mut settings: Settings) -> Settings {
     if !valid_translate_target(&settings.translate_target) {
         settings.translate_target.clear();
     }
+    settings.browser = normalize_browser(&settings.browser);
     if !is_known_engine(&settings, &settings.default_search_engine) {
         settings.default_search_engine = default_engine();
     }
@@ -261,6 +280,12 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
                 ));
             }
             settings.translate_target = code.to_string();
+        }
+        "browser" => {
+            // Deliberately not an error: a path that cannot be launched is the
+            // same thing as "no choice", and saying so beats a message the user
+            // cannot act on.
+            settings.browser = normalize_browser(value);
         }
         "clipTextRetentionDays" | "clip_text_retention_days" => {
             let days = value.trim();
@@ -452,5 +477,37 @@ mod tests {
             ..default_settings()
         });
         assert_eq!(settings.clip_text_retention_days, Some(7));
+    }
+
+    #[test]
+    fn missing_browser_defaults_to_the_system_default() {
+        let parsed: Settings = serde_json::from_str(r#"{"version":7}"#).expect("deserialize");
+        assert!(parsed.browser.is_empty());
+    }
+
+    #[test]
+    fn an_existing_browser_path_is_kept_and_trimmed() {
+        let exe = std::env::current_exe().expect("current exe");
+        let exe = exe.to_string_lossy().into_owned();
+        let settings = normalize(Settings {
+            browser: format!("  {exe}  "),
+            ..default_settings()
+        });
+        assert_eq!(settings.browser, exe);
+    }
+
+    #[test]
+    fn an_unlaunchable_browser_path_normalizes_to_the_system_default() {
+        for browser in [
+            r"C:\nope\gone\browser.exe".to_string(),
+            // A directory exists but cannot be launched as a browser.
+            std::env::temp_dir().to_string_lossy().into_owned(),
+        ] {
+            let settings = normalize(Settings {
+                browser,
+                ..default_settings()
+            });
+            assert!(settings.browser.is_empty());
+        }
     }
 }

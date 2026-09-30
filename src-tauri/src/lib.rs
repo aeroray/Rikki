@@ -25,6 +25,7 @@ use commands::settings::{
     get_settings, update_setting, update_tray_menu,
 };
 use commands::translate::{lookup_word, pronounce, pronounce_sentence, translate, translate_llm};
+use commands::web::{list_browsers, open_web_url};
 use storage::settings_store;
 use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
 use commands::system::lock_screen;
@@ -449,7 +450,9 @@ pub fn run() {
             pronounce_sentence,
             save_png_file,
             export_backup,
-            import_backup
+            import_backup,
+            list_browsers,
+            open_web_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

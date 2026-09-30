@@ -1,7 +1,7 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { register } from "$lib/commands/registry";
 import { SEARCH_ENGINES, searchUrl } from "$lib/commands/settings/engines";
 import type { Command } from "$lib/commands/types";
+import { openWebUrl } from "$lib/commands/web/open";
 import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 
@@ -30,7 +30,7 @@ for (const item of WEB_SEARCH) {
         ui.focusField = "search";
         return;
       }
-      void openUrl(searchUrl(engine, query))
+      void openWebUrl(searchUrl(engine, query))
         .then(() => ui.beginHide({ reset: true }))
         .catch(() => ui.flash(i18n.t("search.openFailed")));
     },

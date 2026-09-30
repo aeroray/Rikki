@@ -27,6 +27,10 @@ export const zhCN = {
 
   "settings.title": "设置",
   "settings.engine": "默认搜索引擎",
+  "settings.browser": "默认浏览器",
+  "settings.browser.system": "系统默认",
+  "settings.browser.switched": "已切换到 {name}",
+  "settings.browser.empty": "没有检测到其他浏览器",
   "settings.theme": "主题",
   "settings.hotkey": "快捷键",
   "settings.language": "语言",

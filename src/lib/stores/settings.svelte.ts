@@ -10,20 +10,39 @@ import {
   type ThemeId,
 } from "$lib/commands/settings/engines";
 import { eventToHotkey, formatHotkey } from "$lib/commands/settings/hotkey";
+import { browserDisplayName, browserOptionList } from "$lib/commands/settings/browsers";
 import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
 import type { SettingsScreen } from "$lib/commands/settings/parse";
-import type { AppSettings } from "$lib/commands/types";
+import type { AppSettings, InstalledBrowser } from "$lib/commands/types";
 import { snippets } from "$lib/stores/snippets.svelte";
 import { todos } from "$lib/stores/todos.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export type SettingItem = {
-  id: "engine" | "theme" | "hotkey" | "language" | "retention" | "cleanup" | "export" | "import";
+  id:
+    | "engine"
+    | "browser"
+    | "theme"
+    | "hotkey"
+    | "language"
+    | "retention"
+    | "cleanup"
+    | "export"
+    | "import";
   title: string;
   value: string;
-  icon: "Globe" | "Palette" | "Keyboard" | "Languages" | "Timer" | "Eraser" | "Download" | "Upload";
+  icon:
+    | "Globe"
+    | "Compass"
+    | "Palette"
+    | "Keyboard"
+    | "Languages"
+    | "Timer"
+    | "Eraser"
+    | "Download"
+    | "Upload";
   current?: boolean;
 };
 
@@ -51,6 +70,11 @@ class SettingsStore {
   hotkey = $state("");
   localePref = $state<LocalePref>("system");
   translateTarget = $state("");
+  browserPath = $state("");
+  installedBrowsers = $state<InstalledBrowser[]>([]);
+  /** False until `list_browsers` has answered, so an empty list can be told
+   * apart from a list that has not arrived yet. */
+  browsersLoaded = $state(false);
   clipTextRetentionDays = $state<ClipRetentionDays>(7);
   customEngines = $state<SearchEngine[]>([]);
   selectedIndex = $state(0);
@@ -58,11 +82,16 @@ class SettingsStore {
   recording = $state(false);
   engineDraft = $state<EngineDraft | null>(null);
   private ready: Promise<void>;
+  private browserLoad: Promise<void> | null = null;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private returnTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.ready = this.hydrate();
+    // The settings row shows the chosen browser by name, so the list is needed
+    // before the picker is ever opened. Detection is a registry read, not an
+    // app scan, so this is cheap enough to start with the rest of the boot.
+    void this.loadBrowsers();
     ui.onHideFlush(() => {
       // Without this the 1.5s "return to the settings list" timer fired after
       // the palette was hidden and overwrote whatever the user typed next.
@@ -94,6 +123,10 @@ class SettingsStore {
 
   readonly engine = $derived(getSearchEngine(this.engineId, this.customEngines));
 
+  readonly browserOptions = $derived(browserOptionList(this.installedBrowsers));
+
+  readonly browserLabel = $derived(browserDisplayName(this.browserPath, this.installedBrowsers));
+
   readonly hotkeyLabel = $derived(formatHotkey(this.hotkey || defaultHotkey()));
 
   readonly themeLabel = $derived(this.theme === "light" ? i18n.t("theme.light") : i18n.t("theme.dark"));
@@ -108,6 +141,12 @@ class SettingsStore {
       title: i18n.t("settings.engine"),
       value: engineDisplayName(this.engine),
       icon: "Globe",
+    },
+    {
+      id: "browser",
+      title: i18n.t("settings.browser"),
+      value: this.browserLabel,
+      icon: "Compass",
     },
     {
       id: "theme",
@@ -184,6 +223,8 @@ class SettingsStore {
     switch (screen) {
       case "engine":
         return this.engines.length;
+      case "browser":
+        return this.browserOptions.length;
       case "theme":
         return this.themes.length;
       case "language":
@@ -219,6 +260,34 @@ class SettingsStore {
 
   async setEngine(id: string): Promise<boolean> {
     return this.patch("defaultSearchEngine", id, i18n.t("engine.switched", { name: engineDisplayName(getSearchEngine(id, this.customEngines)) }));
+  }
+
+  /**
+   * Reads the installed browsers once per session.
+   *
+   * Detection is a registry read, so repeating it would be cheap — but it would
+   * also make the picker's rows arrive again under the cursor for no reason,
+   * and what is installed cannot change while the app is running.
+   */
+  loadBrowsers(): Promise<void> {
+    this.browserLoad ??= this.readBrowsers();
+    return this.browserLoad;
+  }
+
+  /** Puts the highlight on the browser that links currently open in. */
+  selectCurrentBrowser() {
+    const index = this.browserOptions.findIndex((option) => option.path === this.browserPath);
+    this.selectedIndex = index >= 0 ? index : 0;
+  }
+
+  async setBrowser(path: string): Promise<boolean> {
+    return this.patch(
+      "browser",
+      path,
+      i18n.t("settings.browser.switched", {
+        name: browserDisplayName(path, this.installedBrowsers),
+      }),
+    );
   }
 
   async setTheme(id: ThemeId): Promise<boolean> {
@@ -380,6 +449,19 @@ class SettingsStore {
     }
   }
 
+  private async readBrowsers() {
+    try {
+      this.installedBrowsers = await invoke<InstalledBrowser[]>("list_browsers");
+    } catch {
+      // Detection finding nothing is a real outcome, and the picker has a
+      // message for it; failing the whole screen over a registry read would
+      // look broken instead.
+      this.installedBrowsers = [];
+    } finally {
+      this.browsersLoaded = true;
+    }
+  }
+
   private async patch(key: string, value: string, message: string, stay = false): Promise<boolean> {
     await this.ready;
     try {
@@ -424,6 +506,10 @@ class SettingsStore {
     // Rust normalizes this against the codes it accepts, so anything left here
     // is already either valid or empty; empty means the user has not chosen.
     this.translateTarget = next.translateTarget?.trim() ?? "";
+    // Rust normalizes this too: anything left here is an executable that
+    // existed when the settings were last written, or empty for the system
+    // default.
+    this.browserPath = next.browser?.trim() ?? "";
     this.customEngines = (next.customSearchEngines ?? []).map((engine) => ({
       id: engine.id,
       name: engine.name,
@@ -455,6 +541,7 @@ class SettingsStore {
       this.hotkey = "";
       this.localePref = "system";
       this.translateTarget = "";
+      this.browserPath = "";
       this.customEngines = [];
       this.clipTextRetentionDays = 7;
       applyTheme("dark");

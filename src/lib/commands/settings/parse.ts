@@ -1,7 +1,15 @@
-export type SettingsScreen = "list" | "engine" | "theme" | "hotkey" | "language" | "retention";
+export type SettingsScreen =
+  | "list"
+  | "engine"
+  | "browser"
+  | "theme"
+  | "hotkey"
+  | "language"
+  | "retention";
 
 const SCREENS: Array<{ screen: Exclude<SettingsScreen, "list">; aliases: string[] }> = [
   { screen: "engine", aliases: ["搜索引擎", "search engine", "search", "engine", "引擎", "搜索"] },
+  { screen: "browser", aliases: ["浏览器", "browser", "默认浏览器", "打开方式"] },
   { screen: "theme", aliases: ["主题", "theme", "外观", "appearance"] },
   { screen: "hotkey", aliases: ["快捷键", "hotkey", "shortcut", "热键"] },
   { screen: "language", aliases: ["语言", "language", "lang", "locale", "国际化"] },
