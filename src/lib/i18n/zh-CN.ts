@@ -164,7 +164,11 @@ export const zhCN = {
   "calendar.days": "{n} 天",
   "calendar.after": "{n} 天后",
   "calendar.before": "{n} 天前",
-  "calendar.footer": "方向键选日期 · PgUp/PgDn 换月 · Shift+↑↓ 换年 · Home 回到今天 · Enter 复制",
+  "calendar.keyPick": "选日期",
+  "calendar.keyMonth": "换月",
+  "calendar.keyYear": "换年",
+  "calendar.keyToday": "今天",
+  "calendar.keyCopy": "复制",
   "calendar.invalidDate": "无法识别「{text}」，试试 cal 20261001",
   "calendar.lunarFailed": "农历数据加载失败，稍后会重试",
 

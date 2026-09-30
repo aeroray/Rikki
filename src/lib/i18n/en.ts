@@ -166,7 +166,11 @@ export const en: Record<MessageKey, string> = {
   "calendar.days": "{n} days",
   "calendar.after": "In {n} days",
   "calendar.before": "{n} days ago",
-  "calendar.footer": "Arrows pick a date · PgUp/PgDn change month · Shift+↑↓ change year · Home returns to today · Enter copies",
+  "calendar.keyPick": "Pick a date",
+  "calendar.keyMonth": "Month",
+  "calendar.keyYear": "Year",
+  "calendar.keyToday": "Today",
+  "calendar.keyCopy": "Copy",
   "calendar.invalidDate": "Couldn’t read “{text}” — try cal 20261001",
   "calendar.lunarFailed": "Couldn’t load the lunar calendar; it will retry",
 

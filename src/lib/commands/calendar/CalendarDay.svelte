@@ -18,7 +18,7 @@
 </script>
 
 {#if blank}
-  <span class="h-8"></span>
+  <span class="h-full"></span>
 {:else}
   <button
     type="button"
@@ -26,7 +26,7 @@
     aria-selected={selected}
     aria-current={cell.isToday ? "date" : undefined}
     aria-label={cell.lunarLabel ? `${cell.day} ${cell.lunarLabel}` : String(cell.day)}
-    class="relative flex h-8 flex-col items-center justify-center rounded-md transition-colors duration-150 {selected
+    class="relative flex h-full flex-col items-center justify-center rounded-md transition-colors duration-150 {selected
       ? 'bg-surface-2 text-ink'
       : todayRing
         ? 'text-primary outline outline-1 -outline-offset-1 outline-primary/45 hover:bg-surface-1'

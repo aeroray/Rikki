@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-09-30 - Panels end in a pinned footer, not a hint paragraph
+Decision:
+Panels end with `components/PanelFooter.svelte`: a chrome bar where each shortcut is a `kbd` chip beside its action, a hairline separates it from the content, and it is a flex sibling of the content column rather than its last child. The calendar adopts it first; the other panels keep `.palette-hint` until the interface overhaul reaches them.
+Reason:
+The calendar's hint was the last child of the content column, so a 6-week month pushed it out of the 600×400 palette and made the panel jump between months. Six rows is the true maximum — 516 of the 2412 months from 1900 to 2100, never seven — so the day grid takes `grid-rows-6` with `min-h-0 flex-1`, and the cells fill their row instead of a fixed `h-8`. That keeps the grid height constant whatever the month contains and leaves the footer always visible. The key chips are untranslated glyphs; `calendar.footer` was deleted once they replaced it, since the catalogs must not carry unused keys.
+Note:
+`PanelFooter` takes either `shortcuts` or a `message`, so a panel can swap hints for an error or confirmation without a second component.
+
 ## 2026-09-24 - The calendar stays on `lunar` v2 and ships no almanac data
 Decision:
 `cal` (aliases `calendar`, `date`, 日历, 万年历) opens a month grid with lunar day names, ganzhi and zodiac in the header, today ringed, weekends dimmed, and a one-line detail strip for the selected day. Arrows walk days, PgUp/PgDn change month, Shift+↑↓ change year, Home returns to today, Enter copies the date, and `cal 20261001` jumps. It reads the same `lunar` v2 tables as the anniversary command, loaded on demand.
