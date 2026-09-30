@@ -122,15 +122,29 @@ class TranslateStore {
    * endpoint is measured for every target the panel offers, so the check is the
    * panel's own list rather than a second one that could drift from it.
    */
-  readonly sentenceVoice = $derived.by((): { text: string; lang: string } | null => {
-    const result = this.result;
-    if (!result || result.entry) return null;
-    const text = result.translation.text.trim();
-    const lang = result.translation.to;
-    if (!text) return null;
+  /**
+   * A clip worth asking for, or null when there is not one.
+   *
+   * The language is the one the service reported for the translation rather than
+   * the one that was asked for: `to` is the language the text on screen is
+   * actually in, and therefore the language the clip would be read in. The
+   * endpoint is measured for every target the panel offers, so the check is the
+   * panel's own list rather than a second one that could drift from it.
+   */
+  private voiceFor(text: string | null | undefined): { text: string; lang: string } | null {
+    const trimmed = text?.trim();
+    const lang = this.result?.translation.to;
+    if (!trimmed || !lang) return null;
     if (!SUPPORTED_TARGETS.some((target) => target.code === lang)) return null;
-    return { text, lang };
-  });
+    return { text: trimmed, lang };
+  }
+
+  readonly sentenceVoice = $derived(
+    this.result && !this.result.entry ? this.voiceFor(this.result.translation.text) : null,
+  );
+
+  /** The advanced answer. Same language as the standard one, and read the same way. */
+  readonly llmVoice = $derived(this.voiceFor(this.llmText));
 
   /**
    * How long the target has to hold still before the text is re-translated.
@@ -479,8 +493,8 @@ class TranslateStore {
    * reached only through `sentenceVoice`, which is also what the panel uses to
    * decide whether to draw the button at all.
    */
-  async playSentence(): Promise<void> {
-    const voice = this.sentenceVoice;
+  async playSentence(advanced = false): Promise<void> {
+    const voice = advanced ? this.llmVoice : this.sentenceVoice;
     if (!voice) return;
     const seq = ++this.audioSeq;
     try {

@@ -243,7 +243,19 @@
 
           {#if translate.llmApplies}
             <section class="border-t border-hairline px-1 pt-2.5">
-              <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.llm")}</p>
+              <div class="flex items-center gap-1.5">
+                <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.llm")}</p>
+                {#if translate.llmVoice}
+                  <button
+                    type="button"
+                    class="pressable flex size-6 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
+                    aria-label={i18n.t("translate.playSentence")}
+                    onclick={() => void translate.playSentence(true)}
+                  >
+                    <Volume2 class="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                {/if}
+              </div>
               {#if translate.llmText}
                 <!-- The text is whatever has arrived so far, so it is already on
                      screen while the call is still running and does not jump when
