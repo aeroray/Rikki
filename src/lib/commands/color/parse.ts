@@ -169,9 +169,9 @@ function hexByte(value: number): string {
 }
 
 function formatAlpha(a: number): string {
-  const rounded = Math.round(a * 1000) / 1000;
-  if (Number.isInteger(rounded)) return String(rounded);
-  return String(rounded);
+  // Three decimals is plenty for CSS alpha and keeps 0.5 from printing as
+  // 0.5000000000000001 after round-tripping through hsl conversion.
+  return String(Math.round(a * 1000) / 1000);
 }
 
 function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {

@@ -4,6 +4,7 @@ import { parseColor, type ParsedColor } from "./parse";
 const RECENT_LIMIT = 10;
 
 export function recentColors(entries: ClipboardEntry[], limit = RECENT_LIMIT): ParsedColor[] {
+  if (limit <= 0) return [];
   const seen = new Set<string>();
   const colors: ParsedColor[] = [];
   for (const entry of entries) {

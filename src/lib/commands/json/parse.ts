@@ -19,8 +19,14 @@ export function inspectJson(input: string): JsonInspect {
       ok: true,
       pretty,
       compact,
-      htmlPretty: highlightValue(value, 2, 0),
-      htmlCompact: highlightValue(value, 0, 0),
+      // Lazy: the panel renders exactly one of the two views, and building both
+      // highlight trees on every keystroke doubled the cost for large documents.
+      get htmlPretty() {
+        return highlightValue(value, 2, 0);
+      },
+      get htmlCompact() {
+        return highlightValue(value, 0, 0);
+      },
     };
   } catch (err) {
     return { ok: false, error: locateError(input, err) };

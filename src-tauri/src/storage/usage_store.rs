@@ -1,13 +1,22 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+use crate::storage::json_file;
+
 const USAGE_FILE: &str = "usage_count.json";
 const COMMAND_USAGE_PREFIX: &str = "command:";
 const MAX_COMMAND_ID_LEN: usize = 40;
+
+/// Serializes the read-modify-write in [`increment_usage`]. Tauri runs
+/// synchronous commands on a thread pool, so a command visit and an app launch
+/// landing together used to read the same counts and let the later write drop
+/// the earlier increment.
+static USAGE_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn is_command_usage_key(key: &str) -> bool {
     let Some(id) = key.strip_prefix(COMMAND_USAGE_PREFIX) else {
@@ -35,19 +44,14 @@ fn usage_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 pub fn load_usage(app: &AppHandle) -> Result<HashMap<String, u32>, String> {
-    let path = usage_path(app)?;
-    if !path.exists() {
-        return Ok(HashMap::new());
-    }
-    let data = fs::read_to_string(&path).map_err(|err| format!("read usage: {err}"))?;
-    if data.trim().is_empty() {
-        return Ok(HashMap::new());
-    }
-    let parsed: UsageFile = serde_json::from_str(&data).unwrap_or_default();
-    Ok(parsed.counts)
+    let file = usage_path(app)?;
+    Ok(json_file::read_json_or::<UsageFile>(&file, UsageFile::default).counts)
 }
 
 pub fn increment_usage(app: &AppHandle, path: &str) -> Result<u32, String> {
+    let _guard = USAGE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut counts = load_usage(app)?;
     let next = counts.get(path).copied().unwrap_or(0).saturating_add(1);
     counts.insert(path.to_string(), next);
@@ -56,18 +60,12 @@ pub fn increment_usage(app: &AppHandle, path: &str) -> Result<u32, String> {
 }
 
 fn save_usage(app: &AppHandle, counts: &HashMap<String, u32>) -> Result<(), String> {
-    let path = usage_path(app)?;
-    let tmp = path.with_extension("json.tmp");
-    let data = serde_json::to_string_pretty(&UsageFile {
-        counts: counts.clone(),
-    })
-    .map_err(|err| format!("serialize usage: {err}"))?;
-    fs::write(&tmp, data).map_err(|err| format!("write usage temp: {err}"))?;
-    if path.exists() {
-        fs::remove_file(&path).map_err(|err| format!("replace usage: {err}"))?;
-    }
-    fs::rename(&tmp, &path).map_err(|err| format!("commit usage: {err}"))?;
-    Ok(())
+    json_file::write_json(
+        &usage_path(app)?,
+        &UsageFile {
+            counts: counts.clone(),
+        },
+    )
 }
 
 #[cfg(test)]

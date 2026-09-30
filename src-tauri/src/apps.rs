@@ -6,6 +6,8 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+use crate::storage::json_file;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledApp {
@@ -297,27 +299,19 @@ fn cache_path(app: &AppHandle) -> Result<PathBuf, String> {
 
 fn load_cache(app: &AppHandle) -> Result<Option<AppsCache>, String> {
     let path = cache_path(app)?;
-    if !path.exists() {
-        return Ok(None);
+    match json_file::read_json::<AppsCache>(&path) {
+        Ok(cache) => Ok(cache),
+        Err(err) => {
+            // The app list is only a cache: a damaged file must fall back to a
+            // fresh scan instead of failing the whole command.
+            eprintln!("rikki: {err}");
+            Ok(None)
+        }
     }
-    let data = fs::read_to_string(&path).map_err(|err| format!("read apps cache: {err}"))?;
-    if data.trim().is_empty() {
-        return Ok(None);
-    }
-    Ok(serde_json::from_str(&data).ok())
 }
 
 fn save_cache(app: &AppHandle, cache: &AppsCache) -> Result<(), String> {
-    let path = cache_path(app)?;
-    let tmp = path.with_extension("json.tmp");
-    let data =
-        serde_json::to_string_pretty(cache).map_err(|err| format!("serialize apps: {err}"))?;
-    fs::write(&tmp, data).map_err(|err| format!("write apps temp: {err}"))?;
-    if path.exists() {
-        fs::remove_file(&path).map_err(|err| format!("replace apps: {err}"))?;
-    }
-    fs::rename(&tmp, &path).map_err(|err| format!("commit apps: {err}"))?;
-    Ok(())
+    json_file::write_json(&cache_path(app)?, cache)
 }
 
 #[cfg(test)]

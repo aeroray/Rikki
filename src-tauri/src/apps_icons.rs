@@ -74,9 +74,16 @@ fn extract_icon(app_path: &str, dest: &Path) -> Result<(), String> {
 #[cfg(target_os = "windows")]
 fn write_png(dest: &Path, width: u32, height: u32, rgba: Vec<u8>) -> Result<(), String> {
     let image = image::RgbaImage::from_raw(width, height, rgba).ok_or("invalid icon pixels")?;
+    // Write through a temp file: a half-written PNG would otherwise be treated
+    // as a valid cache hit by `attach_icons` on every later run.
+    let tmp = dest.with_extension("png.tmp");
     image
-        .save(dest)
-        .map_err(|err| format!("write icon png: {err}"))
+        .save(&tmp)
+        .map_err(|err| format!("write icon png: {err}"))?;
+    fs::rename(&tmp, dest).map_err(|err| {
+        let _ = fs::remove_file(&tmp);
+        format!("commit icon png: {err}")
+    })
 }
 
 #[cfg(target_os = "windows")]
@@ -122,33 +129,38 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
             },
             ..Default::default()
         };
-        let hbmp = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
-            .map_err(|err| err.to_string())?;
-        let old = SelectObject(hdc, HGDIOBJ(hbmp.0));
-        let drawn = DrawIconEx(
-            hdc,
-            0,
-            0,
-            info.hIcon,
-            ICON_SIZE as i32,
-            ICON_SIZE as i32,
-            0,
-            None,
-            DI_NORMAL,
-        );
         let mut rgba = vec![0u8; (ICON_SIZE * ICON_SIZE * 4) as usize];
-        if drawn.is_ok() && !bits.is_null() {
-            let src = std::slice::from_raw_parts(bits as *const u8, rgba.len());
-            for (i, chunk) in src.chunks_exact(4).enumerate() {
-                let o = i * 4;
-                rgba[o] = chunk[2];
-                rgba[o + 1] = chunk[1];
-                rgba[o + 2] = chunk[0];
-                rgba[o + 3] = chunk[3];
+        // Every GDI object is released on both paths; returning early with `?`
+        // here used to leak the DC, the screen DC and the shell icon handle.
+        match CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
+            Ok(hbmp) => {
+                let old = SelectObject(hdc, HGDIOBJ(hbmp.0));
+                let drawn = DrawIconEx(
+                    hdc,
+                    0,
+                    0,
+                    info.hIcon,
+                    ICON_SIZE as i32,
+                    ICON_SIZE as i32,
+                    0,
+                    None,
+                    DI_NORMAL,
+                );
+                if drawn.is_ok() && !bits.is_null() {
+                    let src = std::slice::from_raw_parts(bits as *const u8, rgba.len());
+                    for (i, chunk) in src.chunks_exact(4).enumerate() {
+                        let o = i * 4;
+                        rgba[o] = chunk[2];
+                        rgba[o + 1] = chunk[1];
+                        rgba[o + 2] = chunk[0];
+                        rgba[o + 3] = chunk[3];
+                    }
+                }
+                SelectObject(hdc, old);
+                let _ = DeleteObject(HGDIOBJ(hbmp.0));
             }
+            Err(err) => eprintln!("rikki: icon bitmap for {app_path}: {err}"),
         }
-        SelectObject(hdc, old);
-        let _ = DeleteObject(HGDIOBJ(hbmp.0));
         let _ = DeleteDC(hdc);
         ReleaseDC(HWND::default(), hdc_screen);
         let _ = DestroyIcon(info.hIcon);

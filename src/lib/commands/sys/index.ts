@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { logout, reboot, shutdown, sleep } from "tauri-plugin-power-manager-api";
 import { register } from "$lib/commands/registry";
 import type { Command } from "$lib/commands/types";
+import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 
 function action(
@@ -14,7 +15,7 @@ function action(
     run() {
       void run()
         .then(() => ui.beginHide({ reset: true }))
-        .catch(() => {});
+        .catch(() => ui.flash(i18n.t("sys.failed")));
     },
   };
 }

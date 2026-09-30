@@ -37,7 +37,11 @@ export function findCategory(query: string): EmojiCategory | null {
     categoryMatchNames(category.id).some((name) => name.toLowerCase() === q),
   );
   if (exact) return exact;
-  if (raw.length < 2) return null;
-  const prefixed = EMOJI_CATEGORIES.filter((category) => category.name.startsWith(raw));
+  if (q.length < 2) return null;
+  // Match every known name (id plus both localized labels), not just the
+  // hardcoded Chinese label: `peop`, `nat` and `fla` used to find nothing.
+  const prefixed = EMOJI_CATEGORIES.filter((category) =>
+    categoryMatchNames(category.id).some((name) => name.toLowerCase().startsWith(q)),
+  );
   return prefixed.length === 1 ? prefixed[0] : null;
 }

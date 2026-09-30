@@ -18,6 +18,7 @@ import {
 import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
+import type { SettingsScreen } from "$lib/commands/settings/parse";
 import type { AppSettings } from "$lib/commands/types";
 import { snippets } from "$lib/stores/snippets.svelte";
 import { todos } from "$lib/stores/todos.svelte";
@@ -83,6 +84,9 @@ class SettingsStore {
   constructor() {
     this.ready = this.hydrate();
     ui.onHideFlush(() => {
+      // Without this the 1.5s "return to the settings list" timer fired after
+      // the palette was hidden and overwrote whatever the user typed next.
+      this.cancelReturn();
       void this.flushTranslatePersist();
     });
   }
@@ -196,6 +200,25 @@ class SettingsStore {
     if (this.selectedIndex >= count) this.selectedIndex = count - 1;
   }
 
+  /** Row count for a settings screen; the arrow-key handlers need it before the panel renders. */
+  countFor(screen: SettingsScreen): number {
+    switch (screen) {
+      case "engine":
+        return this.engines.length;
+      case "theme":
+        return this.themes.length;
+      case "language":
+        return this.locales.length;
+      case "retention":
+        return this.retentionOptions.length;
+      case "translate":
+      case "hotkey":
+        return 0;
+      default:
+        return this.listItems.length;
+    }
+  }
+
   cancelReturn() {
     if (this.returnTimer) {
       clearTimeout(this.returnTimer);
@@ -260,15 +283,20 @@ class SettingsStore {
   private async flushTranslateKey(key: string): Promise<void> {
     const value = this.persistPending.get(key);
     if (value === undefined) return;
+    const persistValue = key === "translationApiUrl" ? value.trim() || DEFAULT_TRANSLATE_URL : value.trim();
+    // Validate before clearing the pending value: dropping it first silently
+    // discarded a rejected URL, leaving the field showing a value that was
+    // never saved and no message explaining why.
+    if (key === "translationApiUrl" && persistValue && !persistValue.startsWith("https://api.fanyi.baidu.com/")) {
+      this.persistPending.delete(key);
+      this.flash(i18n.t("settings.translate.urlInvalid"));
+      return;
+    }
     this.persistPending.delete(key);
     const timer = this.persistTimers.get(key);
     if (timer) {
       clearTimeout(timer);
       this.persistTimers.delete(key);
-    }
-    const persistValue = key === "translationApiUrl" ? value.trim() || DEFAULT_TRANSLATE_URL : value.trim();
-    if (key === "translationApiUrl" && persistValue && !persistValue.startsWith("https://api.fanyi.baidu.com/")) {
-      return;
     }
     await this.ready;
     try {

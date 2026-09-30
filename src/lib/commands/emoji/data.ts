@@ -18,10 +18,16 @@ let loading: Promise<Pack> | null = null;
 
 export async function loadEmojiData(): Promise<Pack> {
   if (pack) return pack;
-  loading ??= import("@emoji-mart/data").then((mod) => {
-    pack = buildPack(mod.default as EmojiMartData);
-    return pack;
-  });
+  if (!loading) {
+    loading = import("@emoji-mart/data")
+      .then((mod) => (pack = buildPack(mod.default as EmojiMartData)))
+      .catch((err) => {
+        // Never cache the rejection: with `??=` a single failed import left the
+        // emoji panel unusable (and the promise unhandled) for the whole session.
+        loading = null;
+        throw err;
+      });
+  }
   return loading;
 }
 

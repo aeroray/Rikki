@@ -24,9 +24,10 @@
       activateCommand(hit.command);
       return;
     }
-        void apps.launch(hit.app.path).then((ok) => {
-          if (ok) ui.beginHide({ reset: true });
-        });
+    void apps.launch(hit.app.path).then((ok) => {
+      if (ok) ui.beginHide({ reset: true });
+      else ui.flash(i18n.t("app.launchFailed"));
+    });
   }
 </script>
 
@@ -37,9 +38,6 @@
     role="listbox"
     tabindex={-1}
     aria-label={i18n.t("search.list")}
-    aria-activedescendant={ui.rootHits[ui.selectedIndex]
-      ? `hit-${ui.selectedIndex}`
-      : undefined}
   >
     {#if ui.rootHits.length === 0}
       <p class="px-1 py-6 text-center text-pretty text-[14px] font-medium leading-5 text-ink">{i18n.t("result.empty")}</p>

@@ -5,6 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+use crate::storage::json_file;
+
 const SNIPPET_FILE: &str = "snippets.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,31 +87,18 @@ fn seed_snippets() -> Vec<Snippet> {
 
 pub fn load_snippets(app: &AppHandle) -> Result<Vec<Snippet>, String> {
     let path = snippet_path(app)?;
-    if !path.exists() {
-        let seeds = seed_snippets();
-        save_snippets(app, &seeds)?;
-        return Ok(seeds);
+    match json_file::read_json::<Vec<Snippet>>(&path)? {
+        Some(snippets) => Ok(snippets),
+        None => {
+            let seeds = seed_snippets();
+            save_snippets(app, &seeds)?;
+            Ok(seeds)
+        }
     }
-
-    let data = fs::read_to_string(&path).map_err(|err| format!("read snippets: {err}"))?;
-    if data.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-
-    serde_json::from_str(&data).map_err(|err| format!("parse snippets: {err}"))
 }
 
 pub fn save_snippets(app: &AppHandle, snippets: &[Snippet]) -> Result<(), String> {
-    let path = snippet_path(app)?;
-    let tmp = path.with_extension("json.tmp");
-    let data = serde_json::to_string_pretty(snippets)
-        .map_err(|err| format!("serialize snippets: {err}"))?;
-    fs::write(&tmp, data).map_err(|err| format!("write snippets temp: {err}"))?;
-    if path.exists() {
-        fs::remove_file(&path).map_err(|err| format!("replace snippets: {err}"))?;
-    }
-    fs::rename(&tmp, &path).map_err(|err| format!("commit snippets: {err}"))?;
-    Ok(())
+    json_file::write_json(&snippet_path(app)?, &snippets)
 }
 
 pub fn create_snippet(
@@ -130,7 +119,9 @@ pub fn create_snippet(
 
     let created_at = now_ms();
     let snippet = Snippet {
-        id: format!("snp_{created_at}"),
+        // The millisecond clock alone can repeat when two snippets are created
+        // back to back, which would hand Svelte two rows with the same key.
+        id: format!("snp_{created_at}_{:04x}", rand::random::<u16>()),
         title,
         content,
         keyword: keyword.unwrap_or_default().trim().to_string(),

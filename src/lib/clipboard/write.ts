@@ -4,11 +4,12 @@ import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export async function writeClipboardText(text: string): Promise<boolean> {
-  const value = text.trim();
-  if (!value) return false;
+  // Only the emptiness check is trimmed: writing the trimmed value silently ate
+  // the leading indentation and trailing newline of multi-line snippets.
+  if (!text.trim()) return false;
   clipboard.suppressNextCapture();
   try {
-    await writeText(value);
+    await writeText(text);
     return true;
   } catch {
     clipboard.suppressNextCapture(false);

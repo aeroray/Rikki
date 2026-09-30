@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+use crate::storage::json_file;
+
 const CLIP_DIR: &str = "clipboard";
 const INDEX_FILE: &str = "index.json";
 const IMAGES_DIR: &str = "images";
@@ -58,35 +60,20 @@ pub fn images_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 pub fn load_entries(app: &AppHandle) -> Result<Vec<ClipboardEntry>, String> {
     let path = index_path(app)?;
-    if !path.exists() {
-        fs::write(&path, "[]").map_err(|err| format!("create clipboard index: {err}"))?;
+    let Some(entries) = json_file::read_json::<Vec<ClipboardEntry>>(&path)? else {
         return Ok(Vec::new());
-    }
+    };
 
-    let data = fs::read_to_string(&path).map_err(|err| format!("read clipboard index: {err}"))?;
-    if data.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let entries: Vec<ClipboardEntry> =
-        serde_json::from_str(&data).map_err(|err| format!("parse clipboard index: {err}"))?;
-    let pruned = prune(entries.clone());
-    if pruned.len() != entries.len() {
+    let before = entries.len();
+    let pruned = prune(entries);
+    if pruned.len() != before {
         let _ = save_entries(app, &pruned);
     }
     Ok(pruned)
 }
 
 pub fn save_entries(app: &AppHandle, entries: &[ClipboardEntry]) -> Result<(), String> {
-    let path = index_path(app)?;
-    let tmp = path.with_extension("json.tmp");
-    let data = serde_json::to_string_pretty(entries)
-        .map_err(|err| format!("serialize clipboard index: {err}"))?;
-    fs::write(&tmp, data).map_err(|err| format!("write clipboard temp: {err}"))?;
-    if path.exists() {
-        fs::remove_file(&path).map_err(|err| format!("replace clipboard index: {err}"))?;
-    }
-    fs::rename(&tmp, &path).map_err(|err| format!("commit clipboard index: {err}"))?;
+    json_file::write_json(&index_path(app)?, entries)?;
     cleanup_orphan_images(&images_dir(app)?, entries);
     Ok(())
 }

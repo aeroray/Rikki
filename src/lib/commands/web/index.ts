@@ -2,6 +2,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { register } from "$lib/commands/registry";
 import { SEARCH_ENGINES, searchUrl } from "$lib/commands/settings/engines";
 import type { Command } from "$lib/commands/types";
+import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 
 const WEB_SEARCH = [
@@ -31,7 +32,7 @@ for (const item of WEB_SEARCH) {
       }
       void openUrl(searchUrl(engine, query))
         .then(() => ui.beginHide({ reset: true }))
-        .catch(() => {});
+        .catch(() => ui.flash(i18n.t("search.openFailed")));
     },
   };
   register(command);

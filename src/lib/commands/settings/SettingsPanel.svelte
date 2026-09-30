@@ -67,25 +67,13 @@
         const index = settings.retentionOptions.findIndex((option) => option.id === settings.clipTextRetentionDays);
         settings.selectedIndex = index >= 0 ? index : 0;
       } else if (next === "translate") {
-        if (!settings.translateDraft) settings.openTranslateDraft();
+        if (!settings.translateDraft) untrack(() => settings.openTranslateDraft());
       } else {
         if (settings.translateDraft) settings.closeTranslateDraft();
         settings.selectedIndex = 0;
       }
     }
-    const count =
-      next === "engine"
-        ? settings.engines.length
-        : next === "theme"
-          ? settings.themes.length
-          : next === "language"
-            ? settings.locales.length
-            : next === "retention"
-              ? settings.retentionOptions.length
-            : next === "translate" || next === "hotkey"
-              ? 0
-              : settings.listItems.length;
-    settings.clampSelection(count);
+    settings.clampSelection(settings.countFor(next));
   });
 
   $effect(() => {

@@ -20,7 +20,6 @@
   }: Props = $props();
 
   const MIN_THUMB = 24;
-  const HIDE_MS = 800;
   const viewportId = `rikki-scroll-${++idSeq}`;
 
   let viewport: HTMLDivElement | undefined = $state();
@@ -29,10 +28,8 @@
   let thumbHeight = $state(MIN_THUMB);
   let thumbTop = $state(0);
   let dragging = $state(false);
-  let recentlyScrolled = $state(false);
   let scrollPct = $state(0);
   let dragOffset = 0;
-  let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
   function layout() {
     const el = viewport;
@@ -54,18 +51,8 @@
     scrollPct = maxScroll <= 0 ? 0 : Math.round((scrollTop / maxScroll) * 100);
   }
 
-  function markScrolled() {
-    recentlyScrolled = true;
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => {
-      recentlyScrolled = false;
-      hideTimer = null;
-    }, HIDE_MS);
-  }
-
   function onScroll() {
     layout();
-    markScrolled();
   }
 
   function scrollFromClientY(clientY: number, offset: number) {
@@ -95,14 +82,12 @@
     if (!dragging) return;
     dragging = false;
     (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-    markScrolled();
   }
 
   function onTrackPointerDown(event: PointerEvent) {
     if (event.target !== track) return;
     event.preventDefault();
     scrollFromClientY(event.clientY, thumbHeight / 2);
-    markScrolled();
   }
 
   $effect(() => {
@@ -110,15 +95,17 @@
     if (!el) return;
     const ro = new ResizeObserver(() => layout());
     ro.observe(el);
+    // `characterData` matters: Svelte updates text nodes by assigning
+    // `nodeValue`, which produces no childList record, so a list whose rows
+    // change text without changing shape used to keep a stale thumb.
     const mo = new MutationObserver(() => layout());
-    mo.observe(el, { childList: true, subtree: true });
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
     el.addEventListener("scroll", onScroll, { passive: true });
     layout();
     return () => {
       ro.disconnect();
       mo.disconnect();
       el.removeEventListener("scroll", onScroll);
-      if (hideTimer) clearTimeout(hideTimer);
     };
   });
 

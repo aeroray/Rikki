@@ -7,8 +7,18 @@ use enigo::{
     Enigo, Key, Keyboard, Settings,
 };
 
+/// Sends Ctrl/⌘+V to the foreground app after the palette is gone.
+///
+/// Runs on the blocking pool: the deliberate delay used to sleep on the Tauri
+/// main thread, which froze window and IPC handling for 220ms on every paste.
 #[tauri::command]
-pub fn simulate_paste() -> Result<(), String> {
+pub async fn simulate_paste() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(paste_shortcut)
+        .await
+        .map_err(|err| format!("paste task: {err}"))?
+}
+
+fn paste_shortcut() -> Result<(), String> {
     std::thread::sleep(Duration::from_millis(220));
     let mut enigo = Enigo::new(&Settings::default()).map_err(|err| err.to_string())?;
 

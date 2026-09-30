@@ -17,9 +17,6 @@
     role="listbox"
     tabindex={-1}
     aria-label={i18n.t("search.list")}
-    aria-activedescendant={ui.homeCommands[ui.selectedIndex]
-      ? `home-${ui.homeCommands[ui.selectedIndex].id}`
-      : undefined}
   >
     {#key ui.showNonce}
     {#each ui.homeCommands as command, index (command.id)}

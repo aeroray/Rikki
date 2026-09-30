@@ -5,6 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+use crate::storage::json_file;
+
 const SETTINGS_FILE: &str = "settings.json";
 const DEFAULT_ENGINE: &str = "bing";
 const SETTINGS_VERSION: u32 = 6;
@@ -242,35 +244,28 @@ pub fn normalize_imported(settings: Settings) -> Settings {
 
 pub fn load_settings(app: &AppHandle) -> Result<Settings, String> {
     let path = settings_path(app)?;
-    if !path.exists() {
-        let settings = default_settings();
-        save_settings(app, &settings)?;
-        return Ok(settings);
+    match json_file::read_json::<Settings>(&path) {
+        Ok(Some(parsed)) => Ok(normalize(parsed)),
+        Ok(None) => {
+            let settings = default_settings();
+            save_settings(app, &settings)?;
+            Ok(settings)
+        }
+        Err(err) => {
+            // The damaged file was moved aside by `read_json`. Rebuilding the
+            // defaults here keeps the app usable: previously every later
+            // `update_setting` failed on the same parse error, so the user could
+            // never change a setting again.
+            eprintln!("rikki: {err}");
+            let settings = default_settings();
+            save_settings(app, &settings)?;
+            Ok(settings)
+        }
     }
-
-    let data = fs::read_to_string(&path).map_err(|err| format!("read settings: {err}"))?;
-    if data.trim().is_empty() {
-        let settings = default_settings();
-        save_settings(app, &settings)?;
-        return Ok(settings);
-    }
-
-    let parsed: Settings =
-        serde_json::from_str(&data).map_err(|err| format!("parse settings: {err}"))?;
-    Ok(normalize(parsed))
 }
 
 pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> {
-    let path = settings_path(app)?;
-    let tmp = path.with_extension("json.tmp");
-    let data =
-        serde_json::to_string_pretty(settings).map_err(|err| format!("serialize settings: {err}"))?;
-    fs::write(&tmp, data).map_err(|err| format!("write settings temp: {err}"))?;
-    if path.exists() {
-        fs::remove_file(&path).map_err(|err| format!("replace settings: {err}"))?;
-    }
-    fs::rename(&tmp, &path).map_err(|err| format!("commit settings: {err}"))?;
-    Ok(())
+    json_file::write_json(&settings_path(app)?, settings)
 }
 
 pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Settings, String> {

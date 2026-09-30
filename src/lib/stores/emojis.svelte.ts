@@ -11,6 +11,7 @@ class EmojiStore {
   notice = $state<string | null>(null);
   ready = $state(false);
   loading = $state(false);
+  failed = $state(false);
   categories = $state<EmojiCategoryPack[]>(emptyCategories());
   private all: PackedEmoji[] = [];
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -73,6 +74,13 @@ class EmojiStore {
       this.categories = pack.categories;
       this.all = pack.all;
       this.ready = true;
+      this.failed = false;
+    } catch {
+      // Drop the cached promise so the next visit retries, and tell the user
+      // instead of leaving the panel on a permanent "loading" overlay.
+      this.pending = null;
+      this.failed = true;
+      ui.flash(i18n.t("emoji.loadFailed"));
     } finally {
       this.loading = false;
     }

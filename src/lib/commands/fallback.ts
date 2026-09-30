@@ -1,5 +1,6 @@
 import { parseColor } from "$lib/commands/color/parse";
 import { searchUrl } from "$lib/commands/settings/engines";
+import { i18n } from "$lib/i18n";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -21,6 +22,8 @@ export async function runFallbackSearch(query: string): Promise<boolean> {
     ui.beginHide({ reset: true });
     return true;
   } catch {
+    // Staying open with no feedback looked identical to a successful search.
+    ui.flash(i18n.t("search.openFailed"));
     return false;
   }
 }

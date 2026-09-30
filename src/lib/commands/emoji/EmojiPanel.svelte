@@ -45,7 +45,7 @@
       });
       return;
     }
-    if (!ready) {
+    if (!ready && !emojis.failed) {
       untrack(() => {
         overlay = true;
         showGrid = false;
@@ -120,7 +120,7 @@
       {screen.type === "category" ? emojiCategoryLabel(screen.category.id) : i18n.t("emoji.results")}
       <span class="tabular-nums">{items.length}</span>
     </p>
-    <ScrollArea class="min-h-0 flex-1" viewportClass="p-0.5 pb-1" aria-label="Emoji grid">
+    <ScrollArea class="min-h-0 flex-1" viewportClass="p-0.5 pb-1">
       <EmojiGrid {items} />
     </ScrollArea>
   {:else if !overlay}

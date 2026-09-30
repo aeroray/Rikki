@@ -18,36 +18,26 @@
     }),
   );
   const configured = $derived(settings.translateConfigured);
-  const errorKey = $derived(translateErrorKey(translate.error));
+  const ERROR_KEYS: Record<string, MessageKey> = {
+    not_configured: "translate.notConfigured",
+    too_long: "translate.tooLong",
+    network: "translate.network",
+    quota: "translate.quota",
+    invalid: "translate.invalid",
+    lang: "translate.lang",
+    empty: "translate.emptyHint",
+    unknown: "translate.failed",
+  };
+
+  const errorKey = $derived(ERROR_KEYS[translate.error ?? ""] ?? "translate.failed");
+  /** True when the raw backend message is worth showing next to the mapped one. */
+  const mappedError = $derived(!translate.error || translate.error in ERROR_KEYS);
 
   $effect(() => {
     if (ui.view !== "translate") return;
     const rest = ui.commandRest;
     untrack(() => translate.preview(rest));
   });
-
-  function translateErrorKey(error: string | null): MessageKey {
-    if (error === "not_configured") return "translate.notConfigured";
-    if (error === "too_long") return "translate.tooLong";
-    if (error === "network") return "translate.network";
-    if (error === "quota") return "translate.quota";
-    if (error === "invalid") return "translate.invalid";
-    if (error === "lang") return "translate.lang";
-    if (error === "empty") return "translate.emptyHint";
-    return "translate.failed";
-  }
-
-  const mappedError = $derived(
-    translate.error === "not_configured" ||
-      translate.error === "too_long" ||
-      translate.error === "network" ||
-      translate.error === "quota" ||
-      translate.error === "invalid" ||
-      translate.error === "lang" ||
-      translate.error === "empty" ||
-      translate.error === "unknown" ||
-      !translate.error,
-  );
 
   const FORM_KEYS: Record<string, MessageKey> = {
     pl: "translate.form.pl",

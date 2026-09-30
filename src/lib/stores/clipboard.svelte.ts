@@ -26,7 +26,7 @@ class ClipboardStore {
   selectedIndex = $state(0);
   confirm = $state<ClipConfirm | null>(null);
   private ready: Promise<void>;
-  private writes: Promise<void> = Promise.resolve();
+  private writes: Promise<boolean> = Promise.resolve(true);
   private ignoreNext = false;
   private ignoreTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
@@ -73,7 +73,7 @@ class ClipboardStore {
     }
     void this.ready.then(() => {
       this.upsert({
-        id: `clip_${Date.now()}`,
+        id: clipId(),
         type: "text",
         content: value,
         appName,
@@ -101,13 +101,12 @@ class ClipboardStore {
     });
   }
 
-  clear(keepPinned = true) {
-    void this.ready.then(() => {
-      this.entries = keepPinned ? this.entries.filter((entry) => entry.pinned) : [];
-      this.selectedIndex = 0;
-      this.closeConfirm();
-      this.enqueueWrite();
-    });
+  async clear(keepPinned = true): Promise<boolean> {
+    await this.ready;
+    this.entries = keepPinned ? this.entries.filter((entry) => entry.pinned) : [];
+    this.selectedIndex = 0;
+    this.closeConfirm();
+    return this.enqueueWrite();
   }
 
   closeConfirm() {
@@ -140,12 +139,12 @@ class ClipboardStore {
         ui.flash(i18n.t("clip.cleanupNone"));
         return;
       }
-      void this.ready.then(() => {
+      void this.ready.then(async () => {
         this.entries = applyExpire(this.entries, confirm.days, Date.now());
         this.selectedIndex = 0;
         this.closeConfirm();
-        this.enqueueWrite();
-        ui.flash(i18n.t("clip.cleanupDone"));
+        const saved = await this.enqueueWrite();
+        ui.flash(saved ? i18n.t("clip.cleanupDone") : i18n.t("clip.saveFailed"));
       });
       return;
     }
@@ -153,8 +152,11 @@ class ClipboardStore {
       this.closeConfirm();
       return;
     }
-    this.clear(true);
-    ui.flash(i18n.t("clip.clearDone"));
+    // Report success only after the write lands, instead of claiming the
+    // history was cleared while the file on disk is unchanged.
+    void this.clear(true).then((saved) => {
+      ui.flash(saved ? i18n.t("clip.clearDone") : i18n.t("clip.saveFailed"));
+    });
   }
 
   clampSelection(count: number) {
@@ -238,7 +240,7 @@ class ClipboardStore {
     }
     await this.ready;
     this.upsert({
-      id: `clip_${Date.now()}`,
+      id: clipId(),
       type: "image",
       content: path,
       appName,
@@ -277,17 +279,20 @@ class ClipboardStore {
     }
   }
 
-  private enqueueWrite() {
-    this.writes = this.writes
-      .then(() => this.write())
-      .catch(() => {});
+  /** Serializes writes; the boolean reports whether the last one reached disk. */
+  private enqueueWrite(): Promise<boolean> {
+    this.writes = this.writes.then(() => this.write()).catch(() => false);
+    return this.writes;
   }
 
-  private async write() {
+  private async write(): Promise<boolean> {
     try {
       await invoke("save_clipboard_history", { entries: this.entries });
+      return true;
     } catch {
-      // Browser preview has no Tauri runtime.
+      // Browser preview has no Tauri runtime; a real IO failure is reported to
+      // the caller so the UI stops claiming the change was saved.
+      return false;
     }
   }
 }
@@ -299,6 +304,11 @@ function matchesQuery(entry: ClipboardEntry, query: string): boolean {
     return fuzzyScore(query, `图片 image png ${dims} ${entry.appName}`) > 0;
   }
   return fuzzyScore(query, entry.content) > 0 || fuzzyScore(query, entry.appName) > 0;
+}
+
+/** Two captures inside the same millisecond must not share a row id. */
+function clipId(): string {
+  return `clip_${crypto.randomUUID()}`;
 }
 
 function sameClip(left: ClipboardEntry, right: ClipboardEntry): boolean {

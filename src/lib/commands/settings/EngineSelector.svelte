@@ -27,6 +27,7 @@
 <div
   bind:this={row}
   class="row-hit flex w-full items-center gap-1 pr-1 {selected ? 'is-selected' : ''}"
+  role="presentation"
 >
   <button
     type="button"
