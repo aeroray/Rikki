@@ -58,8 +58,8 @@
     }
     ui.focusField = "search";
     void clipboard.start();
-    apps.start();
-    ui.start();
+    // `apps.start()` and `ui.start()` were no-ops: both promises are kicked off
+    // in their constructors, so the calls only looked like initialisation.
     const stops: Array<() => void> = [];
 
     void listen("palette-shown", () => {
@@ -144,7 +144,9 @@
 <div class="relative flex size-full flex-col overflow-hidden rounded-[inherit]">
   <SearchBar />
 
-  <div id="command-results" class="flex min-h-0 flex-1 flex-col" class:pb-14={Boolean(ui.notice)}>
+  <!-- No padding reserved for the toast: it is absolutely positioned, so the
+       old `pb-14` only made the panel jump by 56px for the 2.2s it was visible. -->
+  <div id="command-results" class="flex min-h-0 flex-1 flex-col">
     {#if ui.view === "empty"}
       <EmptyState />
     {:else if ui.view === "todo"}
@@ -187,11 +189,19 @@
   <ClipConfirm />
   <ActionConfirm />
 
-  {#if ui.notice}
-    <p class="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty text-ink outline outline-1 outline-hairline">
-      {ui.notice}
-    </p>
-  {/if}
+  <!-- The live region stays in the DOM whether or not it has anything to say:
+       assistive tech has to be observing the node before its text changes, so a
+       container created together with the message is announced unreliably, if at
+       all. Only the styling is conditional, so an empty region paints nothing. -->
+  <div
+    role="status"
+    aria-live="polite"
+    class="pointer-events-none absolute inset-x-3 bottom-3 z-20 {ui.notice
+      ? 'rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty text-ink outline outline-1 outline-hairline'
+      : ''}"
+  >
+    {ui.notice}
+  </div>
 </div>
 </div>
 </div>

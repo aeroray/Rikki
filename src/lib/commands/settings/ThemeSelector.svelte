@@ -26,6 +26,7 @@
 <button
   bind:this={row}
   type="button"
+  id="theme-{option.id}"
   role="option"
   aria-selected={selected}
   class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"

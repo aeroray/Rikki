@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   applyTheme,
   defaultHotkey,
@@ -89,6 +90,14 @@ class SettingsStore {
       this.cancelReturn();
       void this.flushTranslatePersist();
     });
+    // Losing focus ends a capture on the Rust side, which re-registers the old
+    // shortcut, but it cannot reach into this store. Without this the recorder
+    // stayed on screen claiming to listen for a new shortcut while the old one
+    // was live again — pressing it then toggled the palette instead of being
+    // recorded.
+    void listen("hotkey-capture-cancelled", () => {
+      this.recording = false;
+    }).catch(() => {});
   }
 
   readonly themes = $derived<ThemeOption[]>([
@@ -349,6 +358,7 @@ class SettingsStore {
       this.scheduleReturn();
       return true;
     } catch {
+      this.flash(i18n.t("settings.saveFail"));
       return false;
     }
   }
@@ -433,6 +443,7 @@ class SettingsStore {
       this.flash(i18n.t("engine.removed", { name: current.name }));
       return true;
     } catch {
+      this.flash(i18n.t("settings.saveFail"));
       return false;
     }
   }
@@ -441,7 +452,9 @@ class SettingsStore {
     await this.ready;
     try {
       const ok = await invoke<boolean>("export_backup");
-      if (ok) this.flash(i18n.t("settings.export.ok"));
+      // `false` means the user closed the save dialog. Saying nothing made a
+      // cancelled export indistinguishable from a broken one.
+      this.flash(ok ? i18n.t("settings.export.ok") : i18n.t("settings.export.cancelled"));
     } catch {
       this.flash(i18n.t("settings.export.fail"));
     }
@@ -481,6 +494,9 @@ class SettingsStore {
       if (!stay) this.scheduleReturn();
       return true;
     } catch {
+      // The caller discards the boolean, so without this a failed write looked
+      // like the key press had not registered at all.
+      this.flash(i18n.t("settings.saveFail"));
       return false;
     }
   }

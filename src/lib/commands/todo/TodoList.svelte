@@ -2,8 +2,10 @@
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { todos } from "$lib/stores/todos.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { Check, Circle, ListTodo, Trash2 } from "@lucide/svelte";
   import { fly } from "svelte/transition";
+  import { onMount } from "svelte";
 
   const reduceMotion =
     typeof window !== "undefined" &&
@@ -24,6 +26,29 @@
 
   function onRemove(id: string) {
     todos.remove(id);
+  }
+
+  // The palette keeps one selection index for whatever list is on screen, and in
+  // this view it points at a todo. Opening the panel starts on the first row
+  // rather than inheriting the index the home or result list left behind.
+  onMount(() => {
+    ui.selectedIndex = 0;
+  });
+
+  // Removing rows can leave the index past the end, where Enter would act on
+  // nothing.
+  $effect(() => {
+    const last = todos.todos.length - 1;
+    if (ui.selectedIndex > last) ui.selectedIndex = Math.max(0, last);
+  });
+
+  /** Keeps the highlighted row on screen as the arrows walk past the viewport. */
+  function scrollWhen(node: HTMLElement, selected: boolean) {
+    const apply = (value: boolean) => {
+      if (value) node.scrollIntoView({ block: "nearest", inline: "nearest" });
+    };
+    apply(selected);
+    return { update: apply };
   }
 </script>
 
@@ -48,9 +73,15 @@
   {:else}
     <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col">
       <ul class="flex flex-col gap-1 pr-1">
-        {#each todos.todos as todo (todo.id)}
+        {#each todos.todos as todo, index (todo.id)}
+          <!-- The rows are not listbox options: each one carries two buttons, and
+               an option may not contain interactive children. Selection is shown
+               with the raised surface instead, and the arrows move it. -->
           <li
-            class="flex items-center gap-2 rounded-md bg-surface-1 px-2 py-1.5"
+            class="flex items-center gap-2 rounded-md px-2 py-1.5 {index === ui.selectedIndex
+              ? 'bg-surface-2'
+              : 'bg-surface-1'}"
+            use:scrollWhen={index === ui.selectedIndex}
             in:fly={enter}
             out:fly={leave}
           >

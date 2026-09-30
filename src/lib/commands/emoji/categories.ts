@@ -16,8 +16,25 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = [
   { id: "flags", name: "旗帜", icon: "🏁" },
 ];
 
+/**
+ * `emoji.category.${id}` cast to `MessageKey` compiled for any id, so a new
+ * category without catalog entries produced an undefined lookup at runtime.
+ * Spelling the mapping out makes it exhaustive: a category id in
+ * `EmojiCategoryId` without a key here is a type error.
+ */
+const EMOJI_CATEGORY_KEYS: Record<EmojiCategoryId, MessageKey> = {
+  people: "emoji.category.people",
+  nature: "emoji.category.nature",
+  foods: "emoji.category.foods",
+  activity: "emoji.category.activity",
+  places: "emoji.category.places",
+  objects: "emoji.category.objects",
+  symbols: "emoji.category.symbols",
+  flags: "emoji.category.flags",
+};
+
 export function emojiCategoryKey(id: EmojiCategoryId): MessageKey {
-  return `emoji.category.${id}` as MessageKey;
+  return EMOJI_CATEGORY_KEYS[id];
 }
 
 export function emojiCategoryLabel(id: EmojiCategoryId): string {
@@ -26,7 +43,9 @@ export function emojiCategoryLabel(id: EmojiCategoryId): string {
 
 export function categoryMatchNames(id: EmojiCategoryId): string[] {
   const key = emojiCategoryKey(id);
-  return [id, zhCN[key], en[key]];
+  // An id with no mapping (or a label dropped from one catalog) yields
+  // undefined here; matching on the raw id beats throwing on every keystroke.
+  return [id, zhCN[key], en[key]].filter((name): name is string => Boolean(name));
 }
 
 export function findCategory(query: string): EmojiCategory | null {

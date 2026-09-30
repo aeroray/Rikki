@@ -2,6 +2,7 @@ import { parseColor } from "$lib/commands/color/parse";
 import { listCommands, listHomeCommands, match, rankCommand } from "$lib/commands/registry";
 import type { RootHit } from "$lib/commands/types";
 import { i18n } from "$lib/i18n";
+import { usageBonus } from "$lib/fuzzy";
 import { apps } from "$lib/stores/apps.svelte";
 import { requestHidePalette } from "$lib/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -62,12 +63,22 @@ class UiStore {
     const query = this.searchText.trim();
     if (!query) return [];
     const commands = listCommands()
-      .map((command) => ({
-        kind: "command" as const,
-        id: `command:${command.id}`,
-        score: rankCommand(query, command, i18n.locale),
-        command,
-      }))
+      .map((command) => {
+        const match = rankCommand(query, command, i18n.locale);
+        // Command and app hits share one ranked list, so both sides must score
+        // on the same scale. Apps add up to USAGE_CAP points for launch count,
+        // so commands add the same bonus from `commandCounts` — which is already
+        // persisted and already orders the home list. Giving commands the bonus
+        // rather than dropping the app one keeps the "frequently used rises"
+        // behaviour the home list has. The bonus never invents a hit: a command
+        // that does not match the query keeps score 0.
+        return {
+          kind: "command" as const,
+          id: `command:${command.id}`,
+          score: match > 0 ? match + usageBonus(this.commandCounts[command.id] ?? 0) : 0,
+          command,
+        };
+      })
       .filter((hit) => hit.score > 0);
     const appHits = apps.ranked(query).map(({ app, score }) => ({
       kind: "app" as const,
@@ -98,10 +109,6 @@ class UiStore {
 
   constructor() {
     this.usageReady = this.hydrateCommandUsage();
-  }
-
-  start() {
-    void this.usageReady;
   }
 
   enterCommand(id: string) {

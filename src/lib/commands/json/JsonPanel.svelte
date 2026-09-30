@@ -9,8 +9,19 @@
   let editor: HTMLTextAreaElement | undefined = $state();
 
   const inspected = $derived(json.inspected);
+  /**
+   * Above this the syntax-highlighted tree costs more than it is worth: a 1.6MB
+   * document measured 13.3MB of HTML across 260,001 spans. Past the threshold the
+   * panel shows the plain text instead of building that tree.
+   */
+  const MAX_HIGHLIGHT_BYTES = 256 * 1024;
+  const tooLarge = $derived(json.source.length > MAX_HIGHLIGHT_BYTES);
   const html = $derived(
-    inspected.ok ? (json.compact ? inspected.htmlCompact : inspected.htmlPretty) : "",
+    inspected.ok && !tooLarge
+      ? json.compact
+        ? inspected.htmlCompact
+        : inspected.htmlPretty
+      : "",
   );
   const errorLines = $derived(
     !inspected.ok && !inspected.empty && inspected.error.line > 0
@@ -56,7 +67,9 @@
   });
 
   function onDraftInput(event: Event) {
-    json.source = (event.currentTarget as HTMLTextAreaElement).value;
+    // Debounced: the store re-parses and re-formats the whole document, which is
+    // far too much work to do on every keystroke.
+    json.setDraft((event.currentTarget as HTMLTextAreaElement).value);
   }
 
   function onEditorKeydown(event: KeyboardEvent) {
@@ -77,7 +90,7 @@
     const start = area.selectionStart;
     const end = area.selectionEnd;
     const next = `${area.value.slice(0, start)}  ${area.value.slice(end)}`;
-    json.source = next;
+    json.setDraft(next);
     requestAnimationFrame(() => {
       area.selectionStart = start + 2;
       area.selectionEnd = start + 2;
@@ -117,13 +130,22 @@
         {json.compact ? i18n.t("json.modeCompact") : i18n.t("json.modePretty")}
         · {i18n.t("json.viewHint")}
       </p>
+      {#if tooLarge}
+        <p class="mt-1 px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+          {i18n.t("json.tooLarge")}
+        </p>
+      {/if}
       <ScrollArea class="mt-3 min-h-0 flex-1" viewportClass="flex flex-col">
         <button
           type="button"
           class="w-full rounded-md bg-surface-1 px-3 py-2 text-left text-[13px] leading-5 text-ink"
           onclick={() => json.startEdit()}
         >
-          <pre class="json-view m-0 whitespace-pre-wrap break-all">{@html html}</pre>
+          {#if tooLarge}
+            <pre class="m-0 whitespace-pre-wrap break-all text-ink-muted">{json.source}</pre>
+          {:else}
+            <pre class="json-view m-0 whitespace-pre-wrap break-all">{@html html}</pre>
+          {/if}
         </button>
       </ScrollArea>
     {:else if inspected.empty}

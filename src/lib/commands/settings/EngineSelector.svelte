@@ -31,6 +31,7 @@
 >
   <button
     type="button"
+    id="engine-{engine.id}"
     role="option"
     aria-selected={selected}
     class="pressable flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"

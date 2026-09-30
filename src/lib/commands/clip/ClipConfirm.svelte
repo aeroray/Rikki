@@ -16,6 +16,31 @@
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  let card: HTMLDivElement | undefined = $state();
+
+  /**
+   * A modal dialog is not announced until focus is inside it, and the palette
+   * keeps focus on the search input otherwise. The card takes focus rather than a
+   * button, so Enter keeps meaning "the action" instead of "whatever is focused";
+   * `SearchBar` hands focus back to the input when `clipboard.confirm` clears.
+   */
+  $effect(() => {
+    if (confirm) card?.focus();
+  });
+
+  /**
+   * Enter is caught here because focus is in the dialog, not in the search input
+   * that normally routes it. A focused button already owns Enter, so those events
+   * are left alone — acting on them twice would confirm twice, or confirm while
+   * the user was aiming at Cancel.
+   */
+  function onKeydown(event: KeyboardEvent) {
+    if (event.key !== "Enter") return;
+    if ((event.target as HTMLElement | null)?.closest("button")) return;
+    event.preventDefault();
+    ok();
+  }
+
   function cancel() {
     clipboard.closeConfirm();
   }
@@ -26,12 +51,7 @@
 </script>
 
 {#if confirm}
-  <div
-    class="absolute inset-0 z-40 flex items-center justify-center"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="clip-confirm-title"
-  >
+  <div class="absolute inset-0 z-40 flex items-center justify-center">
     <button
       type="button"
       class="absolute inset-0 bg-black/55 backdrop-blur-xl"
@@ -40,10 +60,19 @@
       in:fade={{ duration: reduceMotion ? 0 : 150 }}
       out:fade={{ duration: reduceMotion ? 0 : 100 }}
     ></button>
+    <!-- The dialog role sits on the card, which is also the element that takes
+         focus: that is the combination screen readers announce. The backdrop
+         stays outside it, where `aria-modal` keeps it out of the way. -->
     <div
+      bind:this={card}
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="clip-confirm-title"
       class="relative z-10 mx-3 w-[min(100%-24px,20rem)] rounded-lg bg-surface-1 p-4 outline outline-1 outline-hairline"
       in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.95 }}
       out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.95 }}
+      onkeydown={onKeydown}
     >
       {#if confirm.kind === "expire"}
         <h2 id="clip-confirm-title" class="text-balance text-[14px] font-medium leading-5 text-ink">

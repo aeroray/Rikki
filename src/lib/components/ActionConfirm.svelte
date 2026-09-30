@@ -13,19 +13,41 @@
   import { fade, scale } from "svelte/transition";
 
   const confirm = $derived(ui.pendingConfirm);
+  let card: HTMLDivElement | undefined = $state();
 
   const reduceMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /**
+   * A modal alertdialog is not announced until focus is inside it, and the
+   * palette keeps focus on the search input otherwise.
+   *
+   * Focus goes to the card rather than to a button on purpose: a focused button
+   * would fire on Space as well as Enter, and this dialog is one keystroke away
+   * from shutting the machine down. `SearchBar` hands focus back to the input
+   * when `pendingConfirm` clears.
+   */
+  $effect(() => {
+    if (confirm) card?.focus();
+  });
+
+  /**
+   * Enter is caught here because focus is in the dialog, not in the search input
+   * that normally routes it. A focused button inside the dialog already owns
+   * Enter, so those events are left alone — acting on them twice would either run
+   * the action twice or confirm while the user was aiming at Cancel.
+   */
+  function onKeydown(event: KeyboardEvent) {
+    if (event.key !== "Enter") return;
+    if ((event.target as HTMLElement | null)?.closest("button")) return;
+    event.preventDefault();
+    ui.runConfirm();
+  }
 </script>
 
 {#if confirm}
-  <div
-    class="absolute inset-0 z-40 flex items-center justify-center"
-    role="alertdialog"
-    aria-modal="true"
-    aria-labelledby="action-confirm-title"
-  >
+  <div class="absolute inset-0 z-40 flex items-center justify-center">
     <button
       type="button"
       class="absolute inset-0 bg-black/55 backdrop-blur-xl"
@@ -34,15 +56,25 @@
       in:fade={{ duration: reduceMotion ? 0 : 150 }}
       out:fade={{ duration: reduceMotion ? 0 : 100 }}
     ></button>
+    <!-- The dialog role sits on the card, which is also the element that takes
+         focus: that is the combination screen readers announce. The backdrop
+         stays outside it, where `aria-modal` keeps it out of the way. -->
     <div
+      bind:this={card}
+      tabindex="-1"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="action-confirm-title"
+      aria-describedby="action-confirm-body"
       class="relative z-10 mx-3 w-[min(100%-24px,20rem)] rounded-lg bg-surface-1 p-4 outline outline-1 outline-hairline"
       in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.95 }}
       out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.95 }}
+      onkeydown={onKeydown}
     >
       <h2 id="action-confirm-title" class="text-balance text-[14px] font-medium leading-5 text-ink">
         {i18n.t("confirm.title", { action: confirm.action })}
       </h2>
-      <p class="mt-2 text-pretty text-[13px] leading-5 text-ink-muted">{confirm.body}</p>
+      <p id="action-confirm-body" class="mt-2 text-pretty text-[13px] leading-5 text-ink-muted">{confirm.body}</p>
       <!-- The key hint lives inside the button rather than in a separate row
            beside it: the same two words twice was both redundant and, in
            English, wider than the card. -->

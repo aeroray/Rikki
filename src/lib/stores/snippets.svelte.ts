@@ -50,13 +50,21 @@ class SnippetStore {
     }
   }
 
+  /**
+   * Re-opening the composer while an unsaved new draft is on screen keeps all
+   * four fields. Ctrl+N is also the "focus the composer" shortcut, and the old
+   * mix wiped only the title — the field typed first — while keeping keyword,
+   * content and the sensitive flag. Esc already closes the draft, so discarding
+   * stays an explicit gesture. An edit draft (id !== null) still starts blank.
+   */
   openCreate(title = "", content = "") {
+    const inProgress = this.draft?.id === null ? this.draft : null;
     this.draft = {
       id: null,
-      title,
-      keyword: this.draft?.id === null ? this.draft.keyword : "",
-      content: content || (this.draft?.id === null ? this.draft.content : ""),
-      sensitive: this.draft?.id === null ? this.draft.sensitive : false,
+      title: title || inProgress?.title || "",
+      keyword: inProgress?.keyword ?? "",
+      content: content || inProgress?.content || "",
+      sensitive: inProgress?.sensitive ?? false,
     };
     ui.focusField = "snippet-title";
   }

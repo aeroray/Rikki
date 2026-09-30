@@ -38,7 +38,9 @@
   } from "$lib/commands/anniversary/actions";
   import { parseAnniversaryScreen } from "$lib/commands/anniversary/parse";
   import { anniversaries } from "$lib/stores/anniversaries.svelte";
+  import { parseEmojiScreen } from "$lib/commands/emoji/parse";
   import { json } from "$lib/stores/json.svelte";
+  import { todos } from "$lib/stores/todos.svelte";
 
   let inputEl: HTMLInputElement | undefined = $state();
   let composing = $state(false);
@@ -47,6 +49,13 @@
    * ARIA 1.2 requires `aria-activedescendant` on the element that actually holds
    * focus — the input — not on the listbox it controls. It used to sit on the
    * listbox, where assistive tech ignores it.
+   *
+   * Every branch mirrors the id its row component renders, because an id that
+   * resolves to nothing is silence: arrowing through a panel announced neither
+   * the row nor the fact that the highlight had moved. Only the views that
+   * render a listbox are listed, and each one is read exactly the way the panel
+   * reads it, so keyboard and highlight cannot disagree about which row is
+   * selected.
    */
   const activeOptionId = $derived.by((): string | undefined => {
     if (ui.view === "empty") {
@@ -56,7 +65,94 @@
     if (ui.view === "suggest") {
       return ui.rootHits[ui.selectedIndex] ? `hit-${ui.selectedIndex}` : undefined;
     }
+    if (ui.view === "clip") {
+      const entry = clipboard.filtered(ui.commandRest)[clipboard.selectedIndex];
+      return entry ? `clip-${entry.id}` : undefined;
+    }
+    if (ui.view === "snippet") {
+      if (snippets.draft) return undefined;
+      const snippet = snippets.filtered(ui.commandRest)[snippets.selectedIndex];
+      return snippet ? `snippet-${snippet.id}` : undefined;
+    }
+    if (ui.view === "anniversary") {
+      // The draft and preview screens replace the list, so the row the index
+      // points at is not on screen there.
+      if (anniversaries.draft) return undefined;
+      if (parseAnniversaryScreen(ui.commandRest).type === "preview") return undefined;
+      const row = anniversaryRows()[anniversaries.selectedIndex];
+      return row ? `anniversary-${row.item.id}` : undefined;
+    }
+    if (ui.view === "emoji") {
+      // The category list is rendered inline by the panel, which this component
+      // cannot reach, so only the grid's cells carry ids. A cell receives the
+      // glyph and nothing else, so the glyph is the identity both sides build the
+      // id from; it is unique across the dataset.
+      if (parseEmojiScreen(ui.commandRest).type === "categories") return undefined;
+      const item = emojis.visible(ui.commandRest)[emojis.selectedIndex];
+      return item ? `emoji-${item.native}` : undefined;
+    }
+    if (ui.view === "settings") {
+      if (settings.engineDraft) return undefined;
+      const screen = parseSettingsScreen(ui.commandRest);
+      const index = settings.selectedIndex;
+      if (screen === "hotkey" || screen === "translate") return undefined;
+      if (screen === "engine") {
+        const engine = settings.engines[index];
+        return engine ? `engine-${engine.id}` : undefined;
+      }
+      if (screen === "theme") {
+        const option = settings.themes[index];
+        return option ? `theme-${option.id}` : undefined;
+      }
+      if (screen === "language") {
+        const option = settings.locales[index];
+        return option ? `language-${option.id}` : undefined;
+      }
+      if (screen === "retention") {
+        const option = settings.retentionOptions[index];
+        return option ? `retention-${option.id}` : undefined;
+      }
+      const item = settings.listItems[index];
+      // `SettingItem` is handed a title instead of its id, so the title — unique
+      // across the list — is what both sides derive the row id from.
+      return item ? `setting-${encodeURIComponent(item.title)}` : undefined;
+    }
     return undefined;
+  });
+
+  /**
+   * Whether the current view has rows to show.
+   *
+   * `aria-expanded` used to be `view === "suggest" || view === "empty"`, which
+   * reported a collapsed combobox while a full listbox sat on screen. The panels
+   * keep `#command-results` mounted in every state, so the flag has to come from
+   * the rows themselves rather than from the name of the view.
+   */
+  const optionCount = $derived.by((): number => {
+    if (ui.view === "empty") return ui.homeCommands.length;
+    if (ui.view === "suggest") return ui.rootHits.length;
+    if (ui.view === "todo") return todos.todos.length;
+    if (ui.view === "clip") return clipboard.filtered(ui.commandRest).length;
+    if (ui.view === "snippet") {
+      return snippets.draft ? 0 : snippets.filtered(ui.commandRest).length;
+    }
+    if (ui.view === "anniversary") {
+      if (anniversaries.draft) return 0;
+      if (parseAnniversaryScreen(ui.commandRest).type === "preview") return 0;
+      return anniversaryRows().length;
+    }
+    if (ui.view === "emoji") {
+      return parseEmojiScreen(ui.commandRest).type === "categories"
+        ? emojis.categories.length
+        : emojis.visible(ui.commandRest).length;
+    }
+    if (ui.view === "settings") {
+      // The draft replaces the panel; `countFor` already reports 0 for the
+      // screens that render a form or the recorder instead of a list.
+      if (settings.engineDraft) return 0;
+      return settings.countFor(parseSettingsScreen(ui.commandRest));
+    }
+    return 0;
   });
 
   $effect(() => {
@@ -66,6 +162,10 @@
     // to <body> with nobody to take it back.
     ui.pendingConfirm;
     clipboard.confirm;
+    // An open dialog holds focus on purpose — it is modal, and it is not
+    // announced until focus is inside it. Pulling focus back to the input here
+    // would undo that on the very frame it happens.
+    if (ui.pendingConfirm || clipboard.confirm) return;
     if (ui.focusField === "search" && !ui.imagePreviewSrc && !snippets.draft && !settings.engineDraft && !settings.translateDraft) {
       requestAnimationFrame(() => inputEl?.focus());
     }
@@ -131,6 +231,39 @@
       event.preventDefault();
       event.stopPropagation();
       return;
+    }
+
+    if (ui.view === "todo") {
+      // Every key here arrives through the input's own handler, so the panel's
+      // text field — a separate focus target — never sees them: the arrows cannot
+      // move the highlight while someone is typing a new item.
+      const items = todos.todos;
+      const selected = items[ui.selectedIndex];
+      if (event.key === "ArrowDown" && items.length > 0) {
+        event.preventDefault();
+        ui.selectedIndex = Math.min(items.length - 1, ui.selectedIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && items.length > 0) {
+        event.preventDefault();
+        ui.selectedIndex = Math.max(0, ui.selectedIndex - 1);
+        return;
+      }
+      if (event.key === "Delete" && selected) {
+        event.preventDefault();
+        todos.remove(selected.id);
+        return;
+      }
+      // `todo buy milk` + Enter adds that item, so Enter only takes the
+      // highlighted row when the rest of the line is empty. Intercepting it in
+      // both states would silently turn the inline add into a toggle, and with
+      // nothing selected the fall-through below is what puts the cursor in the
+      // new-item field.
+      if (event.key === "Enter" && selected && !ui.commandRest.trim()) {
+        event.preventDefault();
+        todos.toggle(selected.id);
+        return;
+      }
     }
 
     if (ui.view === "clip") {
@@ -546,7 +679,7 @@
     aria-autocomplete="list"
     aria-controls="command-results"
     aria-activedescendant={activeOptionId}
-    aria-expanded={ui.view === "suggest" || ui.view === "empty"}
+    aria-expanded={optionCount > 0}
     oninput={onInput}
     onkeydown={onKeydown}
     oncompositionstart={() => (composing = true)}

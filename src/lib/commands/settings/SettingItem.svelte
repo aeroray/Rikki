@@ -37,9 +37,14 @@
   });
 </script>
 
+<!-- The id is what `aria-activedescendant` names while the arrows walk the list.
+     This row is handed a title rather than the item id, and the title is unique
+     across the settings list, so the title is what both this row and SearchBar
+     build the id from — encoded, because an id may not contain whitespace. -->
 <button
   bind:this={row}
   type="button"
+  id="setting-{encodeURIComponent(title)}"
   role="option"
   aria-selected={selected}
   class="row-hit flex w-full items-center gap-2 px-4 py-3 text-left active:scale-[0.96]"

@@ -88,6 +88,7 @@
 <div
   bind:this={row}
   class="row-hit flex items-center gap-2 px-3 py-2 {selected ? 'is-selected' : ''}"
+  role="presentation"
 >
   {#if entry.type === "image"}
     <button
@@ -123,6 +124,9 @@
   {/if}
   <button
     type="button"
+    id="clip-{entry.id}"
+    role="option"
+    aria-selected={selected}
     class="pressable flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left active:scale-[0.96]"
     aria-label={entry.type === "image" ? i18n.t("clip.pasteImage", { dims: dims ? ` ${dims}` : "", ago }) : undefined}
     title={[entry.appName, new Date(entry.createdAt).toLocaleString()].filter(Boolean).join(" · ")}

@@ -1,10 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Todo } from "$lib/commands/types";
+import { i18n } from "$lib/i18n";
+import { ui } from "$lib/stores/ui.svelte";
 
 class TodoStore {
   todos = $state<Todo[]>([]);
   private ready: Promise<void>;
   private writes: Promise<void> = Promise.resolve();
+  /**
+   * True only once a read actually returned the persisted file. `save_todos`
+   * replaces that file with the whole in-memory array, so writing after a failed
+   * hydration would persist the list we failed to read. The Rust side moves a
+   * genuinely corrupt file aside, so this guards IO and permission failures.
+   */
+  private hydrated = false;
+  private refusedWriteNotified = false;
 
   constructor() {
     this.ready = this.hydrate();
@@ -58,8 +68,12 @@ class TodoStore {
   private async hydrate() {
     try {
       this.todos = await invoke<Todo[]>("get_todos");
+      this.hydrated = true;
+      this.refusedWriteNotified = false;
     } catch {
-      this.todos = [];
+      // Deliberately keep the in-memory list: overwriting it with [] is what
+      // turned a transient read failure into permanent data loss.
+      this.hydrated = false;
     }
   }
 
@@ -72,11 +86,24 @@ class TodoStore {
   }
 
   private async write() {
+    if (!this.hydrated) {
+      this.notifyRefusedWrite();
+      return;
+    }
     try {
       await invoke("save_todos", { todos: this.todos });
     } catch {
       // Browser preview has no Tauri runtime.
     }
+  }
+
+  private notifyRefusedWrite() {
+    if (this.refusedWriteNotified) return;
+    this.refusedWriteNotified = true;
+    // No todos-specific key exists and new i18n keys are out of scope, so reuse
+    // the generic save-failure text: it says exactly what happened. Once only —
+    // a notice per mutation would bury the palette.
+    ui.flash(i18n.t("clip.saveFailed"));
   }
 }
 

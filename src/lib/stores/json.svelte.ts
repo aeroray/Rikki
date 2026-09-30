@@ -8,8 +8,35 @@ class JsonStore {
   compact = $state(false);
   editing = $state(false);
   private seeded = false;
+  private pendingDraft: string | null = null;
+  private draftTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly inspected = $derived(inspectJson(this.source));
+
+  /**
+   * Records what the editor holds, without parsing it yet.
+   *
+   * `inspected` re-parses and re-formats the whole document, measured at ~26ms
+   * for a 1.6MB file, so running it on every keystroke stutters. The textarea
+   * keeps its own value in the meantime — it is bound one-way to `source`, so
+   * leaving `source` alone leaves the typed text where the user put it.
+   */
+  setDraft(text: string) {
+    this.pendingDraft = text;
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = setTimeout(() => this.flushDraft(), 120);
+  }
+
+  /** Applies whatever the editor last held, e.g. before leaving the editor. */
+  flushDraft() {
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    if (this.pendingDraft === null) return;
+    this.source = this.pendingDraft;
+    this.pendingDraft = null;
+  }
 
   hydrate(rest: string) {
     if (this.editing) return;
@@ -34,6 +61,9 @@ class JsonStore {
 
   stopEdit() {
     if (!this.editing) return false;
+    // Without this the last keystrokes are still sitting in the debounce and
+    // would be dropped on the way out.
+    this.flushDraft();
     const inspected = inspectJson(this.source);
     if (inspected.ok) this.source = inspected.pretty;
     this.editing = false;
@@ -47,6 +77,11 @@ class JsonStore {
   }
 
   reset() {
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    this.pendingDraft = null;
     this.source = "";
     this.compact = false;
     this.editing = false;

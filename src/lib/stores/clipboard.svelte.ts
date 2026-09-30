@@ -20,6 +20,8 @@ import {
 const MAX_IMAGES = 200;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const CLIPBOARD_CHANGED = "plugin:clipboard-x://clipboard_changed";
+/** How long changes are collected before the index is rewritten. */
+const WRITE_DEBOUNCE_MS = 150;
 
 class ClipboardStore {
   entries = $state<ClipboardEntry[]>([]);
@@ -27,6 +29,9 @@ class ClipboardStore {
   confirm = $state<ClipConfirm | null>(null);
   private ready: Promise<void>;
   private writes: Promise<boolean> = Promise.resolve(true);
+  private dirty = false;
+  private writeTimer: ReturnType<typeof setTimeout> | null = null;
+  private writeWaiters: Array<(ok: boolean) => void> = [];
   private ignoreNext = false;
   private ignoreTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
@@ -232,6 +237,11 @@ class ClipboardStore {
 
   private async captureImage(appName: string) {
     if (!this.imagesDir) return;
+    // The plugin writes the PNG here, and the entry that references it is only
+    // recorded afterwards. A queued save running in that window would sweep the
+    // file away as an orphan, leaving a row that can never be pasted. Draining
+    // the queue first closes it.
+    await this.writes;
     const image = await readImage(this.imagesDir);
     const path = typeof image.path === "string" ? image.path : String(image.path ?? "");
     if (!path) return;
@@ -284,10 +294,34 @@ class ClipboardStore {
     }
   }
 
-  /** Serializes writes; the boolean reports whether the last one reached disk. */
+  /**
+   * Marks the index dirty and returns a promise for the next flush.
+   *
+   * Changes are collected rather than written one-for-one: copying several
+   * things in a row used to rewrite the whole index once per item. The short
+   * delay also gives a just-written image time to be recorded before the orphan
+   * sweep looks at the directory.
+   */
   private enqueueWrite(): Promise<boolean> {
-    this.writes = this.writes.then(() => this.write()).catch(() => false);
-    return this.writes;
+    this.dirty = true;
+    const settled = new Promise<boolean>((resolve) => this.writeWaiters.push(resolve));
+    if (this.writeTimer) clearTimeout(this.writeTimer);
+    this.writeTimer = setTimeout(() => void this.flushWrites(), WRITE_DEBOUNCE_MS);
+    this.writes = settled;
+    return settled;
+  }
+
+  private async flushWrites(): Promise<void> {
+    if (this.writeTimer) {
+      clearTimeout(this.writeTimer);
+      this.writeTimer = null;
+    }
+    if (!this.dirty) return;
+    this.dirty = false;
+    const waiters = this.writeWaiters;
+    this.writeWaiters = [];
+    const ok = await this.write();
+    for (const resolve of waiters) resolve(ok);
   }
 
   private async write(): Promise<boolean> {

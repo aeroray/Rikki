@@ -70,7 +70,12 @@
         {/if}
       </div>
     {:else}
-      <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col gap-3">
+      <ScrollArea
+        class="min-h-0 flex-1"
+        viewportClass="flex flex-col gap-3"
+        role="listbox"
+        aria-label={i18n.t("clip.listLabel")}
+      >
         {#if pinned.length > 0}
           <section>
             <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">

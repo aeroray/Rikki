@@ -18,9 +18,14 @@
   });
 </script>
 
+<!-- The id is what `aria-activedescendant` points at while the arrows walk the
+     grid. A cell is handed the glyph and nothing else, and glyphs are unique in
+     the dataset, so the glyph is what this cell and SearchBar both build it
+     from. -->
 <button
   bind:this={cell}
   type="button"
+  id="emoji-{native}"
   role="option"
   aria-selected={selected}
   aria-label={name}

@@ -4,9 +4,24 @@ const PREFIX_BONUS = 100;
 const TITLE_BONUS = 80;
 const CONTAINS_SCORE = 50;
 
+/** Combining marks left behind by `normalize("NFD")` for Latin diacritics. */
+const COMBINING_MARKS = /[\u0300-\u036f]/g;
+const NON_ASCII = /[^\x00-\x7f]/;
+
+/**
+ * Diacritic-insensitive lowercasing, so `cafe` matches `Café` and `uber`
+ * matches `Über`. The ASCII fast path is what keeps this cheap: `fuzzyScore`
+ * also runs over whole clipboard bodies on every keystroke, and decomposing
+ * those would copy the string for nothing.
+ */
+function fold(value: string): string {
+  const lower = value.toLowerCase();
+  return NON_ASCII.test(lower) ? lower.normalize("NFD").replace(COMBINING_MARKS, "") : lower;
+}
+
 export function fuzzyScore(query: string, text: string): number {
-  const q = query.trim().toLowerCase();
-  const t = text.toLowerCase();
+  const q = fold(query.trim());
+  const t = fold(text);
   if (!q) return 0;
   if (t === q) return PREFIX_BONUS + 20;
   if (t.startsWith(q)) return PREFIX_BONUS - Math.min(t.length - q.length, 40);
@@ -38,7 +53,16 @@ export function latinInitials(name: string): string {
   return chars.toLowerCase();
 }
 
-const USAGE_CAP = 50;
+/**
+ * Usage is a tie-breaker, never a reason to outrank a clearly better match, so
+ * the bonus saturates. Commands and apps share one ranked list and must add the
+ * same number of points for the same count.
+ */
+export const USAGE_CAP = 50;
+
+export function usageBonus(count: number): number {
+  return Math.min(Math.max(count, 0), USAGE_CAP);
+}
 
 export function rankApp(
   query: string,
@@ -54,5 +78,5 @@ export function rankApp(
     pinyinMatchScore(query, name),
   );
   if (match <= 0) return 0;
-  return match + Math.min(Math.max(usageCount, 0), USAGE_CAP);
+  return match + usageBonus(usageCount);
 }
