@@ -39,7 +39,7 @@ export function occurrenceMeta(item: Anniversary, occurrence: Occurrence | null)
   } else {
     // A solar anniversary gets a lunar echo, which is how people cross-check a
     // birthday against the lunar calendar.
-    const lunar = lunarLabelFor(occurrence.date);
+    const lunar = lunarLabelFor(occurrence.date, i18n.locale);
     if (lunar) parts.push(lunar);
   }
 
@@ -76,7 +76,7 @@ export function previewLines(
   // need a solar echo: the `date` line above already carries the solar date it
   // lands on, so repeating it here would just be the same value twice.
   if (query.calendar === "solar") {
-    const lunar = lunarLabelFor(occurrence.date);
+    const lunar = lunarLabelFor(occurrence.date, i18n.locale);
     if (lunar) lines.push({ id: "lunar", label: i18n.t("anniversary.lunar"), value: lunar });
   }
 

@@ -171,8 +171,13 @@ export function nextOccurrence(item: Anniversary, now = new Date()): Occurrence 
   return null;
 }
 
-/** The lunar date that a solar anniversary falls on, for the row's meta line. */
-export function lunarLabelFor(date: Date): string | null {
+/**
+ * The lunar date a solar date falls on, for a row's meta line.
+ *
+ * Takes the locale explicitly rather than importing the i18n store, so this
+ * module stays free of runes and can be unit-tested in plain Node.
+ */
+export function lunarLabelFor(date: Date, locale: string): string | null {
   const api = lunarApi();
   if (!api) return null;
   const result = api.solarToLunar({
@@ -181,8 +186,8 @@ export function lunarLabelFor(date: Date): string | null {
     day: date.getDate(),
   });
   if (!result) return null;
-  const prefix = result.leap ? "闰" : "";
-  return `${prefix}${result.monthName}${result.dayName}`;
+  // Same formatter the lunar rows use, so both spell 六月 the same way.
+  return lunarMonthDayLabel(result.month, result.day, result.leap, locale);
 }
 
 export type DateQuery =
@@ -371,23 +376,33 @@ export function formatMonthDay(month: number, day: number, locale: string): stri
   return locale === "zh-CN" ? `${mm}月${dd}日` : `${mm}-${dd}`;
 }
 
+/**
+ * Renders a lunar month/day, e.g. 六月初七 or the leap 闰六月初七.
+ *
+ * `monthName`/`dayName` return the bare characters (六, 初七), so the 月 and the
+ * 闰 marker are added here. English uses a numeric lunar form instead of mixing
+ * Chinese characters into the sentence.
+ */
 export function lunarMonthDayLabel(
   month: number,
   day: number,
   leapMonth: boolean,
   locale: string,
 ): string {
+  if (locale !== "zh-CN") {
+    const mm = String(month).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    return `${leapMonth ? "leap " : ""}${mm}/${dd} lunar`;
+  }
   const api = lunarApi();
   if (api) {
     const monthName = api.monthName(month);
     const dayName = api.dayName(day);
     if (monthName && dayName) {
-      const prefix = leapMonth ? (locale === "zh-CN" ? "闰" : "leap ") : "";
-      return `${prefix}${monthName}${dayName}`;
+      return `${leapMonth ? "闰" : ""}${monthName}月${dayName}`;
     }
   }
-  const suffix = leapMonth ? "L" : "";
-  return formatMonthDay(month, day, locale) + suffix;
+  return `${formatMonthDay(month, day, locale)}${leapMonth ? "L" : ""}`;
 }
 
 export function sortByOccurrence(
