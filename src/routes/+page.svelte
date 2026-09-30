@@ -1,6 +1,7 @@
 <script lang="ts">
   import "$lib/commands/anniversary";
   import "$lib/commands/base64";
+  import "$lib/commands/calendar";
   import "$lib/commands/calc";
   import "$lib/commands/clip";
   import "$lib/commands/color";
@@ -16,6 +17,7 @@
   import "$lib/commands/web";
   import CalcResult from "$lib/commands/calc/CalcResult.svelte";
   import AnniversaryPanel from "$lib/commands/anniversary/AnniversaryPanel.svelte";
+  import CalendarPanel from "$lib/commands/calendar/CalendarPanel.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import ClipConfirm from "$lib/commands/clip/ClipConfirm.svelte";
   import ColorPanel from "$lib/commands/color/ColorPanel.svelte";
@@ -147,6 +149,8 @@
       <CalcResult />
     {:else if ui.view === "anniversary"}
       <AnniversaryPanel />
+    {:else if ui.view === "calendar"}
+      <CalendarPanel />
     {:else if ui.view === "clip"}
       <ClipPanel />
     {:else if ui.view === "snippet"}

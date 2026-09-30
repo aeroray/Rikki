@@ -29,6 +29,8 @@
   import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
   import { copyTimestampResult } from "$lib/commands/timestamp/actions";
   import { copyQrDecode, copyQrSvg, saveQrPng } from "$lib/commands/qrcode/actions";
+  import { copyCalendarDate } from "$lib/commands/calendar/actions";
+  import { calendar } from "$lib/stores/calendar.svelte";
   import {
     anniversaryRows,
     handleAnniversaryEnter,
@@ -172,6 +174,53 @@
       if (event.key === "Enter") {
         event.preventDefault();
         handleAnniversaryEnter(rows);
+        return;
+      }
+    }
+
+    if (ui.view === "calendar") {
+      // Arrows walk the grid, PageUp/Down jump months, Shift+arrows jump years,
+      // and Enter copies the selected date.
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        calendar.moveDay(-1);
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        calendar.moveDay(1);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        if (event.shiftKey) calendar.moveYear(-1);
+        else calendar.moveWeek(-1);
+        return;
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        if (event.shiftKey) calendar.moveYear(1);
+        else calendar.moveWeek(1);
+        return;
+      }
+      if (event.key === "PageUp") {
+        event.preventDefault();
+        calendar.moveMonth(-1);
+        return;
+      }
+      if (event.key === "PageDown") {
+        event.preventDefault();
+        calendar.moveMonth(1);
+        return;
+      }
+      if (event.key === "Home") {
+        event.preventDefault();
+        calendar.reset();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void copyCalendarDate();
         return;
       }
     }

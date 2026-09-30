@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-09-24 - The calendar stays on `lunar` v2 and ships no almanac data
+Decision:
+`cal` (aliases `calendar`, `date`, 日历, 万年历) opens a month grid with lunar day names, ganzhi and zodiac in the header, today ringed, weekends dimmed, and a one-line detail strip for the selected day. Arrows walk days, PgUp/PgDn change month, Shift+↑↓ change year, Home returns to today, Enter copies the date, and `cal 20261001` jumps. It reads the same `lunar` v2 tables as the anniversary command, loaded on demand.
+Reason:
+6tail's `lunar-typescript` is the only candidate that offers a real almanac (solar terms, 宜忌, 冲煞, 纳音, 星宿, 八字, 值神, 建除, 吉神凶煞, 时辰, holidays) — measured at 28 available fields against `lunar` v2's zero. It was still declined: it cannot be tree-shaken (importing only `Solar` ships 325KB minified / 100KB gzipped, against 8.9KB for the lazy `lunar` chunk), and the launcher's calendar does not need a 黄历. The user chose the light option knowingly. `lunar` v2 gained `yearGanZhi`, `yearZodiac`, `lunarYearDays` and `lunarMonthDays`, all derived from data it does expose and verified against known values (2026 丙午/马, 2025 乙巳/蛇, 1984 甲子/鼠; leap years 384 days vs 354 common).
+Note:
+If a future command genuinely needs solar terms or 宜忌, switching to 6tail is a contained change: everything lunar goes through `anniversary/lunar.ts`, so only that adapter and its import would move.
+
 ## 2026-09-24 - Lunar calendar uses `lunar` v2, not 6tail's lunar-typescript
 Decision:
 Lunar conversion goes through `src/lib/commands/anniversary/lunar.ts`, which wraps the `lunar` v2 package (MIT, full TS types, range 1890-2100) behind a small `LunarApi` surface. The library is imported on demand. Leap months are entered explicitly (`nr1001` = lunar leap Oct 1) rather than inferred; `leapMonthOf()` derives a year's leap month by probing, memoised.

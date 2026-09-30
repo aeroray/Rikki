@@ -39,6 +39,14 @@ export type LunarApi = {
   /** Renders a lunar month/day name without needing a year. */
   monthName(month: number): string;
   dayName(day: number): string;
+  /** 丙午 — the ganzhi pair for a lunar year, used by the calendar header. */
+  yearGanZhi(lunarYear: number): string;
+  /** 马 */
+  yearZodiac(lunarYear: number): string;
+  /** How many days a lunar year has (353-385), for the calendar's year view. */
+  lunarYearDays(lunarYear: number): number;
+  /** How many days the lunar month starting at `date` has (29 or 30). */
+  lunarMonthDays(date: SolarDate): number;
 };
 
 type LunarModule = typeof import("lunar");
@@ -86,7 +94,77 @@ export function lunarLoadFailed(): boolean {
 }
 
 function buildApi(mod: LunarModule): LunarApi {
-  const { toLunar, toGregorian } = mod;
+  const { toLunar, toGregorian, formatLunarParts } = mod;
+
+  /** Solar date for a lunar year/month/day, or null when it does not exist. */
+  function lunarToSolarFor(
+    year: number,
+    month: number,
+    day: number,
+    isLeapMonth: boolean,
+  ): SolarDate | null {
+    try {
+      const result = toGregorian({ year, month, day, isLeapMonth });
+      const date = result.date;
+      // `toGregorian` returns a UTC instant; read it in UTC so the calendar day
+      // cannot shift with the local timezone.
+      return {
+        year: date.getUTCFullYear(),
+        month: date.getUTCMonth() + 1,
+        day: date.getUTCDate(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function lunarFor(date: SolarDate) {
+    try {
+      return toLunar(date).lunar;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Ganzhi is only exposed via formatting, so read it off the parts. */
+  function ganZhiOf(date: SolarDate): string {
+    const lunar = lunarFor(date);
+    if (!lunar) return "";
+    return formatLunarParts(lunar, { stemBranch: "year" })
+      .filter((part) => part.type === "yearStem" || part.type === "yearBranch")
+      .map((part) => part.value)
+      .join("");
+  }
+
+  function zodiacOf(date: SolarDate): string {
+    const lunar = lunarFor(date);
+    if (!lunar) return "";
+    return formatLunarParts(lunar, { zodiac: true })
+      .filter((part) => part.type === "yearZodiac")
+      .map((part) => part.value.replace(/[（）]/g, ""))
+      .join("");
+  }
+
+  /**
+   * The first day of the lunar month following `lunar`.
+   *
+   * `lunar` is the raw library object, whose leap flag is `isLeapMonth`.
+   */
+  function nextLunarMonthStart(lunar: {
+    year: number;
+    month: number;
+    isLeapMonth: boolean;
+  }): SolarDate | null {
+    const leapThisYear = leapMonthOf(lunar.year);
+    // Month order is 1..12, with the leap month inserted right after its base
+    // month, so only the month after the leap one is a plain increment.
+    if (lunar.isLeapMonth) return lunarToSolarFor(lunar.year, lunar.month + 1, 1, false);
+    if (leapThisYear === lunar.month) {
+      return lunarToSolarFor(lunar.year, lunar.month, 1, true);
+    }
+    if (lunar.month === 12) return lunarToSolarFor(lunar.year + 1, 1, 1, false);
+    return lunarToSolarFor(lunar.year, lunar.month + 1, 1, false);
+  }
 
   /** v2 has no leap-month query, so the month is found by probing. */
   function leapMonthOf(lunarYear: number): number {
@@ -94,12 +172,9 @@ function buildApi(mod: LunarModule): LunarApi {
     if (cached !== undefined) return cached;
     let found = 0;
     for (let month = 1; month <= 12; month += 1) {
-      try {
-        toGregorian({ year: lunarYear, month, day: 1, isLeapMonth: true });
+      if (lunarToSolarFor(lunarYear, month, 1, true)) {
         found = month;
         break;
-      } catch {
-        // That month is not the leap one; keep looking.
       }
     }
     leapMonthCache.set(lunarYear, found);
@@ -109,54 +184,27 @@ function buildApi(mod: LunarModule): LunarApi {
   return {
     leapMonthOf,
 
-    solarToLunar({ year, month, day }) {
-      try {
-        const result = toLunar({ year, month, day });
-        const lunar = result.lunar;
-        return {
-          year: lunar.year,
-          month: lunar.month,
-          day: lunar.day,
-          leap: lunar.isLeapMonth,
-          monthName: MONTH_NAMES[lunar.month] ?? "",
-          dayName: DAY_NAMES[lunar.day] ?? "",
-          // `formatLunar` carries the ganzhi/zodiac a future calendar command
-          // would want; the raw parts are cheaper to read than to re-derive.
-          ganZhiYear: mod.formatLunarParts(lunar, { stemBranch: "year" })
-            .filter((part) => part.type === "yearStem" || part.type === "yearBranch")
-            .map((part) => part.value)
-            .join(""),
-          zodiac: mod.formatLunarParts(lunar, { zodiac: true })
-            .filter((part) => part.type === "yearZodiac")
-            .map((part) => part.value.replace(/[（）]/g, ""))
-            .join(""),
-        };
-      } catch {
+    solarToLunar(date) {
+      const lunar = lunarFor(date);
+      if (!lunar) {
         // Out-of-range or invalid dates throw rather than returning a sentinel.
         return null;
       }
+      return {
+        year: lunar.year,
+        month: lunar.month,
+        day: lunar.day,
+        leap: lunar.isLeapMonth,
+        monthName: MONTH_NAMES[lunar.month] ?? "",
+        dayName: DAY_NAMES[lunar.day] ?? "",
+        ganZhiYear: ganZhiOf(date),
+        zodiac: zodiacOf(date),
+      };
     },
 
     lunarToSolar(year, month, day, leapMonth) {
-      try {
-        const result = toGregorian({
-          year,
-          month,
-          day,
-          // The library rejects a leap month that year does not have.
-          isLeapMonth: leapMonth,
-        });
-        const date = result.date;
-        // `toGregorian` returns a UTC instant; read it in UTC so the calendar
-        // day cannot shift with the local timezone.
-        return {
-          year: date.getUTCFullYear(),
-          month: date.getUTCMonth() + 1,
-          day: date.getUTCDate(),
-        };
-      } catch {
-        return null;
-      }
+      // The library rejects a leap month that year does not have.
+      return lunarToSolarFor(year, month, day, leapMonth);
     },
 
     monthName(month) {
@@ -165,6 +213,43 @@ function buildApi(mod: LunarModule): LunarApi {
 
     dayName(day) {
       return DAY_NAMES[day] ?? "";
+    },
+
+    yearGanZhi(lunarYear) {
+      // Read it off the first day of that lunar year: the library only exposes
+      // ganzhi as part of a formatted date, not as a standalone year query.
+      const solar = lunarToSolarFor(lunarYear, 1, 1, false);
+      if (!solar) return "";
+      return ganZhiOf(solar);
+    },
+
+    yearZodiac(lunarYear) {
+      const solar = lunarToSolarFor(lunarYear, 1, 1, false);
+      if (!solar) return "";
+      return zodiacOf(solar);
+    },
+
+    lunarYearDays(lunarYear) {
+      const start = lunarToSolarFor(lunarYear, 1, 1, false);
+      const next = lunarToSolarFor(lunarYear + 1, 1, 1, false);
+      if (!start || !next) return 0;
+      // Both ends are local calendar days, so the difference is exact.
+      const a = Date.UTC(start.year, start.month - 1, start.day);
+      const b = Date.UTC(next.year, next.month - 1, next.day);
+      return Math.round((b - a) / 86_400_000);
+    },
+
+    lunarMonthDays(date) {
+      // A lunar month is 29 or 30 days: compare the 1st with the next month's 1st.
+      const today = lunarFor(date);
+      if (!today) return 0;
+      const start = lunarToSolarFor(today.year, today.month, 1, today.isLeapMonth);
+      if (!start) return 0;
+      const next = nextLunarMonthStart(today);
+      if (!next) return 0;
+      const a = Date.UTC(start.year, start.month - 1, start.day);
+      const b = Date.UTC(next.year, next.month - 1, next.day);
+      return Math.round((b - a) / 86_400_000);
     },
   };
 }
