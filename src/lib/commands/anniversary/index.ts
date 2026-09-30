@@ -7,7 +7,6 @@ import { startAnniversaryCreate } from "./actions";
 export const anniversaryCommand: Command = {
   id: "anniversary",
   prefix: "ann",
-  aliases: ["anniversary", "days", "纪念日", "倒计时"],
   title: "Anniversary",
   titleZh: "纪念日",
   description: "Count down to birthdays and anniversaries",

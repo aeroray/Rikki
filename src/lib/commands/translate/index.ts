@@ -6,7 +6,6 @@ import { ui } from "$lib/stores/ui.svelte";
 export const translateCommand: Command = {
   id: "translate",
   prefix: "tr",
-  aliases: ["translate", "翻译"],
   title: "Translate",
   titleZh: "翻译",
   description: "Translate text with Baidu",

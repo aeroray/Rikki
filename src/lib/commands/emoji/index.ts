@@ -7,7 +7,6 @@ import { ui } from "$lib/stores/ui.svelte";
 export const emojiCommand: Command = {
   id: "emoji",
   prefix: "em",
-  aliases: ["emoji", "表情"],
   title: "Emoji",
   titleZh: "表情",
   description: "Browse and copy emoji",

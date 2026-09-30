@@ -6,7 +6,6 @@ import { handleJsonEnter } from "./actions";
 export const jsonCommand: Command = {
   id: "json",
   prefix: "json",
-  aliases: ["jsonf"],
   title: "JSON",
   titleZh: "格式化",
   description: "Format, minify, and validate JSON",

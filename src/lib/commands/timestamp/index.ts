@@ -6,7 +6,6 @@ import { copyTimestampResult } from "./actions";
 export const timestampCommand: Command = {
   id: "timestamp",
   prefix: "ts",
-  aliases: ["timestamp", "时间戳"],
   title: "Timestamp",
   titleZh: "时间戳",
   description: "Convert timestamps and dates",

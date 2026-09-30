@@ -7,7 +7,6 @@ import { ui } from "$lib/stores/ui.svelte";
 export const snippetCommand: Command = {
   id: "snippet",
   prefix: "sn",
-  aliases: ["snippet"],
   title: "Snippets",
   titleZh: "片段",
   description: "Search and copy text snippets",

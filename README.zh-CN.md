@@ -47,26 +47,28 @@ pnpm tauri dev
 
 输入前缀再加空格，打开对应面板。根搜索（无前缀）用来启动应用。直接输入 hex、`rgb()` 或 `hsl()` 也会打开颜色面板。
 
+每个命令同时也认**中文名**和**拼音**。这一点对开着输入法的用户尤其重要：输入法组字期间，搜索框里是拼音而不是汉字，所以 `wnl`、`rili`、`chongqi` 都能在候选上屏之前就找到命令。全角字母和输入法自带的全角空格也照样识别。完整的词表集中在一处：`src/lib/commands/aliases.ts`。
+
 | 前缀 | 别名 | Enter | 说明 |
 | --- | --- | --- | --- |
 | _(空)_ | 应用 | 启动 | 未匹配且不少于 2 个字符时，用默认引擎搜网页 |
-| `clip` | | 粘贴选中项 | `Tab` 预览图片；`Shift+Delete` 清空未置顶历史 |
-| `sn` | `snippet` | 复制片段 | `sn add` 或 `Ctrl+N` 新建；复制时展开 `{{date}}` / `{{time}}` / `{{clipboard}}` |
-| `todo` | | 添加待办 | 面板保持打开 |
-| `calc` | | 复制结果 | 保存历史 |
-| `ann` | `anniversary` | 编辑选中项，或新建 | 生日与纪念日，支持公历和农历。直接输入日期即可算天数、不保存：`1001`、`20261001`、`n1001`（农历）、`nr1001`（农历闰月） |
-| `cal` | `calendar`、`date` | 复制日期 | 带农历的月历。方向键选日期，PgUp/PgDn 换月，Shift+↑↓ 换年，Home 回到今天；`cal 20261001` 跳到指定日期 |
-| `em` | `emoji` | 复制表情 | 先浏览分类，再用英文关键词搜索 |
-| `tr` | `translate` | 翻译，再复制 | 在设置里填写百度翻译 AppID 和密钥 |
-| `color` | `clr` | 复制 HEX | 直接输入 `#ff6363` 也可以 |
-| `json` | `jsonf` | 复制；无效时进入编辑 | `Tab` 在美化 / 压缩之间切换 |
-| `b64` | `base64` | 复制 | `Tab` 切换到解码（`b64d`） |
-| `ts` | `timestamp` | 复制主值 | Unix 秒 / 毫秒，或 `YYYY-MM-DD` |
-| `qr` | `qrcode` | 复制 SVG | `Tab` 保存 PNG |
-| `qrd` | `qrdecode` | 复制内容 | 识别剪贴板里的图片 |
-| `settings` | | 打开一项设置 | 主题、热键、语言、翻译 API、剪贴板保留、备份 |
-| `gg` `bd` `bing` `ddg` `sogou` | | 在浏览器中搜索 | |
-| `lock` `sleep` `shutdown` `reboot` `logout` | | 立即执行 | |
+| `clip` | 剪贴板、剪切板 | 粘贴选中项 | `Tab` 预览图片；`Shift+Delete` 清空未置顶历史 |
+| `sn` | `snippet`、`snip`、片段、常用语 | 复制片段 | `sn add` 或 `Ctrl+N` 新建；复制时展开 `{{date}}` / `{{time}}` / `{{clipboard}}` |
+| `todo` | 待办、待办事项 | 添加待办 | 面板保持打开 |
+| `calc` | 计算器、计算 | 复制结果 | 保存历史 |
+| `ann` | `anniversary`、`days`、纪念日、倒计时 | 编辑选中项，或新建 | 生日与纪念日，支持公历和农历。直接输入日期即可算天数、不保存：`1001`、`20261001`、`n1001`（农历）、`nr1001`（农历闰月） |
+| `cal` | `calendar`、`date`、万年历、日历 | 复制日期 | 带农历的月历。方向键选日期，PgUp/PgDn 换月，Shift+↑↓ 换年，Home 回到今天；`cal 20261001` 跳到指定日期 |
+| `em` | `emoji`、表情 | 复制表情 | 先浏览分类，再用英文关键词搜索 |
+| `tr` | `translate`、翻译 | 翻译，再复制 | 在设置里填写百度翻译 AppID 和密钥 |
+| `color` | `clr`、颜色 | 复制 HEX | 直接输入 `#ff6363` 也可以 |
+| `json` | `jsonf`、格式化 | 复制；无效时进入编辑 | `Tab` 在美化 / 压缩之间切换 |
+| `b64` | `base64`、`b64e`、`encode`、编码 | 复制 | `Tab` 切换到解码（`b64d`） |
+| `ts` | `timestamp`、时间戳 | 复制主值 | Unix 秒 / 毫秒，或 `YYYY-MM-DD` |
+| `qr` | `qrcode`、二维码 | 复制 SVG | `Tab` 保存 PNG |
+| `qrd` | `qrdecode`、`scan`、识码、扫码 | 复制内容 | 识别剪贴板里的图片 |
+| `settings` | `set`、设置、配置、`preferences` | 打开一项设置 | 主题、热键、语言、翻译 API、剪贴板保留、备份 |
+| `gg` `bd` `bing` `ddg` `sogou` | 谷歌、百度、必应、搜狗 | 在浏览器中搜索 | |
+| `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏、休眠、关机、重启、注销；`restart`、`signout` | 立即执行 | 关机、重启、注销需要再按一次 Enter 确认 |
 
 主页命令按使用次数排序。剪贴板和片段在次数相同时装在前面。
 

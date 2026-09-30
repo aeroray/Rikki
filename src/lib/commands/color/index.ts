@@ -7,7 +7,6 @@ import { parseColor } from "./parse";
 export const colorCommand: Command = {
   id: "color",
   prefix: "color",
-  aliases: ["clr", "颜色"],
   title: "Color",
   titleZh: "颜色",
   description: "Preview and convert colors",

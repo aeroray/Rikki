@@ -7,7 +7,6 @@ import { ui } from "$lib/stores/ui.svelte";
 export const settingsCommand: Command = {
   id: "settings",
   prefix: "settings",
-  aliases: ["设置", "配置", "preferences"],
   title: "Settings",
   titleZh: "设置",
   description: "Search engine and other options",

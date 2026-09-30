@@ -13,7 +13,6 @@ function openBase64(input: string, decode: boolean) {
 export const base64Command: Command = {
   id: "base64",
   prefix: "b64",
-  aliases: ["base64"],
   title: "Base64 Encode",
   titleZh: "编码",
   description: "Encode text as Base64",
@@ -31,7 +30,6 @@ export const base64Command: Command = {
 export const base64DecodeCommand: Command = {
   id: "base64d",
   prefix: "b64d",
-  aliases: ["base64d"],
   title: "Base64 Decode",
   titleZh: "解码",
   description: "Decode Base64 text",

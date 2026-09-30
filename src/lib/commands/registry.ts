@@ -1,12 +1,17 @@
-import { rankText } from "$lib/fuzzy";
+import { rankText, toHalfWidth } from "$lib/fuzzy";
+import { pinyinMatchScore } from "$lib/pinyinApps";
 import { i18n } from "$lib/i18n";
 import type { Locale } from "$lib/i18n/locale";
+import { aliasesFor } from "./aliases";
 import type { Command, CommandMatch } from "./types";
 
 const commands = new Map<string, Command>();
 
 export function register(command: Command): void {
-  commands.set(command.id, command);
+  // The vocabulary lives in one table, so a command's own definition stays about
+  // what it does rather than what it answers to.
+  const aliases = aliasesFor(command.id);
+  commands.set(command.id, aliases.length > 0 ? { ...command, aliases } : command);
 }
 
 export function listCommands(): Command[] {
@@ -71,21 +76,39 @@ export function commandPrefixes(command: Command): string[] {
   return [command.prefix, ...(command.aliases ?? [])];
 }
 
+/** Every Chinese name a command answers to, for pinyin matching. */
+function commandNames(command: Command): string[] {
+  return [command.titleZh, ...aliasesFor(command.id)].filter((name): name is string =>
+    Boolean(name),
+  );
+}
+
 export function rankCommand(query: string, command: Command, locale: Locale): number {
   const titles =
     locale === "zh-CN"
       ? [command.title, command.titleZh, command.titleZh ? `${command.titleZh} · ${command.title}` : ""]
       : [command.title];
-  return Math.max(
+  const direct = Math.max(
     0,
     ...commandPrefixes(command).flatMap((prefix) =>
       titles.filter((title): title is string => Boolean(title)).map((title) => rankText(query, prefix, title)),
     ),
   );
+  // Pinyin is what the search box holds while a Chinese IME composes, so without
+  // this a command only answers once the characters have been committed — and
+  // committing is an extra keystroke the user should not have to spend. Every
+  // Chinese name is scored, aliases included, which is what lets `rili` find the
+  // calendar whose title is 万年历.
+  const pinyin = Math.max(0, ...commandNames(command).map((name) => pinyinMatchScore(query, name)));
+  return Math.max(direct, pinyin);
 }
 
 export function match(input: string): CommandMatch | null {
-  const lower = input.toLowerCase();
+  // A Chinese IME emits full-width Latin and U+3000 for its space bar, and the
+  // prefix syntax is `prefix + " "`, so `ann　1001` matched nothing at all. The
+  // mapping is one UTF-16 unit per character, which is what lets `rest` still be
+  // sliced out of the original string below.
+  const lower = toHalfWidth(input).toLowerCase();
   let best: CommandMatch | null = null;
   let bestLength = -1;
 

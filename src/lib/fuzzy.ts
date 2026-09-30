@@ -7,6 +7,26 @@ const CONTAINS_SCORE = 50;
 /** Combining marks left behind by `normalize("NFD")` for Latin diacritics. */
 const COMBINING_MARKS = /[\u0300-\u036f]/g;
 const NON_ASCII = /[^\x00-\x7f]/;
+/** Full-width ASCII plus the ideographic space. */
+const FULL_WIDTH = /[\uff01-\uff5e\u3000]/;
+const FULL_WIDTH_ALL = /[\uff01-\uff5e\u3000]/g;
+
+/**
+ * Maps full-width forms and the ideographic space onto their ASCII equivalents.
+ *
+ * A Chinese IME emits full-width Latin and punctuation in many configurations,
+ * and its space bar produces U+3000. That last one is not cosmetic: the prefix
+ * syntax is `prefix + " "`, so `ann　1001` typed with an IME on matched nothing
+ * at all. The mapping is one UTF-16 unit per character, so offsets into the
+ * original string stay valid.
+ */
+export function toHalfWidth(value: string): string {
+  if (!FULL_WIDTH.test(value)) return value;
+  return value.replace(FULL_WIDTH_ALL, (ch) => {
+    const code = ch.charCodeAt(0);
+    return code === 0x3000 ? " " : String.fromCharCode(code - 0xfee0);
+  });
+}
 
 /**
  * Diacritic-insensitive lowercasing, so `cafe` matches `Café` and `uber`
@@ -15,7 +35,7 @@ const NON_ASCII = /[^\x00-\x7f]/;
  * those would copy the string for nothing.
  */
 function fold(value: string): string {
-  const lower = value.toLowerCase();
+  const lower = toHalfWidth(value).toLowerCase();
   return NON_ASCII.test(lower) ? lower.normalize("NFD").replace(COMBINING_MARKS, "") : lower;
 }
 

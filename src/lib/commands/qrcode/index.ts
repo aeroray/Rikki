@@ -6,7 +6,6 @@ import { copyQrDecode, copyQrSvg } from "./actions";
 export const qrCommand: Command = {
   id: "qr",
   prefix: "qr",
-  aliases: ["qrcode"],
   title: "QR Code",
   titleZh: "二维码",
   description: "Generate a QR code",
@@ -26,7 +25,6 @@ export const qrCommand: Command = {
 export const qrDecodeCommand: Command = {
   id: "qrdecode",
   prefix: "qrd",
-  aliases: ["qrdecode"],
   title: "QR Decode",
   titleZh: "识码",
   description: "Read a QR code from the clipboard",

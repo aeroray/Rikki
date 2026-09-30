@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-09-30 - Commands answer to Chinese and pinyin, not just a Latin prefix
+Decision:
+`rankCommand` scores `pinyin-pro` against every Chinese name a command has, and the whole vocabulary (Chinese names, a few Latin additions) lives in one table, `src/lib/commands/aliases.ts`, merged in `register()`. `match()` and `fuzzyScore` normalise full-width forms and the ideographic space to ASCII first. A vitest suite guards the table: every command has an entry, no entry outlives its command, no two commands claim the same spelling, and every spelling resolves through `match()`.
+Reason:
+The prefix syntax assumes a keyboard with no IME in the way. With one active, the search box holds the *pinyin* while it composes — so a command that only answers to `cal` stays invisible until the characters are committed, which is a keystroke the user should not have to spend. Scoring pinyin means `wnl`, `rili` and `chongqi` all find their command before anything is committed, and `pinyin-pro` handles 多音字 (`chongqi` and `zhongqi` both reach 重启) better than any hand-written table would. The ideographic space is not cosmetic: an IME's space bar emits U+3000 and the syntax is `prefix + " "`, so `ann　1001` previously matched nothing at all.
+Note:
+`rili` has to reach the calendar even though its title is 万年历, which is why the Chinese aliases are load-bearing rather than a convenience — pinyin is derived from them, so an alternative name for the same thing needs its own entry. Measured cost of the pinyin pass: ~0.09ms for 34 names, so ~0.2ms per keystroke across every command.
+
 ## 2026-09-30 - Commands that cannot be undone ask first
 Decision:
 A `Command` may carry `confirm: true`. `activateCommand` then arms `ui.requestConfirm` instead of running it, and `ActionConfirm` carries it out on a second Enter (Esc or the backdrop cancels). `shutdown`, `reboot` and `logout` are marked; `lock` and `sleep` are not, since both are one keystroke to reverse. Deleting a custom search engine uses the same dialog with its own body text.
