@@ -106,7 +106,7 @@ class TranslateStore {
    * did not know, which falls back to the sentence shape. The panel and the
    * footer both read this so they agree on which shape is on screen.
    */
-  readonly llmApplies = $derived(!isWordLike(this.query.text));
+  readonly llmApplies = $derived(this.result !== null && this.result.entry === null);
 
   /**
    * How long the target has to hold still before the text is re-translated.
@@ -211,11 +211,15 @@ class TranslateStore {
     this.result = null;
     this.clearLlm();
     this.stopAudio();
-    // Started here rather than after the fast answer: the two are
-    // independent, and awaiting this one would make the fast answer wait for
-    // the slow one — which is the whole reason there are two.
-    void this.runLlm(query, seq);
     const entry = this.lookup(query.text);
+    // The model is asked only once the dictionary has settled what this is, and
+    // only when it found nothing — a dictionary beats a model at a single word,
+    // and asking in parallel would spend an AI request on every word lookup. The
+    // wait is a few hundred milliseconds against a call that takes seconds.
+    void entry.then((word) => {
+      if (seq !== this.seq || word !== null) return;
+      void this.runLlm(query, seq);
+    });
     try {
       const [word, translation] = await Promise.all([
         entry,
@@ -252,9 +256,6 @@ class TranslateStore {
    * `llmStream`.
    */
   private async runLlm(query: Query, seq: number): Promise<void> {
-    // A single word keeps the dictionary card and never reaches the model; this
-    // is the same rule `llmApplies` reports to the panel.
-    if (!this.llmApplies) return;
     const stream = String(++this.llmStreams);
     this.llmStream = stream;
     this.llmLoading = true;

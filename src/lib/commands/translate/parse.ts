@@ -79,16 +79,24 @@ export function resolveTarget(source: string, preferred: string, uiLanguage: str
 
 /** Longest text still worth asking the dictionary about. */
 const MAX_WORD_LENGTH = 32;
+/** A run of CJK at most this long is plausibly one word. */
+const MAX_CJK_WORD = 4;
+const CJK = /[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]/;
 
 /**
  * Whether to try the dictionary at all.
  *
- * An entry is keyed by a single word, so anything with whitespace — or long
- * enough to be a phrase however it is spaced — goes straight to the translator.
- * This is the only thing that decides: the dictionary returning nothing is what
- * says "sentence", and a word it happens not to know is translated like one.
+ * This is a pre-filter, not the decision: the dictionary having no entry is what
+ * says "sentence", and the caller waits for that. Getting it wrong in the other
+ * direction is the expensive one — skipping the dictionary for something that
+ * was a word — so the test is deliberately loose.
+ *
+ * The whitespace test alone is not enough. Chinese and Japanese are written
+ * without spaces, so `一口气看完犯罪悬疑剧` has none and read as a single word,
+ * which meant a Chinese sentence never reached the model at all.
  */
 export function isWordLike(text: string): boolean {
   const trimmed = text.trim();
-  return trimmed.length > 0 && trimmed.length <= MAX_WORD_LENGTH && !/\s/.test(trimmed);
+  if (!trimmed || trimmed.length > MAX_WORD_LENGTH || /\s/.test(trimmed)) return false;
+  return !(CJK.test(trimmed) && trimmed.length > MAX_CJK_WORD);
 }
