@@ -1,10 +1,16 @@
 //! Translation.
 //!
-//! Two sources, neither of which needs an API key:
+//! Three sources, none of which needs an API key:
 //!
 //!  - **Sentences** go to Sogou's Hunyuan endpoint. It is the one the Sogou
 //!    translate page itself calls for free text, and it returns a model
 //!    translation rather than a phrase-table lookup.
+//!  - **The same sentences** are also sent to Pollinations.AI, which runs a
+//!    real LLM behind an anonymous tier. Sogou is quick and usually close
+//!    enough, but it is a phrase-based model and a whole sentence is where that
+//!    shows. The two are deliberately separate commands rather than one that
+//!    waits: the machine answer lands in under a second and must not be held
+//!    back by an answer that takes five.
 //!  - **Words** go to Youdao's public dictionary. Sogou has a dictionary
 //!    endpoint too, but it is signed — `s` is a hash of the text plus a
 //!    `secretCode` lifted out of the page's initial state — and it is not a
@@ -27,10 +33,38 @@ const MAX_CHARS: usize = 2_000;
 const MAX_BYTES: usize = 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(30);
 
+/// The LLM path gets a longer ceiling than the phrase lookups.
+///
+/// `TIMEOUT` was sized for endpoints that answer in well under a second, and
+/// 30s is already far more than they ever need. A cold Pollinations call is
+/// 5–10s, and the anonymous tier makes callers queue behind one another on top
+/// of that, so the same 30s would abort requests that are still making progress.
+/// Nothing here is on the critical path — the machine translation is on screen
+/// before this even starts — so waiting is always better than timing out.
+const LLM_TIMEOUT: Duration = Duration::from_secs(60);
+
 const SOGOU_TRANSLATE: &str = "https://fanyi.sogou.com/api/transpc/hunyuan/translate";
 const SOGOU_HOME: &str = "https://fanyi.sogou.com/text";
 const YOUDAO_DICT: &str = "https://dict.youdao.com/jsonapi";
 const YOUDAO_VOICE: &str = "https://dict.youdao.com/dictvoice";
+const POLLINATIONS_CHAT: &str = "https://text.pollinations.ai/openai";
+
+/// The fastest model the anonymous tier offers. A translation does not need a
+/// reasoning model, and with one request per 15 seconds the latency is what the
+/// user actually feels.
+const LLM_MODEL: &str = "openai-fast";
+
+/// Low, because the same text is cached server-side for a while and a
+/// translation has one right answer; variety here is noise.
+const LLM_TEMPERATURE: f32 = 0.2;
+
+/// What a 402 — the anonymous tier's rate limit — is reported as.
+///
+/// The body on a 402 is nearly empty, so the status is the only thing to go on,
+/// and "wait a few seconds" is a different thing to tell the user than "this
+/// failed". The frontend matches on this wording, which is why it is a constant
+/// rather than a literal at the one place that produces it.
+const LLM_BUSY: &str = "llm busy";
 
 /// Both sites reject requests that do not look like they came from their own page.
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -81,9 +115,15 @@ pub struct WordEntry {
 }
 
 fn client() -> Result<reqwest::Client, String> {
+    client_with_timeout(TIMEOUT)
+}
+
+/// The same client with a different ceiling, for the one endpoint that is slow
+/// by nature rather than by accident.
+fn client_with_timeout(timeout: Duration) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent(USER_AGENT)
-        .timeout(TIMEOUT)
+        .timeout(timeout)
         .build()
         .map_err(|error| format!("http client: {error}"))
 }
@@ -185,6 +225,96 @@ fn parse_sogou(json: &Value, from: &str, to: &str) -> Result<Translation, String
             .unwrap_or(to)
             .to_string(),
     })
+}
+
+/// A second, LLM-backed translation of a sentence.
+///
+/// Separate from `translate` rather than folded into it: this one is slow, rate
+/// limited, and allowed to fail, and none of that may hold back or take down the
+/// machine answer the panel already has. Words never come here — the dictionary
+/// card is the better answer for a single word, and the anonymous tier allows
+/// only one request every 15 seconds.
+#[tauri::command(async)]
+pub async fn translate_llm(text: String, from: String, to: String) -> Result<String, String> {
+    let text = prepare(&text)?;
+    let response = client_with_timeout(LLM_TIMEOUT)?
+        .post(POLLINATIONS_CHAT)
+        .header("Accept", "application/json")
+        .json(&serde_json::json!({
+            "model": LLM_MODEL,
+            "temperature": LLM_TEMPERATURE,
+            "messages": [
+                { "role": "system", "content": llm_system_prompt(&from, &to) },
+                { "role": "user", "content": text },
+            ],
+        }))
+        .send()
+        .await
+        .map_err(|error| format!("llm request: {error}"))?;
+
+    if response.status().as_u16() == 402 {
+        return Err(LLM_BUSY.into());
+    }
+    if !response.status().is_success() {
+        return Err(format!("llm http {}", response.status().as_u16()));
+    }
+    let bytes = bounded(response).await?;
+    let json: Value =
+        serde_json::from_slice(&bytes).map_err(|error| format!("llm response: {error}"))?;
+    parse_pollinations(&json)
+}
+
+/// The instruction sent as the system message.
+///
+/// Written in English whichever way the translation goes: one instruction then
+/// covers all four targets, and the target is named in it, which is the part the
+/// model actually needs. `from` is offered as a hint only — `guessSourceLang`
+/// falls back to English for any text without a distinctive script, so the model
+/// is told to translate what it reads rather than what it is told.
+fn llm_system_prompt(from: &str, to: &str) -> String {
+    let target = language_name(to).unwrap_or(to);
+    let mut prompt = format!("Translate the text into {target}.");
+    if let Some(source) = language_name(from) {
+        prompt.push_str(&format!(
+            " It is most likely written in {source}, but translate the language it is actually in."
+        ));
+    }
+    prompt.push_str(" Reply with the translation only: no notes, no quotes, no original text.");
+    prompt
+}
+
+/// The language by name, because the codes here are Sogou's and `zh-CHS` means
+/// nothing to a model as the name of a language.
+fn language_name(code: &str) -> Option<&'static str> {
+    match code {
+        "zh-CHS" | "zh" => Some("Chinese"),
+        "en" => Some("English"),
+        "ja" => Some("Japanese"),
+        "ko" => Some("Korean"),
+        "th" => Some("Thai"),
+        "ru" => Some("Russian"),
+        _ => None,
+    }
+}
+
+/// Reads the answer out of an OpenAI-compatible body.
+///
+/// Only `choices[0].message.content` is the translation. The message also
+/// carries a `reasoning` field holding the model's chain of thought, and the
+/// body can carry one at the top level as well; neither is the answer, and
+/// neither is ever a fallback for a missing one — a page of reasoning where a
+/// translation belongs is worse than saying the call returned nothing.
+fn parse_pollinations(json: &Value) -> Result<String, String> {
+    json.get("choices")
+        .and_then(Value::as_array)
+        .and_then(|choices| choices.first())
+        .and_then(|choice| choice.get("message"))
+        .and_then(|message| message.get("content"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|content| !content.is_empty())
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| "llm returned nothing".to_string())
 }
 
 #[tauri::command(async)]
@@ -400,6 +530,74 @@ mod tests {
             "data": { "code": 1, "message": "不支持的语言" }
         });
         assert_eq!(parse_sogou(&json, "en", "xx").unwrap_err(), "不支持的语言");
+    }
+
+    #[test]
+    fn reads_a_pollinations_translation() {
+        let json = serde_json::json!({
+            "choices": [{
+                "index": 0,
+                "message": { "role": "assistant", "content": " 你好，世界。 " },
+                "finish_reason": "stop"
+            }]
+        });
+        assert_eq!(parse_pollinations(&json).unwrap(), "你好，世界。");
+    }
+
+    /// The body carries the model's chain of thought beside the answer. It is
+    /// not the translation, and it must never be what the panel shows.
+    #[test]
+    fn ignores_the_pollinations_reasoning_field() {
+        let json = serde_json::json!({
+            "reasoning": "The user wants this in Chinese, so I should…",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "reasoning": "First I identify the greeting, then…",
+                    "content": "你好"
+                }
+            }]
+        });
+        assert_eq!(parse_pollinations(&json).unwrap(), "你好");
+    }
+
+    /// A message whose only text is the reasoning has no translation in it, and
+    /// falling back to the chain of thought would put paragraphs of it on screen.
+    #[test]
+    fn reports_a_pollinations_answer_with_no_content() {
+        let json = serde_json::json!({
+            "reasoning": "thinking",
+            "choices": [{ "message": { "role": "assistant", "reasoning": "still thinking" } }]
+        });
+        assert_eq!(
+            parse_pollinations(&json).unwrap_err(),
+            "llm returned nothing"
+        );
+    }
+
+    #[test]
+    fn reports_a_pollinations_answer_that_is_only_whitespace() {
+        let json = serde_json::json!({
+            "choices": [{ "message": { "content": "   " } }]
+        });
+        assert!(parse_pollinations(&json).is_err());
+    }
+
+    /// A body with no `choices` at all is what an error payload looks like, and
+    /// it has to be reported rather than parsed into an empty translation.
+    #[test]
+    fn reports_a_pollinations_body_without_choices() {
+        let json = serde_json::json!({ "error": "rate limited" });
+        assert!(parse_pollinations(&json).is_err());
+    }
+
+    #[test]
+    fn names_the_target_language_in_the_instruction() {
+        let prompt = llm_system_prompt("en", "zh-CHS");
+        assert!(prompt.contains("Chinese"), "{prompt}");
+        assert!(prompt.contains("English"), "{prompt}");
+        // An unknown code still produces a usable instruction rather than a gap.
+        assert!(llm_system_prompt("en", "xx").contains("xx"));
     }
 
     #[test]

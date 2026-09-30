@@ -34,6 +34,24 @@ class TranslateStore {
   /** The backend's own message, shown under a mapped title. Empty means it said nothing useful. */
   error = $state<string | null>(null);
 
+  /**
+   * The LLM's translation, kept apart from the machine one on purpose.
+   *
+   * It arrives seconds later, and the anonymous tier answers 402 once a request
+   * has gone out in the last 15 seconds, so it is expected to fail sometimes.
+   * Nothing here may clear, block or fail what is already on screen.
+   */
+  llmText = $state<string | null>(null);
+  llmLoading = $state(false);
+  llmError = $state<string | null>(null);
+
+  /**
+   * Whether the LLM refused because of its rate limit rather than for a real
+   * reason. The backend reports that case as "llm busy" precisely so it can be
+   * told apart and worded as "try again shortly" instead of a failure.
+   */
+  readonly llmBusy = $derived(/busy/i.test(this.llmError ?? ""));
+
   private seq = 0;
   private done: Query | null = null;
   private inflight: Query | null = null;
@@ -51,6 +69,16 @@ class TranslateStore {
     const key = targetLabelKey(this.query.target);
     return key ? i18n.t(key) : this.query.target;
   });
+
+  /**
+   * Whether the text on screen has an LLM half at all.
+   *
+   * Words never do — the dictionary card is the better answer, and the rate
+   * limit is one request per 15 seconds — and neither does a word the dictionary
+   * did not know, which falls back to the sentence shape. The panel and the
+   * footer both read this so they agree on which shape is on screen.
+   */
+  readonly llmApplies = $derived(!isWordLike(this.query.text));
 
   /**
    * How long the target has to hold still before the text is re-translated.
@@ -112,15 +140,16 @@ class TranslateStore {
   sync(rest: string) {
     const text = rest.trim();
     if (text === this.done?.text || text === this.inflight?.text) return;
-    if (this.inflight) {
-      // The response is already stale; the sequence guard drops it when it lands.
-      this.seq += 1;
-      this.inflight = null;
-      this.loading = false;
-    }
+    // Everything in flight describes text that is no longer on screen, and the
+    // sequence guard drops it when it lands. The LLM call outlives the machine
+    // one by seconds, so this bump is what keeps it from landing afterwards.
+    this.seq += 1;
+    this.inflight = null;
+    this.loading = false;
     this.result = null;
     this.error = null;
     this.done = null;
+    this.clearLlm();
     // A run scheduled by a target change describes the text that was just
     // replaced, so it must not land.
     this.cancelScheduledRun();
@@ -141,7 +170,12 @@ class TranslateStore {
     this.loading = true;
     this.error = null;
     this.result = null;
+    this.clearLlm();
     this.stopAudio();
+    // Started here rather than after the machine answer: the two are
+    // independent, and awaiting this one would make the fast answer wait for
+    // the slow one — which is the whole reason there are two.
+    void this.runLlm(query, seq);
     const entry = this.lookup(query.text);
     try {
       const [word, translation] = await Promise.all([
@@ -167,6 +201,83 @@ class TranslateStore {
       this.loading = false;
       return false;
     }
+  }
+
+  /**
+   * The LLM translation, in flight beside the machine one.
+   *
+   * `seq` is the sequence number of the run that asked for it, not a counter of
+   * its own: this call outlives the machine call by seconds, which is exactly
+   * the window in which the text or the target can change, so it has to be
+   * dropped by the same guard.
+   */
+  private async runLlm(query: Query, seq: number): Promise<void> {
+    // A single word keeps the dictionary card and never reaches the LLM; this
+    // is the same rule `llmApplies` reports to the panel.
+    if (!this.llmApplies) return;
+    this.llmLoading = true;
+    this.llmError = null;
+    this.llmText = null;
+    try {
+      const answer = (
+        await invoke<string>("translate_llm", {
+          text: query.text,
+          from: query.source,
+          to: query.target,
+        })
+      ).trim();
+      if (this.stale(query, seq)) return;
+      if (answer) {
+        this.llmText = answer;
+      } else {
+        // A blank answer would leave the section labelled and empty, which
+        // reads as a rendering bug rather than as a call that came back with
+        // nothing.
+        this.llmError = "llm returned nothing";
+      }
+    } catch (err) {
+      if (this.stale(query, seq)) return;
+      this.llmError = message(err);
+    } finally {
+      // A superseded run leaves the flag to the run that replaced it.
+      if (!this.stale(query, seq)) this.llmLoading = false;
+    }
+  }
+
+  /**
+   * Whether a response has been overtaken.
+   *
+   * The sequence number alone is not enough for the LLM. Its answer can land
+   * inside the quarter second a Tab press waits for the target to stop moving —
+   * after the new target is chosen, before `run` has bumped the sequence — and
+   * showing the previous language's translation under the new target is exactly
+   * the surprise the footer is written to avoid.
+   */
+  private stale(query: Query, seq: number): boolean {
+    return seq !== this.seq || !sameQuery(query, this.query);
+  }
+
+  /** Drops the LLM half. The machine translation is left exactly as it is. */
+  private clearLlm() {
+    this.llmText = null;
+    this.llmError = null;
+    this.llmLoading = false;
+  }
+
+  /**
+   * Asks the LLM again for the text already on screen.
+   *
+   * Without this the rate limit would be a dead end: once a translation is up,
+   * Enter copies instead of re-running, and going through Tab would spend the
+   * machine request again for an answer that is already correct.
+   */
+  async retryLlm(): Promise<void> {
+    const query = this.done;
+    // Not while one is already in flight, and not for text that has moved on
+    // since the error was drawn — the request is rate limited, so it is worth
+    // not spending one on an answer that would be dropped on arrival.
+    if (this.llmLoading || !query || !sameQuery(query, this.query)) return;
+    await this.runLlm(query, this.seq);
   }
 
   /**
@@ -219,11 +330,32 @@ class TranslateStore {
     this.targetTimer = null;
   }
 
+  /**
+   * Enter: the LLM answer once it is ready, the machine one until then.
+   *
+   * The footer chip names which of the two this will take, so the switch from
+   * one to the other is never silent.
+   */
   async copy(): Promise<boolean> {
     if (this.loading) return false;
-    const text = this.result?.translation.text.trim();
-    if (!text) return false;
-    const ok = await writeClipboardText(text);
+    return this.copyText(this.llmText ?? this.result?.translation.text);
+  }
+
+  /** Ctrl+1: the machine translation, by name. */
+  async copyMachine(): Promise<boolean> {
+    if (this.loading) return false;
+    return this.copyText(this.result?.translation.text);
+  }
+
+  /** Ctrl+2: the LLM translation, by name. */
+  async copyLlm(): Promise<boolean> {
+    return this.copyText(this.llmText);
+  }
+
+  private async copyText(text: string | null | undefined): Promise<boolean> {
+    const value = text?.trim();
+    if (!value) return false;
+    const ok = await writeClipboardText(value);
     if (!ok) {
       ui.flash(i18n.t("copy.failed"));
       return false;

@@ -55,12 +55,16 @@
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
     if (event.key === "1") {
       event.preventDefault();
-      void translate.play("us");
+      // The same two keys carry the word card's accents and the sentence's two
+      // translations; only one of the two shapes is ever on screen.
+      if (translate.result?.entry) void translate.play("us");
+      else void translate.copyMachine();
       return;
     }
     if (event.key === "2") {
       event.preventDefault();
-      void translate.play("uk");
+      if (translate.result?.entry) void translate.play("uk");
+      else void translate.copyLlm();
     }
   }
 
@@ -68,10 +72,17 @@
   // panel's own state, so a key that would do nothing here is never advertised.
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
     const shortcuts: FooterShortcut[] = [];
+    // A sentence has two translations to copy, and these two keys name them; a
+    // word card has one and uses the same keys for its two accents instead.
+    const twoTranslations = translate.result !== null && translate.llmApplies;
     if (translate.loading) {
       // Enter is ignored while a request is in flight.
     } else if (translate.error !== null) {
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyRetry") });
+    } else if (translate.llmText) {
+      // Enter takes the LLM answer once it is here, which is a change from what
+      // the same key did a moment earlier — so the chip says which one it is.
+      shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyCopyLlm") });
     } else if (translate.result) {
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyCopyTranslation") });
     } else if (text) {
@@ -84,6 +95,15 @@
     }
     if (translate.hasAudio("uk")) {
       shortcuts.push({ keys: "Ctrl+2", label: i18n.t("translate.keyPlayUk") });
+    }
+    // The labels are the section labels from the body rather than "copy X",
+    // because the footer has to fit four chips and the language picker beside
+    // them; the key chips already read as "this key gives you that".
+    if (twoTranslations) {
+      shortcuts.push({ keys: "Ctrl+1", label: i18n.t("translate.machine") });
+    }
+    if (translate.llmText) {
+      shortcuts.push({ keys: "Ctrl+2", label: i18n.t("translate.llm") });
     }
     return shortcuts;
   });
@@ -187,11 +207,51 @@
           {/if}
         </ScrollArea>
       {:else}
-        <!-- A sentence gets the model's answer and nothing else. -->
-        <ScrollArea class="min-h-0 flex-1" viewportClass="pr-1">
-          <p class="text-[18px] font-medium leading-7 text-pretty text-ink">
-            {result.translation.text}
-          </p>
+        <!-- A sentence gets two answers: the machine one immediately, the LLM
+             one when it arrives. The source is already in the search bar above,
+             so neither repeats it, and the labels are what keeps the two apart
+             at a glance. Both live in the scroll area, so a long pair scrolls
+             instead of pushing the footer off the bottom. -->
+        <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col gap-2.5 pr-1">
+          <section class="px-1">
+            {#if translate.llmApplies}
+              <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.machine")}</p>
+            {/if}
+            <p class="mt-1 text-[17px] font-medium leading-6 text-pretty text-ink">
+              {result.translation.text}
+            </p>
+          </section>
+
+          {#if translate.llmApplies}
+            <section class="border-t border-hairline px-1 pt-2.5">
+              <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.llm")}</p>
+              {#if translate.llmText}
+                <p class="mt-1 text-[17px] font-medium leading-6 text-pretty text-ink">
+                  {translate.llmText}
+                </p>
+              {:else if translate.llmError}
+                <div class="mt-1 flex items-center gap-2">
+                  <p class="text-[13px] leading-5 text-pretty text-ink-subtle">
+                    {translate.llmBusy ? i18n.t("translate.llmBusy") : i18n.t("translate.llmFailed")}
+                  </p>
+                  <!-- The rate limit clears on its own within seconds, and the
+                       text is still on screen, so retrying is one click rather
+                       than a retype. -->
+                  <button
+                    type="button"
+                    class="pressable shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-4 text-ink-subtle hover:bg-surface-2 hover:text-ink active:scale-[0.97]"
+                    onclick={() => void translate.retryLlm()}
+                  >
+                    {i18n.t("translate.keyRetry")}
+                  </button>
+                </div>
+              {:else}
+                <p class="mt-1 text-[13px] leading-5 text-ink-subtle">
+                  {i18n.t("translate.llmLoading")}
+                </p>
+              {/if}
+            </section>
+          {/if}
         </ScrollArea>
       {/if}
     {:else}

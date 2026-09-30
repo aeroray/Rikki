@@ -347,6 +347,7 @@ export const zhCN = {
   "translate.loading": "翻译中…",
   "translate.keyTranslate": "翻译",
   "translate.keyCopyTranslation": "复制译文",
+  "translate.keyCopyLlm": "复制 AI 译文",
   "translate.keyCycleTarget": "切换目标语言",
   "translate.keyPlayUs": "美音",
   "translate.keyPlayUk": "英音",
@@ -356,6 +357,14 @@ export const zhCN = {
   "translate.examples": "例句",
   "translate.phonetic.uk": "英",
   "translate.phonetic.us": "美",
+  // A sentence gets both: the phrase-based answer the endpoint returns at once,
+  // and the LLM one that follows seconds later. The labels are also the footer's
+  // Ctrl+1 / Ctrl+2 chip text, which is why they are this short.
+  "translate.machine": "机翻",
+  "translate.llm": "AI 译文",
+  "translate.llmLoading": "AI 翻译中…",
+  "translate.llmFailed": "AI 翻译失败",
+  "translate.llmBusy": "AI 请求过于频繁，请稍后再试",
   "translate.network": "网络请求失败",
   "translate.failed": "翻译失败",
   "translate.language.zh": "中文",

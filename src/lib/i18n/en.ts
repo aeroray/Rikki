@@ -349,6 +349,7 @@ export const en: Record<MessageKey, string> = {
   "translate.loading": "Translating…",
   "translate.keyTranslate": "Translate",
   "translate.keyCopyTranslation": "Copy translation",
+  "translate.keyCopyLlm": "Copy AI",
   "translate.keyCycleTarget": "Switch target",
   "translate.keyPlayUs": "US audio",
   "translate.keyPlayUk": "UK audio",
@@ -358,6 +359,14 @@ export const en: Record<MessageKey, string> = {
   "translate.examples": "Examples",
   "translate.phonetic.uk": "UK",
   "translate.phonetic.us": "US",
+  // A sentence gets both: the phrase-based answer the endpoint returns at once,
+  // and the LLM one that follows seconds later. The labels are also the footer's
+  // Ctrl+1 / Ctrl+2 chip text, which is why they are this short.
+  "translate.machine": "Machine",
+  "translate.llm": "AI",
+  "translate.llmLoading": "Translating with AI…",
+  "translate.llmFailed": "AI translation failed",
+  "translate.llmBusy": "AI is busy — try again shortly",
   "translate.network": "The request failed",
   "translate.failed": "Translation failed",
   "translate.language.zh": "Chinese",
