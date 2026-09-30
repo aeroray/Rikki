@@ -89,6 +89,11 @@ class ClipboardStore {
       this.entries = this.entries.map((entry) =>
         entry.id === id ? { ...entry, pinned: !entry.pinned } : entry,
       );
+      // Pinning moves the row into the pinned block, which shifts every index
+      // after it. Re-point the selection by id, against the same list the panel
+      // renders, or the next Enter pastes whichever entry inherited the index.
+      const index = this.filtered(ui.commandRest).findIndex((entry) => entry.id === id);
+      if (index >= 0) this.selectedIndex = index;
       this.enqueueWrite();
     });
   }

@@ -36,6 +36,10 @@ export async function saveQrPng(): Promise<boolean> {
 }
 
 export async function copyQrDecode(): Promise<boolean> {
+  // Scanning is async and can still be running, or can have failed, so Enter is
+  // reachable with nothing to copy. Returning quietly matches the other copy
+  // helpers; flashing "copy failed" would invite a pointless retry.
+  if (!qrdecode.data) return false;
   return copyAndHide(qrdecode.data);
 }
 

@@ -19,7 +19,11 @@
   // permanent footer always describes the state the list is actually in.
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
     if (snippets.notice) return [];
+    // Nothing stored yet: the empty state already explains what to do.
     if (items.length === 0 && !querying) return [];
+    // A query with no hits leaves no row to act on, so copy/edit/delete would
+    // all be dead keys. Only creating is still possible.
+    if (items.length === 0) return [{ keys: "Ctrl+N", label: i18n.t("snippet.keyNew") }];
     return [
       { keys: "Enter", label: i18n.t("key.copy") },
       { keys: "Ctrl+N", label: i18n.t("snippet.keyNew") },

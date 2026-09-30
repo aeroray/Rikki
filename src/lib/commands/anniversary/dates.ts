@@ -103,6 +103,23 @@ function lunarDateFor(
       };
     }
   }
+
+  // A lunar month is 29 or 30 days, so day 30 is missing in roughly half of all
+  // years — 除夕 (month 12 day 30) is the everyday case. Returning null there
+  // left the row permanently reading "loading lunar data", with nothing to say
+  // the date was the problem. Day 29 always exists, and in a 29-day month it is
+  // the last day, which is exactly what 三十 denotes then, so clamp to it.
+  if (day > 29) {
+    for (const useLeap of attempts) {
+      const result = api.lunarToSolar(lunarYear, month, 29, useLeap);
+      if (result) {
+        return {
+          date: new Date(result.year, result.month - 1, result.day),
+          fallback: leapMonth && !useLeap,
+        };
+      }
+    }
+  }
   return null;
 }
 
@@ -425,11 +442,15 @@ export function draftTextFor(item: {
   month: number;
   day: number;
   calendar: AnniversaryCalendar;
+  leapMonth?: boolean;
   startYear?: number | null;
 }): string {
   const mm = String(item.month).padStart(2, "0");
   const dd = String(item.day).padStart(2, "0");
-  const prefix = item.calendar === "lunar" ? "n" : "";
+  // The leap-month marker has to survive the round trip. Without the `r`, the
+  // form re-parses a leap-month anniversary as the ordinary month, so opening
+  // one and pressing Ctrl+Enter silently moved it by about a month.
+  const prefix = item.calendar === "lunar" ? (item.leapMonth ? "nr" : "n") : "";
   if (item.startYear) return `${prefix}${item.startYear}${mm}${dd}`;
   return `${prefix}${mm}${dd}`;
 }

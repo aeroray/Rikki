@@ -6,6 +6,7 @@
     translateLangKey,
   } from "$lib/commands/translate/parse";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import KeyChip from "$lib/components/KeyChip.svelte";
   import { i18n } from "$lib/i18n";
   import { settings } from "$lib/stores/settings.svelte";
   import { ui } from "$lib/stores/ui.svelte";
@@ -147,8 +148,11 @@
         {i18n.t("settings.translate.openSignup")}
       </button>
     </ScrollArea>
-    <div class="px-3 pb-3 pt-1">
-      <p class="text-pretty text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("settings.translate.saveHint")}</p>
+    <div class="flex items-center justify-between gap-2 px-3 pb-3 pt-1">
+      <p class="text-pretty text-[11px] leading-4 text-ink-subtle">
+        {i18n.t("settings.translate.autoSave")}
+      </p>
+      <KeyChip keys="Esc" label={i18n.t("key.back")} />
     </div>
     {#if settings.notice}
       <p class="px-3 pb-3 text-[12px] leading-[1.4] text-ink-tertiary">{settings.notice}</p>

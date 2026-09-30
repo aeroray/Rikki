@@ -5,6 +5,7 @@
   import { anniversaries } from "$lib/stores/anniversaries.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
+  import KeyChip from "$lib/components/KeyChip.svelte";
 
   let titleEl: HTMLInputElement | undefined = $state();
   let dateEl: HTMLInputElement | undefined = $state();
@@ -149,8 +150,11 @@
       <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("anniversary.dateHint")}</p>
     {/if}
 
-    <div class="mt-auto flex items-center justify-between px-1">
-      <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("anniversary.saveHint")}</p>
+    <div class="mt-auto flex items-center justify-between gap-2 px-1">
+      <span class="flex items-center gap-3">
+        <KeyChip keys="Ctrl+Enter" label={i18n.t("key.save")} />
+        <KeyChip keys="Esc" label={i18n.t("key.back")} />
+      </span>
       <button
         type="submit"
         class="pressable flex h-10 items-center rounded-md px-2 text-[12px] leading-[1.4] {canSave

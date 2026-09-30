@@ -27,13 +27,16 @@
     if (outcome.reason === "empty" || outcome.reason === "pending") {
       return CALC_EXAMPLES.join("  ·  ");
     }
-    // The error branch already renders `calc.error` as its body text, so the
-    // footer stays empty rather than repeating the same sentence twice.
+    // The invalid and unavailable branches already render their own body text,
+    // so the footer stays empty rather than repeating the sentence twice.
     return null;
   });
 
   $effect(() => {
-    void calcEngine.ensure();
+    // The engine is a lazy chunk; a failed load is reported through
+    // `calcEngine.failed`, so swallow the rejection here rather than letting it
+    // surface as an unhandled promise rejection.
+    void calcEngine.ensure().catch(() => {});
   });
 
   const reduceMotion =
@@ -71,8 +74,12 @@
       >
         {outcome.display}
       </p>
-    {:else if outcome.reason === "empty" || outcome.reason === "pending"}
+    {:else if outcome.reason === "empty"}
       <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.emptyHint")}</p>
+    {:else if outcome.reason === "pending"}
+      <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.incomplete")}</p>
+    {:else if outcome.reason === "unavailable"}
+      <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.unavailable")}</p>
     {:else}
       <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.error")}</p>
     {/if}

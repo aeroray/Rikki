@@ -36,6 +36,7 @@
     handleAnniversaryEnter,
     startAnniversaryCreate,
   } from "$lib/commands/anniversary/actions";
+  import { parseAnniversaryScreen } from "$lib/commands/anniversary/parse";
   import { anniversaries } from "$lib/stores/anniversaries.svelte";
   import { json } from "$lib/stores/json.svelte";
 
@@ -155,21 +156,30 @@
         return;
       }
       const rows = anniversaryRows();
-      if (event.key === "ArrowDown" && rows.length > 0) {
-        event.preventDefault();
-        anniversaries.selectedIndex = Math.min(rows.length - 1, anniversaries.selectedIndex + 1);
-        return;
-      }
-      if (event.key === "ArrowUp" && rows.length > 0) {
-        event.preventDefault();
-        anniversaries.selectedIndex = Math.max(0, anniversaries.selectedIndex - 1);
-        return;
-      }
-      if (event.key === "Delete") {
-        event.preventDefault();
-        const row = rows[anniversaries.selectedIndex];
-        if (row) void anniversaries.remove(row.item.id);
-        return;
+      // The preview and invalid-date screens replace the list, but
+      // `anniversaryRows()` still returns every row there. Navigating or
+      // deleting would act on an entry the user cannot see, with nothing on
+      // screen changing to show it happened.
+      const listVisible = ["list", "filter"].includes(
+        parseAnniversaryScreen(ui.commandRest).type,
+      );
+      if (listVisible) {
+        if (event.key === "ArrowDown" && rows.length > 0) {
+          event.preventDefault();
+          anniversaries.selectedIndex = Math.min(rows.length - 1, anniversaries.selectedIndex + 1);
+          return;
+        }
+        if (event.key === "ArrowUp" && rows.length > 0) {
+          event.preventDefault();
+          anniversaries.selectedIndex = Math.max(0, anniversaries.selectedIndex - 1);
+          return;
+        }
+        if (event.key === "Delete") {
+          event.preventDefault();
+          const row = rows[anniversaries.selectedIndex];
+          if (row) void anniversaries.remove(row.item.id);
+          return;
+        }
       }
       if (event.key === "Enter") {
         event.preventDefault();
@@ -477,7 +487,9 @@
   }
 </script>
 
-<label class="search-glow m-3 flex items-center gap-2 rounded-lg bg-surface-1 px-4 py-3">
+<label
+  class="m-3 flex items-center gap-2 rounded-lg bg-surface-1 px-4 py-3 transition-shadow duration-150 ease-out focus-within:animate-[glowPulse_1.2s_ease-in-out_infinite] motion-reduce:focus-within:animate-none motion-reduce:focus-within:outline motion-reduce:focus-within:outline-1 motion-reduce:focus-within:outline-primary-focus/55"
+>
   <Search class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
   <span class="sr-only">{i18n.t("search.placeholder")}</span>
   <input

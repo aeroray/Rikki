@@ -1,4 +1,6 @@
 <script lang="ts">
+  import KeyChip from "$lib/components/KeyChip.svelte";
+
   /**
    * A pinned panel footer: shortcut chips on the left, optional status on the
    * right.
@@ -37,28 +39,28 @@
   } = $props();
 </script>
 
-<div class="flex shrink-0 items-center gap-3 border-t border-hairline px-3 py-2">
-  {#if shortcuts.length > 0}
-    <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
-      {#each shortcuts as shortcut (shortcut.keys + shortcut.label)}
-        <li class="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
-          <kbd
-            class="rounded bg-surface-2 px-1.5 py-[3px] font-sans text-[10px] leading-none text-ink-muted"
-          >
-            {shortcut.keys}
-          </kbd>
-          <span class="text-[11px] leading-4 text-ink-subtle">{shortcut.label}</span>
-        </li>
-      {/each}
-    </ul>
-  {/if}
+<!-- With neither shortcuts nor a message there is nothing to say, and a bare
+     hairline plus padding would just be a stray divider in the most cramped
+     states (an empty or invalid panel). -->
+{#if shortcuts.length > 0 || message}
+  <div class="flex shrink-0 items-center gap-3 border-t border-hairline px-3 py-2">
+    {#if shortcuts.length > 0}
+      <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
+        {#each shortcuts as shortcut (shortcut.keys + shortcut.label)}
+          <li>
+            <KeyChip keys={shortcut.keys} label={shortcut.label} />
+          </li>
+        {/each}
+      </ul>
+    {/if}
 
-  {#if message}
-    <p
-      class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle"
-      aria-live="polite"
-    >
-      {message}
-    </p>
-  {/if}
-</div>
+    {#if message}
+      <p
+        class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle"
+        aria-live="polite"
+      >
+        {message}
+      </p>
+    {/if}
+  </div>
+{/if}

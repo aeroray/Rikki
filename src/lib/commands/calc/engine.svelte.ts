@@ -6,12 +6,21 @@ type MathEngine = {
 
 class CalcEngine {
   ready = $state(false);
+  failed = $state(false);
   private math: MathEngine | null = null;
   private formatValueFn: ((value: unknown) => string) | null = null;
   private pending: Promise<void> | null = null;
 
   ensure(): Promise<void> {
-    this.pending ??= this.load();
+    this.pending ??= this.load().catch((error) => {
+      // Drop the cached promise so a later call can retry, and remember the
+      // failure: keeping a rejected promise here left `evaluate` answering
+      // "pending" forever, so the panel claimed to still be loading when the
+      // engine would never arrive.
+      this.pending = null;
+      this.failed = true;
+      throw error;
+    });
     return this.pending;
   }
 
@@ -19,8 +28,9 @@ class CalcEngine {
     const expr = normalize(raw);
     if (!expr) return { ok: false, reason: "empty" };
     if (isPending(expr)) return { ok: false, reason: "pending" };
+    if (this.failed) return { ok: false, reason: "unavailable" };
     if (!this.math || !this.formatValueFn) {
-      void this.ensure();
+      void this.ensure().catch(() => {});
       return { ok: false, reason: "pending" };
     }
 

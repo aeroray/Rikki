@@ -3,6 +3,10 @@ import { snippets } from "$lib/stores/snippets.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export function cancelSnippetDraft(): boolean {
+  // Guard on the view like every other drill-closing handler does. Without it,
+  // any panel whose rest happens to parse as `add` (e.g. `todo add milk`) gets
+  // hijacked: Esc jumps to the snippet composer and drops the typed text.
+  if (ui.view !== "snippet") return false;
   if (!snippets.draft && parseSnippetAction(ui.commandRest).type !== "add") {
     return false;
   }

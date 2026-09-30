@@ -3,6 +3,7 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
+  import KeyChip from "$lib/components/KeyChip.svelte";
   import { Check } from "@lucide/svelte";
 
   const canSave = $derived(
@@ -106,7 +107,10 @@
       <span class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("snippet.sensitiveHint")}</span>
     </button>
     <div class="flex items-center justify-between px-1">
-      <p class="text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("snippet.saveHint")}</p>
+      <span class="flex items-center gap-3">
+        <KeyChip keys="Ctrl+Enter" label={i18n.t("key.save")} />
+        <KeyChip keys="Esc" label={i18n.t("key.cancel")} />
+      </span>
       <button
         type="submit"
         class="pressable flex h-10 items-center rounded-md px-2 text-[12px] leading-[1.4] {canSave

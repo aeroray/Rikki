@@ -50,7 +50,9 @@
   const message = $derived(
     screen.type === "invalid"
       ? i18n.t("calendar.invalidDate", { text: screen.text })
-      : calendar.notice,
+      : screen.type === "lunar"
+        ? i18n.t("calendar.lunarUnsupported", { text: screen.text })
+        : calendar.notice,
   );
 
   $effect(() => {

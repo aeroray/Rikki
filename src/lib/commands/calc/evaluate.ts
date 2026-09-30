@@ -1,6 +1,6 @@
 export type CalcOutcome =
   | { ok: true; display: string }
-  | { ok: false; reason: "empty" | "pending" | "invalid" };
+  | { ok: false; reason: "empty" | "pending" | "invalid" | "unavailable" };
 
 export const CALC_EXAMPLES = [
   "3*4+5",
@@ -20,8 +20,10 @@ export function normalize(raw: string): string {
     .replaceAll("π", "(pi)")
     .replaceAll("Π", "(pi)")
     .replace(/√\s*\(/g, "sqrt(")
-    .replace(/√\s*(\d+(?:\.\d+)?)/g, "sqrt($1)")
-    .replaceAll("√", "sqrt")
+    // Wrap whatever follows, not just digits: the old `replaceAll("√", "sqrt")`
+    // fallback glued the radical onto the operand (`√x` became the undefined
+    // symbol `sqrtx`) instead of calling the function.
+    .replace(/√\s*(-?[\w.]+)/g, "sqrt($1)")
     .replaceAll("²", "^2")
     .replaceAll("³", "^3")
     .replaceAll("°", " deg");
