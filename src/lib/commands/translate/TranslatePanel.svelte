@@ -72,38 +72,37 @@
   // panel's own state, so a key that would do nothing here is never advertised.
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
     const shortcuts: FooterShortcut[] = [];
-    // A sentence has two translations to copy, and these two keys name them; a
-    // word card has one and uses the same keys for its two accents instead.
+    // A sentence has two translations and Enter takes the slow one, so both the
+    // key that copies it and the key that copies the other are named outright.
+    // "Copy translation" said nothing about which of the two was meant.
     const twoTranslations = translate.result !== null && translate.llmApplies;
     if (translate.loading) {
       // Enter is ignored while a request is in flight.
     } else if (translate.error !== null) {
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyRetry") });
     } else if (translate.llmReady) {
-      // Enter takes the AI answer once it is whole, which is a change from what
-      // the same key did a moment earlier — so the chip says which one it is.
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyCopyLlm") });
+      if (twoTranslations) {
+        shortcuts.push({ keys: "Shift+Enter", label: i18n.t("translate.keyCopyMachine") });
+      }
     } else if (translate.result) {
-      shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyCopyTranslation") });
+      // Nothing slow to copy yet, so Enter is unambiguously the fast one.
+      shortcuts.push({
+        keys: "Enter",
+        label: i18n.t(twoTranslations ? "translate.keyCopyMachine" : "translate.keyCopyTranslation"),
+      });
     } else if (text) {
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyTranslate") });
     }
     // Tab always has something to do, including before anything is typed.
     shortcuts.push({ keys: "Tab", label: i18n.t("translate.keyCycleTarget") });
+    // The accents keep their keys: a word card has no second translation for
+    // them to conflict with, and there is no other way to play a clip.
     if (translate.hasAudio("us")) {
       shortcuts.push({ keys: "Ctrl+1", label: i18n.t("translate.keyPlayUs") });
     }
     if (translate.hasAudio("uk")) {
       shortcuts.push({ keys: "Ctrl+2", label: i18n.t("translate.keyPlayUk") });
-    }
-    // The labels are the section labels from the body rather than "copy X",
-    // because the footer has to fit four chips and the language picker beside
-    // them; the key chips already read as "this key gives you that".
-    if (twoTranslations) {
-      shortcuts.push({ keys: "Ctrl+1", label: i18n.t("translate.machine") });
-    }
-    if (translate.llmReady) {
-      shortcuts.push({ keys: "Ctrl+2", label: i18n.t("translate.llm") });
     }
     return shortcuts;
   });

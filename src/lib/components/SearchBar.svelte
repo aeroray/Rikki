@@ -512,7 +512,7 @@
     if (ui.view === "translate") {
       if (event.key === "Enter") {
         event.preventDefault();
-        void translate.submit();
+        void translate.submit(event.shiftKey);
         return;
       }
     }

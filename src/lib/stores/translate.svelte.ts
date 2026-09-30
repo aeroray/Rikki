@@ -195,10 +195,15 @@ class TranslateStore {
   }
 
   /** Enter: copies a finished translation, and otherwise starts one. */
-  async submit(): Promise<boolean> {
+  async submit(standard = false): Promise<boolean> {
     const query = this.query;
     if (!query.text || this.loading) return false;
-    if (this.result && this.done && sameQuery(this.done, query)) return this.copy();
+    if (this.result && this.done && sameQuery(this.done, query)) {
+      // Enter takes the slow answer once it exists, because that is the one worth
+      // having; Shift is the way back to the fast one. Naming the target in the
+      // footer is what keeps that from being a surprise.
+      return standard ? this.copyMachine() : this.copy();
+    }
     return this.run(query);
   }
 
