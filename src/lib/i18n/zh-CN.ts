@@ -22,6 +22,9 @@ export const zhCN = {
   "key.add": "添加",
   "key.delete": "删除",
 
+  "confirm.title": "确认{action}？",
+  "confirm.body": "未保存的内容会丢失，且无法撤销。",
+
   "settings.title": "设置",
   "settings.engine": "默认搜索引擎",
   "settings.theme": "主题",
@@ -30,6 +33,7 @@ export const zhCN = {
   "settings.current": "当前: {value}",
   "settings.keySetDefault": "设为默认",
   "settings.keyDeleteCustom": "删除自定义",
+  "settings.engineDeleteBody": "这个自定义搜索引擎会被移除。",
   "settings.addEngine": "添加自定义引擎",
   "settings.language.system": "跟随系统",
   "settings.language.zh": "简体中文",
@@ -314,6 +318,7 @@ export const zhCN = {
   "snippet.all": "全部片段",
   "snippet.emptyHint": "sn add 或 Ctrl+N 新建",
   "snippet.keyNew": "新建",
+  "snippet.saveFailed": "无法保存片段，请再试一次",
   "snippet.edit": "编辑片段",
   "snippet.create": "新建片段",
   "snippet.title": "标题",

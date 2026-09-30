@@ -11,6 +11,11 @@ export interface Command {
   aliases?: string[];
   /** action: Enter runs immediately. panel (default): Enter opens the prefix UI. */
   mode?: "panel" | "action";
+  /**
+   * Ask before running. Reserved for action commands that cannot be undone —
+   * a mis-typed prefix should not be able to shut the machine down.
+   */
+  confirm?: boolean;
   run: (input: string) => void;
 }
 

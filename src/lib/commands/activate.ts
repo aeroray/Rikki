@@ -1,8 +1,14 @@
+import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 import type { Command } from "./types";
 
 export function isActionCommand(command: Command): boolean {
   return command.mode === "action";
+}
+
+/** The short name for a command, without the `中文 · English` pairing. */
+function shortTitle(command: Command): string {
+  return i18n.locale === "zh-CN" && command.titleZh ? command.titleZh : command.title;
 }
 
 export function activateCommand(command: Command): void {
@@ -17,6 +23,12 @@ export function activateCommand(command: Command): void {
   // back. Falling through completes the prefix instead, so the destructive
   // commands always need the prefix on screen and a second Enter.
   if (isActionCommand(command) && explicitlyMatched) {
+    // Commands that cannot be undone ask first, so a stray Enter on a completed
+    // prefix still does not shut the machine down.
+    if (command.confirm) {
+      ui.requestConfirm(shortTitle(command), () => command.run(""));
+      return;
+    }
     command.run("");
     return;
   }

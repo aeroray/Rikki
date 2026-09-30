@@ -20,6 +20,12 @@ class UiStore {
   shellExiting = $state(false);
   imagePreviewSrc = $state<string | null>(null);
   notice = $state<string | null>(null);
+  /**
+   * A destructive action waiting for a second Enter. Held as state rather than
+   * run straight away so `SearchBar` can route the next key to it.
+   */
+  pendingConfirm = $state<{ action: string; body: string } | null>(null);
+  private pendingConfirmRun: (() => void) | null = null;
   private pendingReset = false;
   private hideFlushers = new Set<() => void>();
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -102,7 +108,9 @@ class UiStore {
     if (!id || this.sessionCommandId === id) return;
     this.sessionCommandId = id;
     this.commandCounts = { ...this.commandCounts, [id]: (this.commandCounts[id] ?? 0) + 1 };
-    void invoke("bump_usage", { key: `${COMMAND_USAGE_PREFIX}${id}` });
+    // Usage counting is bookkeeping; a failure here (no Tauri runtime, or a bad
+    // key) must not surface as an unhandled rejection on every panel entry.
+    void invoke("bump_usage", { key: `${COMMAND_USAGE_PREFIX}${id}` }).catch(() => {});
   }
 
   leaveCommand() {
@@ -116,7 +124,26 @@ class UiStore {
     this.focusField = "search";
     this.imagePreviewSrc = null;
     this.notice = null;
+    this.cancelConfirm();
     this.showNonce += 1;
+  }
+
+  /** Arms a destructive action; `runConfirm` carries it out. */
+  requestConfirm(action: string, run: () => void, body: string = i18n.t("confirm.body")) {
+    this.pendingConfirmRun = run;
+    this.pendingConfirm = { action, body };
+  }
+
+  runConfirm() {
+    const run = this.pendingConfirmRun;
+    this.pendingConfirm = null;
+    this.pendingConfirmRun = null;
+    run?.();
+  }
+
+  cancelConfirm() {
+    this.pendingConfirm = null;
+    this.pendingConfirmRun = null;
   }
 
   flash(message: string) {
@@ -167,6 +194,7 @@ class UiStore {
     if (options?.reset) this.pendingReset = true;
     for (const flush of this.hideFlushers) flush();
     this.notice = null;
+    this.cancelConfirm();
     if (this.noticeTimer) {
       clearTimeout(this.noticeTimer);
       this.noticeTimer = null;

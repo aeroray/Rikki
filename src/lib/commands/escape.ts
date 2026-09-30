@@ -7,6 +7,12 @@ import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
 export function escapePalette(): void {
+  // The destructive-action dialog sits above everything else, so it gets the
+  // first refusal on Escape.
+  if (ui.pendingConfirm) {
+    ui.cancelConfirm();
+    return;
+  }
   if (ui.imagePreviewSrc) {
     ui.imagePreviewSrc = null;
     return;

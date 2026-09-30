@@ -20,6 +20,7 @@
   import CalendarPanel from "$lib/commands/calendar/CalendarPanel.svelte";
   import ClipPanel from "$lib/commands/clip/ClipPanel.svelte";
   import ClipConfirm from "$lib/commands/clip/ClipConfirm.svelte";
+  import ActionConfirm from "$lib/components/ActionConfirm.svelte";
   import ColorPanel from "$lib/commands/color/ColorPanel.svelte";
   import Base64Panel from "$lib/commands/base64/Base64Panel.svelte";
   import JsonPanel from "$lib/commands/json/JsonPanel.svelte";
@@ -184,6 +185,7 @@
 
   <ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
   <ClipConfirm />
+  <ActionConfirm />
 
   {#if ui.notice}
     <p class="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty text-ink outline outline-1 outline-hairline">

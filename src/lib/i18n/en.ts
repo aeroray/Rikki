@@ -24,6 +24,9 @@ export const en: Record<MessageKey, string> = {
   "key.add": "Add",
   "key.delete": "Delete",
 
+  "confirm.title": "Confirm {action}?",
+  "confirm.body": "Unsaved work will be lost, and this cannot be undone.",
+
   "settings.title": "Settings",
   "settings.engine": "Default search engine",
   "settings.theme": "Theme",
@@ -32,6 +35,7 @@ export const en: Record<MessageKey, string> = {
   "settings.current": "Current: {value}",
   "settings.keySetDefault": "Set default",
   "settings.keyDeleteCustom": "Delete custom",
+  "settings.engineDeleteBody": "This custom search engine will be removed.",
   "settings.addEngine": "Add a custom engine",
   "settings.language.system": "System",
   "settings.language.zh": "简体中文",
@@ -316,6 +320,7 @@ export const en: Record<MessageKey, string> = {
   "snippet.all": "All snippets",
   "snippet.emptyHint": "sn add or Ctrl+N to create",
   "snippet.keyNew": "New",
+  "snippet.saveFailed": "Couldn’t save the snippet. Try again",
   "snippet.edit": "Edit snippet",
   "snippet.create": "New snippet",
   "snippet.title": "Title",
