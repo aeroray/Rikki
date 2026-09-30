@@ -1,9 +1,11 @@
 <script lang="ts">
   import { copyTimestampValue } from "$lib/commands/timestamp/actions";
   import { inspectTimestamp, type TimestampInspect } from "$lib/commands/timestamp/parse";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import { i18n } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
+  import { Clock } from "@lucide/svelte";
 
   const inspected = $derived(inspectTimestamp(ui.commandRest));
   const rows = $derived(inspected.ok ? resultRows(inspected) : []);
@@ -67,14 +69,15 @@
         {/each}
       </ul>
     {:else if inspected.empty}
-      <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("ts.emptyHint")}</p>
-      <p class="mt-3 px-1 font-sans text-[13px] leading-6 text-ink-subtle">
-        <span class="block">ts 1724860000</span>
-        <span class="block">ts 1724860000000</span>
-        <span class="block">ts 2026-08-29</span>
-        <span class="block">ts 2026-08-29 15:13:20</span>
-        <span class="block">ts {i18n.locale === "zh-CN" ? "今天" : "now"}</span>
-      </p>
+      <PanelEmpty class="flex-1" icon={Clock} hint={i18n.t("ts.emptyHint")}>
+        <p class="mt-2 font-sans text-[13px] leading-6 text-ink-subtle">
+          <span class="block">ts 1724860000</span>
+          <span class="block">ts 1724860000000</span>
+          <span class="block">ts 2026-08-29</span>
+          <span class="block">ts 2026-08-29 15:13:20</span>
+          <span class="block">ts {i18n.locale === "zh-CN" ? "今天" : "now"}</span>
+        </p>
+      </PanelEmpty>
     {:else}
       <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("ts.invalid")}</p>
     {/if}

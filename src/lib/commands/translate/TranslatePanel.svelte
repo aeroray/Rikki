@@ -2,6 +2,7 @@
   import type { Accent } from "$lib/stores/translate.svelte";
   import { translate } from "$lib/stores/translate.svelte";
   import { SUPPORTED_TARGETS } from "$lib/commands/translate/parse";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
@@ -290,15 +291,7 @@
         </ScrollArea>
       {/if}
     {:else}
-      <!-- A hint alone, vertically centred in a tall empty column, reads as
-           something that failed to load. The icon and the centring say the
-           space is meant to be empty. -->
-      <div class="flex flex-1 flex-col items-center justify-center gap-2 px-1 text-center">
-        <Languages class="size-5 text-ink-tertiary" strokeWidth={1.5} aria-hidden="true" />
-        <p class="max-w-[36ch] text-[13px] leading-5 text-pretty text-ink-subtle">
-          {i18n.t("translate.hint")}
-        </p>
-      </div>
+      <PanelEmpty class="flex-1" icon={Languages} hint={i18n.t("translate.hint")} />
     {/if}
   </div>
 

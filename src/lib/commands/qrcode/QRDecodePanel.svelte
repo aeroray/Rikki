@@ -1,12 +1,14 @@
 <script lang="ts">
   import { scanQrDecode, scanQrFromBlob } from "$lib/commands/qrcode/actions";
   import { payloadKind } from "$lib/commands/qrcode/generate";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { qrdecode } from "$lib/stores/qrdecode.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { ScanQrCode } from "@lucide/svelte";
   import { onDestroy } from "svelte";
 
   const kind = $derived(qrdecode.data ? payloadKind(qrdecode.data) : "text");
@@ -64,11 +66,21 @@
         </p>
       </ScrollArea>
     {:else if qrdecode.reason === "empty"}
-      <p class="px-1 text-[14px] leading-5 text-ink">{i18n.t("qr.decodeEmptyTitle")}</p>
-      <p class="mt-2 px-1 text-pretty text-[13px] leading-5 text-ink-subtle">{i18n.t("qr.decodeEmptyBody")}</p>
+      <PanelEmpty
+        class="flex-1"
+        icon={ScanQrCode}
+        title={i18n.t("qr.decodeEmptyTitle")}
+        hint={i18n.t("qr.decodeEmptyBody")}
+      />
     {:else}
-      <p class="px-1 text-[14px] leading-5 text-ink">{i18n.t("qr.decodeNoneTitle")}</p>
-      <p class="mt-2 px-1 text-pretty text-[13px] leading-5 text-ink-subtle">{i18n.t("qr.decodeNoneBody")}</p>
+      <!-- The same block as the empty state above: an image with no QR code in
+           it is this panel with different copy, not a different screen. -->
+      <PanelEmpty
+        class="flex-1"
+        icon={ScanQrCode}
+        title={i18n.t("qr.decodeNoneTitle")}
+        hint={i18n.t("qr.decodeNoneBody")}
+      />
     {/if}
   </div>
 

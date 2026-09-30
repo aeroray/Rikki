@@ -4,6 +4,7 @@
   import AnniversaryItem from "$lib/commands/anniversary/AnniversaryItem.svelte";
   import AnniversaryPreview from "$lib/commands/anniversary/AnniversaryPreview.svelte";
   import { parseAnniversaryScreen } from "$lib/commands/anniversary/parse";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
@@ -72,27 +73,25 @@
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-1">
       {#if anniversaries.items.length === 0}
-        <div class="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <span class="flex size-10 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
-            <CalendarHeart class="size-4" strokeWidth={1.5} aria-hidden="true" />
-          </span>
-          <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("anniversary.emptyTitle")}</p>
-          <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">
-            {i18n.t("anniversary.emptyBody")}
-          </p>
+        <PanelEmpty
+          class="flex-1"
+          icon={CalendarHeart}
+          title={i18n.t("anniversary.emptyTitle")}
+          hint={i18n.t("anniversary.emptyBody")}
+        >
           <button
             type="button"
-            class="pressable mt-4 flex h-10 items-center gap-2 rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
+            class="pressable mt-3 flex h-10 items-center gap-2 rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
             onclick={() => startAnniversaryCreate()}
           >
             {i18n.t("anniversary.emptyCreate")}
           </button>
-          <p class="mt-3 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
+          <p class="mt-2 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
             <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">ann 10-01</kbd>
             <span>{i18n.t("anniversary.or")}</span>
             <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">Ctrl+N</kbd>
           </p>
-        </div>
+        </PanelEmpty>
       {:else if visible.length === 0}
         <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">
           {i18n.t("anniversary.noMatch")}

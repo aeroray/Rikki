@@ -1,9 +1,11 @@
 <script lang="ts">
   import { inspectBase64 } from "$lib/commands/base64/parse";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
+  import { Binary } from "@lucide/svelte";
 
   const inspected = $derived(inspectBase64(ui.searchText, ui.commandRest));
 
@@ -36,9 +38,11 @@
         </p>
       </ScrollArea>
     {:else if inspected.empty}
-      <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">
-        {inspected.mode === "decode" ? i18n.t("base64.emptyDecode") : i18n.t("base64.emptyEncode")}
-      </p>
+      <PanelEmpty
+        class="flex-1"
+        icon={Binary}
+        hint={inspected.mode === "decode" ? i18n.t("base64.emptyDecode") : i18n.t("base64.emptyEncode")}
+      />
     {:else}
       <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("base64.invalid")}</p>
     {/if}

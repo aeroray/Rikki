@@ -1,12 +1,13 @@
 <script lang="ts">
   import { CALC_EXAMPLES } from "$lib/commands/calc/evaluate";
   import { calcEngine } from "$lib/commands/calc/engine.svelte";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { calcHistory } from "$lib/stores/calcHistory.svelte";
   import { ui } from "$lib/stores/ui.svelte";
-  import { Trash2 } from "@lucide/svelte";
+  import { Calculator, Trash2 } from "@lucide/svelte";
   import { fly } from "svelte/transition";
 
   const outcome = $derived.by(() => {
@@ -75,7 +76,10 @@
         {outcome.display}
       </p>
     {:else if outcome.reason === "empty"}
-      <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.emptyHint")}</p>
+      <!-- No `flex-1`: the history section below shares this column, so the
+           empty state keeps its place in the flow rather than taking the
+           leftover height. -->
+      <PanelEmpty class="mt-3" icon={Calculator} hint={i18n.t("calc.emptyHint")} />
     {:else if outcome.reason === "pending"}
       <p class="mt-3 px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("calc.incomplete")}</p>
     {:else if outcome.reason === "unavailable"}

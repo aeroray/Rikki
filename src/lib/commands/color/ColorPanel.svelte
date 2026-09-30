@@ -3,11 +3,13 @@
   import ColorSwatch from "$lib/commands/color/ColorSwatch.svelte";
   import { colorQuery, parseColor, type ParsedColor } from "$lib/commands/color/parse";
   import { recentColors } from "$lib/commands/color/recents";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { Droplet } from "@lucide/svelte";
 
   const query = $derived(colorQuery(ui.searchText, ui.commandRest, ui.matchedCommand?.id ?? null));
   const parsed = $derived(parseColor(query));
@@ -61,7 +63,10 @@
       {:else if query}
         <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.invalid")}</p>
       {:else}
-        <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.emptyHint")}</p>
+        <!-- The recent-colours strip below shares this scroll column, so the
+             empty state stays in the flow instead of taking the leftover
+             height. -->
+        <PanelEmpty icon={Droplet} hint={i18n.t("color.emptyHint")} />
       {/if}
 
       <div class="mt-4">

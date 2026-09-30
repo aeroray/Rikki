@@ -47,10 +47,17 @@
 </script>
 
 {#if confirm}
-  <div class="absolute inset-0 z-40 flex items-center justify-center">
+  <!-- The overlay layer is the window's shape, and the backdrop paints that
+       shape itself. `backdrop-filter` makes the backdrop a composited layer, so
+       its rounded edge has to travel with the layer: the shell's
+       `overflow-hidden` above it is an ancestor clip the compositor is free to
+       drop, and the corners that escape then show as four square patches in the
+       transparent gutter around the window. The wrapper carries the radius only
+       so the backdrop's `rounded-[inherit]` has something to inherit. -->
+  <div class="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit]">
     <button
       type="button"
-      class="absolute inset-0 bg-black/55 backdrop-blur-xl"
+      class="absolute inset-0 rounded-[inherit] bg-black/55 backdrop-blur-xl"
       aria-label={i18n.t("key.cancel")}
       onclick={() => ui.cancelConfirm()}
       in:fade={{ duration: reduceMotion ? 0 : 150 }}

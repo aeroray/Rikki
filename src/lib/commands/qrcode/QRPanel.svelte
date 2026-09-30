@@ -1,8 +1,10 @@
 <script lang="ts">
   import { generateQrSvg } from "$lib/commands/qrcode/generate";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import { i18n } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
+  import { QrCode } from "@lucide/svelte";
 
   const text = $derived(ui.commandRest.trim());
   let svg = $state("");
@@ -66,11 +68,12 @@
     {:else if failed}
       <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("qr.invalid")}</p>
     {:else}
-      <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("qr.emptyHint")}</p>
-      <p class="mt-3 px-1 font-sans text-[13px] leading-6 text-ink-subtle">
-        <span class="block">qr https://example.com</span>
-        <span class="block">qr WIFI:T:WPA;S:Rikki;P:secret;;</span>
-      </p>
+      <PanelEmpty class="flex-1" icon={QrCode} hint={i18n.t("qr.emptyHint")}>
+        <p class="mt-2 font-sans text-[13px] leading-6 text-ink-subtle">
+          <span class="block">qr https://example.com</span>
+          <span class="block">qr WIFI:T:WPA;S:Rikki;P:secret;;</span>
+        </p>
+      </PanelEmpty>
     {/if}
   </div>
 

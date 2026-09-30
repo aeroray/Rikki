@@ -3,6 +3,7 @@
   import { parseSnippetAction, snippetListQuery } from "$lib/commands/snippet/parse";
   import SnippetCreate from "$lib/commands/snippet/SnippetCreate.svelte";
   import SnippetItem from "$lib/commands/snippet/SnippetItem.svelte";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import { i18n } from "$lib/i18n";
@@ -68,27 +69,25 @@
         {#if querying}
           <p class="px-1 py-6 text-center text-[13px] leading-5 text-ink-subtle">{i18n.t("snippet.noMatch")}</p>
         {:else}
-          <div class="flex flex-1 flex-col items-center justify-center px-6 text-center">
-            <span class="flex size-10 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
-              <FileText class="size-4" strokeWidth={1.5} aria-hidden="true" />
-            </span>
-            <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("snippet.emptyTitle")}</p>
-            <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">
-              {i18n.t("snippet.emptyBody")}
-            </p>
+          <PanelEmpty
+            class="flex-1"
+            icon={FileText}
+            title={i18n.t("snippet.emptyTitle")}
+            hint={i18n.t("snippet.emptyBody")}
+          >
             <button
               type="button"
-              class="pressable mt-4 flex h-10 items-center gap-2 rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
+              class="pressable mt-3 flex h-10 items-center gap-2 rounded-md bg-surface-1 px-3 text-[14px] leading-5 text-ink hover:bg-surface-2 active:scale-[0.96]"
               onclick={() => startSnippetCreate()}
             >
               {i18n.t("snippet.emptyCreate")}
             </button>
-            <p class="mt-3 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
+            <p class="mt-2 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
               <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">sn add</kbd>
               <span>{i18n.t("snippet.or")}</span>
               <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">Ctrl+N</kbd>
             </p>
-          </div>
+          </PanelEmpty>
         {/if}
       {:else}
         <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">

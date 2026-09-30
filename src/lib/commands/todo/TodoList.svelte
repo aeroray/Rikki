@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { todos } from "$lib/stores/todos.svelte";
@@ -61,15 +62,12 @@
   </div>
 
   {#if todos.todos.length === 0}
-    <div class="flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <span class="flex size-10 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
-        <ListTodo class="size-4" strokeWidth={1.5} aria-hidden="true" />
-      </span>
-      <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("todo.emptyTitle")}</p>
-      <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">
-        {i18n.t("todo.empty")}
-      </p>
-    </div>
+    <PanelEmpty
+      class="flex-1"
+      icon={ListTodo}
+      title={i18n.t("todo.emptyTitle")}
+      hint={i18n.t("todo.empty")}
+    />
   {:else}
     <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col">
       <ul class="flex flex-col gap-1 pr-1">

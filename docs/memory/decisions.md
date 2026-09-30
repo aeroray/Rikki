@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - One empty state for every panel, and the backdrop carries its own corners
+Decision:
+Every command panel's empty state is `components/PanelEmpty.svelte`: an `ink-tertiary` 16px-stroke icon over a centred 13px block, `title` and `hint` both kept where both exist. A panel whose empty state shares its column with a second section (calc's history, color's recent strip) passes no `flex-1`, so the state stays in the flow. The three modal backdrops (`ActionConfirm`, `ClipConfirm`, `ImagePreview`) put `rounded-[inherit]` on the overlay wrapper and on the `bg-black/55 backdrop-blur-xl` layer itself.
+Reason:
+A hint alone, centred in a tall empty column, reads as something that failed to load, and eleven panels each had their own version of that idea, so the size, colour and measure now exist once. The backdrop is a composited `backdrop-filter` layer: its rounded edge has to travel with the layer rather than depend on the shell's `overflow-hidden` two levels above it, which is where four square corners can leak into the transparent gutter.
+Note:
+Measured in the running app (WebView2 154 / Chrome 154), not reasoned about: each overlay's containing block is the inner `relative … overflow-hidden rounded-[inherit]` div (12px), not the outer `p-2` div, and the mask is already clipped correctly there. The layer's own radius is therefore a robustness fix in that engine, not a visible change — the corner pixels move by at most 13/765.
+
 ## 2026-09-30 - Icon caches are versioned, and only placeholders get a background
 Decision:
 ICON_FORMAT_VERSION is part of the icon filename (2-{hash}.png), and the icon

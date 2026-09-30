@@ -3,6 +3,7 @@
   import EmojiGrid from "$lib/commands/emoji/EmojiGrid.svelte";
   import { emojiCategoryLabel } from "$lib/commands/emoji/categories";
   import { parseEmojiScreen } from "$lib/commands/emoji/parse";
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
@@ -158,13 +159,12 @@
         <EmojiGrid {items} />
       </ScrollArea>
     {:else if !overlay}
-      <div class="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <span class="flex size-10 items-center justify-center rounded-md bg-surface-1 text-ink-muted">
-          <Smile class="size-4" strokeWidth={1.5} aria-hidden="true" />
-        </span>
-        <p class="mt-3 text-[14px] font-medium leading-5 text-ink">{i18n.t("emoji.emptyTitle")}</p>
-        <p class="mt-2 max-w-[20rem] text-pretty text-[13px] leading-5 text-ink-subtle">{i18n.t("emoji.emptyBody")}</p>
-      </div>
+      <PanelEmpty
+        class="flex-1"
+        icon={Smile}
+        title={i18n.t("emoji.emptyTitle")}
+        hint={i18n.t("emoji.emptyBody")}
+      />
     {:else}
       <div class="min-h-0 flex-1"></div>
     {/if}

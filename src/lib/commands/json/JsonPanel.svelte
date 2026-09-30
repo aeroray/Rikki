@@ -1,9 +1,11 @@
 <script lang="ts">
+  import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import { i18n } from "$lib/i18n";
   import { json } from "$lib/stores/json.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { Braces } from "@lucide/svelte";
   import { onDestroy } from "svelte";
 
   let editor: HTMLTextAreaElement | undefined = $state();
@@ -149,7 +151,7 @@
         </button>
       </ScrollArea>
     {:else if inspected.empty}
-      <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("json.emptyHint")}</p>
+      <PanelEmpty class="flex-1" icon={Braces} hint={i18n.t("json.emptyHint")} />
     {:else}
       <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("json.invalid")}</p>
       <!-- V8 omits the position for several common errors (`[1,2,]`, a bare
