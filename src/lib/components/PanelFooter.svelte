@@ -10,6 +10,11 @@
    *
    * Keys are rendered as chips because they are keyboard glyphs, not prose, and
    * reading "PgUp/PgDn 换月" is far faster than parsing a run-on sentence.
+   *
+   * Text stays on `ink-subtle`: DESIGN.md maps it to "hints, icons", while
+   * `ink-tertiary` only reaches 3.1–3.5:1 on the palette background, below
+   * WCAG AA for text this size. The key chips use `ink-muted` on `surface-2`,
+   * which clears AA comfortably.
    */
   export type FooterShortcut = {
     /** The key or key combination, e.g. `↑↓` or `Ctrl+N`. Not translated. */
@@ -23,20 +28,18 @@
     message = null,
   }: {
     shortcuts?: FooterShortcut[];
-    /** Replaces the shortcuts when set, e.g. an error or a confirmation. */
+    /**
+     * A note, error or confirmation. Shown alone when there are no shortcuts,
+     * and otherwise right-aligned beside them, since a panel often wants both a
+     * hint and a remark about the current state.
+     */
     message?: string | null;
   } = $props();
 </script>
 
-<div
-  class="flex shrink-0 items-center gap-3 border-t border-hairline px-3 py-2"
-  role="status"
-  aria-live="polite"
->
-  {#if message}
-    <p class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle">{message}</p>
-  {:else}
-    <ul class="flex min-w-0 flex-1 items-center gap-x-3 overflow-hidden">
+<div class="flex shrink-0 items-center gap-3 border-t border-hairline px-3 py-2">
+  {#if shortcuts.length > 0}
+    <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
       {#each shortcuts as shortcut (shortcut.keys + shortcut.label)}
         <li class="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
           <kbd
@@ -48,5 +51,14 @@
         </li>
       {/each}
     </ul>
+  {/if}
+
+  {#if message}
+    <p
+      class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle"
+      aria-live="polite"
+    >
+      {message}
+    </p>
   {/if}
 </div>

@@ -3,6 +3,7 @@
   import ColorSwatch from "$lib/commands/color/ColorSwatch.svelte";
   import { colorQuery, parseColor, type ParsedColor } from "$lib/commands/color/parse";
   import { recentColors } from "$lib/commands/color/recents";
+  import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { clipboard } from "$lib/stores/clipboard.svelte";
@@ -12,6 +13,17 @@
   const parsed = $derived(parseColor(query));
   const recents = $derived(recentColors(clipboard.entries));
   const formats = $derived(parsed ? formatRows(parsed) : []);
+
+  // Key glyphs are not translated: they name physical keys, which read the same
+  // in every locale. Enter copies HEX, so the chips only appear while the query
+  // actually parses to a colour.
+  const footerShortcuts = $derived.by((): FooterShortcut[] =>
+    parsed ? [{ keys: "Enter", label: i18n.t("color.keyCopyHex") }] : [],
+  );
+
+  const footerMessage = $derived.by((): string | null =>
+    parsed ? i18n.t("color.noteAnyFormat") : null,
+  );
 
   function formatRows(color: ParsedColor): Array<{ id: string; label: string; value: string }> {
     return [
@@ -24,63 +36,68 @@
   }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-1">
-  <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col">
-    {#if parsed}
-      <ColorSwatch color={parsed} />
-      <ul class="mt-4 flex flex-col gap-1">
-        {#each formats as row (row.id)}
-          <li>
-            <button
-              type="button"
-              class="row-hit flex w-full items-center gap-2 px-3 py-2 text-left active:scale-[0.96]"
-              onclick={() => void copyColorValue(row.value)}
-            >
-              <span class="w-12 shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{row.label}</span>
-              <span class="min-w-0 flex-1 truncate text-[13px] leading-5 text-ink">{row.value}</span>
-              <span class="shrink-0 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("color.copy")}</span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-      <p class="palette-hint">{i18n.t("color.copyHint")}</p>
-    {:else if query}
-      <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.invalid")}</p>
-    {:else}
-      <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.emptyHint")}</p>
-    {/if}
-
-    <div class="mt-4">
-      <p class="mb-2 px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("color.recent")}</p>
-      {#if recents.length === 0}
-        <p class="px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("color.recentEmpty")}</p>
-      {:else}
-        <ul class="flex flex-wrap gap-2 px-1 pb-1">
-          {#each recents as color (color.hex)}
+<!-- The footer is a sibling of the content column, not inside it, so it stays
+     pinned to the bottom however long the recents strip grows. -->
+<div class="flex min-h-0 flex-1 flex-col">
+  <div class="flex min-h-0 flex-1 flex-col px-3 pt-1">
+    <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col">
+      {#if parsed}
+        <ColorSwatch color={parsed} />
+        <ul class="mt-4 flex flex-col gap-1">
+          {#each formats as row (row.id)}
             <li>
               <button
                 type="button"
-                class="row-hit flex w-[4.5rem] flex-col items-center gap-1 p-1 text-left active:scale-[0.96]"
-                aria-label={i18n.t("color.useRecent", { hex: color.hex })}
-                onclick={() => applyRecentColor(color.hex)}
+                class="row-hit flex w-full items-center gap-2 px-3 py-2 text-left active:scale-[0.96]"
+                onclick={() => void copyColorValue(row.value)}
               >
-                <span
-                  class="relative size-8 overflow-hidden rounded-md media-outline"
-                  class:color-check={color.rgba.a < 1 - 0.5 / 255}
-                  aria-hidden="true"
-                >
-                  <span class="absolute inset-0" style="background-color: {color.rgbaCss}"></span>
-                </span>
-                <span class="w-full truncate text-center text-[11px] leading-[1.3] text-ink-tertiary tabular-nums">
-                  {color.hex}
-                </span>
+                <span class="w-12 shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{row.label}</span>
+                <span class="min-w-0 flex-1 truncate text-[13px] leading-5 text-ink">{row.value}</span>
+                <span class="shrink-0 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("color.copy")}</span>
               </button>
             </li>
           {/each}
         </ul>
+      {:else if query}
+        <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.invalid")}</p>
+      {:else}
+        <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.emptyHint")}</p>
       {/if}
-    </div>
-  </ScrollArea>
+
+      <div class="mt-4">
+        <p class="mb-2 px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("color.recent")}</p>
+        {#if recents.length === 0}
+          <p class="px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("color.recentEmpty")}</p>
+        {:else}
+          <ul class="flex flex-wrap gap-2 px-1 pb-1">
+            {#each recents as color (color.hex)}
+              <li>
+                <button
+                  type="button"
+                  class="row-hit flex w-[4.5rem] flex-col items-center gap-1 p-1 text-left active:scale-[0.96]"
+                  aria-label={i18n.t("color.useRecent", { hex: color.hex })}
+                  onclick={() => applyRecentColor(color.hex)}
+                >
+                  <span
+                    class="relative size-8 overflow-hidden rounded-md media-outline"
+                    class:color-check={color.rgba.a < 1 - 0.5 / 255}
+                    aria-hidden="true"
+                  >
+                    <span class="absolute inset-0" style="background-color: {color.rgbaCss}"></span>
+                  </span>
+                  <span class="w-full truncate text-center text-[11px] leading-[1.3] text-ink-tertiary tabular-nums">
+                    {color.hex}
+                  </span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    </ScrollArea>
+  </div>
+
+  <PanelFooter shortcuts={footerShortcuts} message={footerMessage} />
 </div>
 
 <style>
