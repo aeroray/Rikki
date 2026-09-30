@@ -1,6 +1,6 @@
 <script lang="ts">
   import { lunarApi } from "$lib/commands/anniversary/lunar";
-  import { dateKey, dayDelta, today, type SolarDate } from "$lib/commands/calendar/grid";
+  import { dayDelta, today, type SolarDate } from "$lib/commands/calendar/grid";
   import { calendar } from "$lib/stores/calendar.svelte";
   import { i18n } from "$lib/i18n";
 
@@ -48,8 +48,9 @@
   <span class="shrink-0 text-[13px] font-medium leading-4 text-ink tabular-nums">
     {i18n.t("calendar.selected", { year: date.year, month: date.month, day: date.day })}
   </span>
+  <!-- No ISO date on the right: the left side already spells the date out, so
+       it was the same value twice and it squeezed this line into truncation. -->
   <span class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle">
     {parts.join(" · ")}
   </span>
-  <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">{dateKey(date)}</span>
 </div>

@@ -43,7 +43,9 @@ export function occurrenceMeta(item: Anniversary, occurrence: Occurrence | null)
     if (lunar) parts.push(lunar);
   }
 
-  if (occurrence.ordinal !== null) parts.push(i18n.t("anniversary.years", { n: occurrence.ordinal }));
+  // The anniversary number is deliberately NOT part of this line: the row shows
+  // it beside the countdown, where it clearly belongs to the upcoming date
+  // rather than reading as the current age.
 
   return parts.join(" · ");
 }
@@ -88,10 +90,13 @@ export function previewLines(
     });
   }
 
-  if (occurrence.ordinal !== null) {
+  if (occurrence.ordinal !== null && occurrence.ordinal >= 1) {
     lines.push({
       id: "ordinal",
       label: i18n.t("anniversary.ordinal"),
+      // Spelled out as "the Nth anniversary", i.e. what the countdown is
+      // counting down to, rather than a bare "year N" that reads as the
+      // present.
       value: i18n.t("anniversary.years", { n: occurrence.ordinal }),
     });
   }

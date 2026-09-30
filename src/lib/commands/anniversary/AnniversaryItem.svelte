@@ -56,12 +56,20 @@
       </span>
     </span>
     {#if occurrence}
-      <span
-        class="shrink-0 text-[13px] leading-5 tabular-nums {today
-          ? 'font-medium text-primary'
-          : 'text-ink-muted'}"
-      >
-        {countdownLabel(occurrence.days)}
+      <!-- The countdown and the anniversary number describe the same upcoming
+           date, so they sit together: "283 天后 / 33 周年" reads as one event.
+           Split apart, "33 周年" looked like it might mean the present age. -->
+      <span class="flex shrink-0 flex-col items-end gap-0.5">
+        <span
+          class="text-[13px] leading-5 tabular-nums {today ? 'font-medium text-primary' : 'text-ink-muted'}"
+        >
+          {countdownLabel(occurrence.days)}
+        </span>
+        {#if occurrence.ordinal !== null && occurrence.ordinal >= 1}
+          <span class="text-[11px] leading-[1.3] tabular-nums text-ink-subtle">
+            {i18n.t("anniversary.years", { n: occurrence.ordinal })}
+          </span>
+        {/if}
       </span>
     {/if}
   </button>
