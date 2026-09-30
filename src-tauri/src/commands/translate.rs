@@ -726,11 +726,11 @@ async fn text_session(client: &reqwest::Client) -> Result<Session, String> {
     let (signature, point_param) = sign(&query, YOUDAO_TEXT_KEY_SECRET);
     query.push(field("sign", signature));
     query.push(field("pointParam", point_param));
+    let url = format!("{YOUDAO_TEXT_KEY}?{}", query_string(&query));
     let response = client
-        .post(YOUDAO_TEXT_KEY)
+        .post(&url)
         .header("Referer", REFERER)
         .header("Origin", ORIGIN)
-        .body(query_string(&query))
         .send()
         .await
         .map_err(|error| format!("translate key request: {error}"))?;
@@ -1457,5 +1457,34 @@ mod tests {
     #[test]
     fn refuses_empty_input() {
         assert!(prepare("   ").is_err());
+    }
+
+    /// Drives the real endpoint through the real code path.
+    ///
+    /// Ignored by default: it needs the network and a third party's goodwill, so
+    /// it must not gate a build. It exists because the unit tests pin the signed
+    /// string but not how it is *transmitted*, and that gap shipped a bug — the
+    /// key request had its parameters in the body instead of the query string,
+    /// which the endpoint answers with `参数错误`. This is the only test that
+    /// exercises signing, transport and the stream parser together.
+    ///
+    /// Run with `cargo test --lib -- --ignored --nocapture live_translation`.
+    #[test]
+    #[ignore = "needs the network"]
+    fn live_translation() {
+        let out = tauri::async_runtime::block_on(translate(
+            "这部电影真的太好看了，我一口气看完了三集，根本停不下来。".into(),
+            "zh-CHS".into(),
+            "en".into(),
+        ))
+        .expect("live translation");
+        println!("machine: {}", out.text);
+        // `一口气` is the discriminator: a phrase table renders it "at a time",
+        // a model renders it "in one go" or similar.
+        assert!(
+            !out.text.to_lowercase().contains("at a time"),
+            "phrase-table output: {}",
+            out.text
+        );
     }
 }
