@@ -46,7 +46,7 @@ export interface AppSettings {
   theme: ThemeId;
   hotkey: string;
   locale: string;
-  /** The Sogou language code the user last translated into; empty means unchosen. */
+  /** The language code the user last translated into; empty means unchosen. */
   translateTarget: string;
   customSearchEngines: CustomSearchEngine[];
   clipTextRetentionDays: number | null;

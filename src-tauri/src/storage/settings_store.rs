@@ -31,7 +31,7 @@ pub struct Settings {
     pub hotkey: String,
     #[serde(default = "default_locale")]
     pub locale: String,
-    /// The language the user last chose to translate into, as a Sogou language code.
+    /// The language the user last chose to translate into, as a Youdao language code.
     /// Empty means "not chosen yet", and the frontend then picks the sensible
     /// default for the interface language.
     #[serde(default)]
@@ -56,7 +56,7 @@ fn default_locale() -> String {
     "system".into()
 }
 
-/// Sogou language codes accepted as a translate target. One source of truth so
+/// Language codes accepted as a translate target. One source of truth so
 /// the validator and the error message cannot drift apart.
 ///
 /// Deliberately four. The palette shows every target at once, and a list long

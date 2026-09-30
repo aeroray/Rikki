@@ -79,8 +79,8 @@
       // Enter is ignored while a request is in flight.
     } else if (translate.error !== null) {
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyRetry") });
-    } else if (translate.llmText) {
-      // Enter takes the LLM answer once it is here, which is a change from what
+    } else if (translate.llmReady) {
+      // Enter takes the AI answer once it is whole, which is a change from what
       // the same key did a moment earlier — so the chip says which one it is.
       shortcuts.push({ keys: "Enter", label: i18n.t("translate.keyCopyLlm") });
     } else if (translate.result) {
@@ -102,7 +102,7 @@
     if (twoTranslations) {
       shortcuts.push({ keys: "Ctrl+1", label: i18n.t("translate.machine") });
     }
-    if (translate.llmText) {
+    if (translate.llmReady) {
       shortcuts.push({ keys: "Ctrl+2", label: i18n.t("translate.llm") });
     }
     return shortcuts;
@@ -207,11 +207,11 @@
           {/if}
         </ScrollArea>
       {:else}
-        <!-- A sentence gets two answers: the machine one immediately, the LLM
-             one when it arrives. The source is already in the search bar above,
-             so neither repeats it, and the labels are what keeps the two apart
-             at a glance. Both live in the scroll area, so a long pair scrolls
-             instead of pushing the footer off the bottom. -->
+        <!-- A sentence gets two answers: the fast one immediately, the AI one as
+             it is written. The source is already in the search bar above, so
+             neither repeats it, and the labels are what keeps the two apart at a
+             glance. Both live in the scroll area, so a long pair scrolls instead
+             of pushing the footer off the bottom. -->
         <ScrollArea class="min-h-0 flex-1" viewportClass="flex flex-col gap-2.5 pr-1">
           <section class="px-1">
             {#if translate.llmApplies}
@@ -226,17 +226,21 @@
             <section class="border-t border-hairline px-1 pt-2.5">
               <p class="text-[11px] leading-4 text-ink-subtle">{i18n.t("translate.llm")}</p>
               {#if translate.llmText}
+                <!-- The text is whatever has arrived so far, so it is already on
+                     screen while the call is still running and does not jump when
+                     the whole answer lands. -->
                 <p class="mt-1 text-[17px] font-medium leading-6 text-pretty text-ink">
                   {translate.llmText}
                 </p>
               {:else if translate.llmError}
                 <div class="mt-1 flex items-center gap-2">
                   <p class="text-[13px] leading-5 text-pretty text-ink-subtle">
-                    {translate.llmBusy ? i18n.t("translate.llmBusy") : i18n.t("translate.llmFailed")}
+                    {i18n.t("translate.llmFailed")}
                   </p>
-                  <!-- The rate limit clears on its own within seconds, and the
-                       text is still on screen, so retrying is one click rather
-                       than a retype. -->
+                  <!-- There is no second provider behind this one, so a failure
+                       is the end of the road for the request rather than a
+                       handoff. The text is still on screen, so retrying is one
+                       click instead of a retype. -->
                   <button
                     type="button"
                     class="pressable shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-4 text-ink-subtle hover:bg-surface-2 hover:text-ink active:scale-[0.97]"

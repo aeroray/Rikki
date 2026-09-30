@@ -357,14 +357,14 @@ export const zhCN = {
   "translate.examples": "例句",
   "translate.phonetic.uk": "英",
   "translate.phonetic.us": "美",
-  // A sentence gets both: the phrase-based answer the endpoint returns at once,
-  // and the LLM one that follows seconds later. The labels are also the footer's
-  // Ctrl+1 / Ctrl+2 chip text, which is why they are this short.
-  "translate.machine": "机翻",
-  "translate.llm": "AI 译文",
+  // A sentence gets both: the fast answer the endpoint returns in under a
+  // second, and the AI one that streams in over the next few. The labels are
+  // also the footer's Ctrl+1 / Ctrl+2 chip text, which is why they are this
+  // short.
+  "translate.machine": "标准翻译",
+  "translate.llm": "高级翻译",
   "translate.llmLoading": "AI 翻译中…",
-  "translate.llmFailed": "AI 翻译失败",
-  "translate.llmBusy": "AI 请求过于频繁，请稍后再试",
+  "translate.llmFailed": "AI 翻译暂时不可用",
   "translate.network": "网络请求失败",
   "translate.failed": "翻译失败",
   "translate.language.zh": "中文",

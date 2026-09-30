@@ -7,11 +7,21 @@ import {
   targetLabelKey,
   uiLanguageCode,
 } from "$lib/commands/translate/parse";
-import type { Translation, WordEntry } from "$lib/commands/translate/types";
+import type { LlmDelta, Translation, WordEntry } from "$lib/commands/translate/types";
 import { i18n } from "$lib/i18n";
 import { settings } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+
+/**
+ * The event `translate_llm` emits each slice of its answer on.
+ *
+ * The command also returns the whole answer, and that is what the store ends up
+ * showing; the deltas only exist so the text grows while the call is still
+ * running instead of appearing all at once when it finishes.
+ */
+const LLM_DELTA = "translate-llm-delta";
 
 export type Accent = "us" | "uk";
 
@@ -35,28 +45,46 @@ class TranslateStore {
   error = $state<string | null>(null);
 
   /**
-   * The LLM's translation, kept apart from the machine one on purpose.
+   * The AI translation, kept apart from the fast one on purpose.
    *
-   * It arrives seconds later, and the anonymous tier answers 402 once a request
-   * has gone out in the last 15 seconds, so it is expected to fail sometimes.
-   * Nothing here may clear, block or fail what is already on screen.
+   * It arrives seconds later, and it is allowed to fail — the endpoint has an
+   * anonymous quota and no second service stands behind it — so it is expected
+   * to come back unavailable sometimes. Nothing here may clear, block or fail
+   * what is already on screen.
+   *
+   * It grows while the call runs, one delta at a time, and the command's return
+   * value replaces it at the end.
    */
   llmText = $state<string | null>(null);
   llmLoading = $state(false);
   llmError = $state<string | null>(null);
 
   /**
-   * Whether the LLM refused because of its rate limit rather than for a real
-   * reason. The backend reports that case as "llm busy" precisely so it can be
-   * told apart and worded as "try again shortly" instead of a failure.
+   * Whether the AI answer is whole.
+   *
+   * `llmText` is non-null from the first delta onwards, so it alone cannot say
+   * whether what is on screen is the translation or the first three words of it.
+   * Copying has to wait for the end: a prefix of a sentence is worse than the
+   * fast translation that is already complete beside it.
    */
-  readonly llmBusy = $derived(/busy/i.test(this.llmError ?? ""));
+  readonly llmReady = $derived(this.llmText !== null && !this.llmLoading);
 
   private seq = 0;
   private done: Query | null = null;
   private inflight: Query | null = null;
   private audio: HTMLAudioElement | null = null;
   private audioSeq = 0;
+  /**
+   * The one stream whose deltas belong on screen.
+   *
+   * A superseded call keeps streaming for seconds after it was replaced, and
+   * its deltas arrive on the same event as the current call's. Matching on this
+   * id is what keeps the old answer from being appended to the new one; it is
+   * cleared whenever the LLM half is, so a stream nothing is waiting for cannot
+   * paint either.
+   */
+  private llmStream: string | null = null;
+  private llmStreams = 0;
   /** The last dictionary answer, and the text it describes. */
   private entryCache: { text: string; value: WordEntry | null } | null = null;
   private entryInflight: { text: string; promise: Promise<WordEntry | null> } | null = null;
@@ -71,10 +99,10 @@ class TranslateStore {
   });
 
   /**
-   * Whether the text on screen has an LLM half at all.
+   * Whether the text on screen has an AI half at all.
    *
-   * Words never do — the dictionary card is the better answer, and the rate
-   * limit is one request per 15 seconds — and neither does a word the dictionary
+   * Words never do — the dictionary card is the better answer, and the model
+   * has nothing to add to a single word — and neither does a word the dictionary
    * did not know, which falls back to the sentence shape. The panel and the
    * footer both read this so they agree on which shape is on screen.
    */
@@ -93,6 +121,17 @@ class TranslateStore {
       this.stopAudio();
       this.cancelScheduledRun();
     });
+    // One listener for the life of the app rather than one per call: a stream
+    // outlives the call that asked for it, so the listener has to outlive it
+    // too, and `llmStream` is what decides whether a delta belongs on screen.
+    void listen<LlmDelta>(LLM_DELTA, (event) => {
+      this.appendLlmDelta(event.payload);
+    }).catch(() => {});
+  }
+
+  private appendLlmDelta(payload: LlmDelta) {
+    if (payload.stream !== this.llmStream) return;
+    this.llmText = (this.llmText ?? "") + payload.delta;
   }
 
   /**
@@ -172,7 +211,7 @@ class TranslateStore {
     this.result = null;
     this.clearLlm();
     this.stopAudio();
-    // Started here rather than after the machine answer: the two are
+    // Started here rather than after the fast answer: the two are
     // independent, and awaiting this one would make the fast answer wait for
     // the slow one — which is the whole reason there are two.
     void this.runLlm(query, seq);
@@ -204,23 +243,27 @@ class TranslateStore {
   }
 
   /**
-   * The LLM translation, in flight beside the machine one.
+   * The AI translation, in flight beside the fast one.
    *
    * `seq` is the sequence number of the run that asked for it, not a counter of
-   * its own: this call outlives the machine call by seconds, which is exactly
-   * the window in which the text or the target can change, so it has to be
-   * dropped by the same guard.
+   * its own: this call outlives the fast call by seconds, which is exactly the
+   * window in which the text or the target can change, so it has to be dropped
+   * by the same guard. `stream` is the second half of that guard — see
+   * `llmStream`.
    */
   private async runLlm(query: Query, seq: number): Promise<void> {
-    // A single word keeps the dictionary card and never reaches the LLM; this
+    // A single word keeps the dictionary card and never reaches the model; this
     // is the same rule `llmApplies` reports to the panel.
     if (!this.llmApplies) return;
+    const stream = String(++this.llmStreams);
+    this.llmStream = stream;
     this.llmLoading = true;
     this.llmError = null;
     this.llmText = null;
     try {
       const answer = (
         await invoke<string>("translate_llm", {
+          stream,
           text: query.text,
           from: query.source,
           to: query.target,
@@ -228,18 +271,24 @@ class TranslateStore {
       ).trim();
       if (this.stale(query, seq)) return;
       if (answer) {
+        // The command's answer is the whole translation, so it replaces
+        // whatever the deltas built up rather than being appended to them.
         this.llmText = answer;
       } else {
         // A blank answer would leave the section labelled and empty, which
         // reads as a rendering bug rather than as a call that came back with
         // nothing.
+        this.llmText = null;
         this.llmError = "llm returned nothing";
       }
     } catch (err) {
       if (this.stale(query, seq)) return;
+      this.llmText = null;
       this.llmError = message(err);
     } finally {
-      // A superseded run leaves the flag to the run that replaced it.
+      // A superseded run leaves the flag to the run that replaced it, and the
+      // stream id to whichever call owns it now.
+      if (this.llmStream === stream) this.llmStream = null;
       if (!this.stale(query, seq)) this.llmLoading = false;
     }
   }
@@ -247,7 +296,7 @@ class TranslateStore {
   /**
    * Whether a response has been overtaken.
    *
-   * The sequence number alone is not enough for the LLM. Its answer can land
+   * The sequence number alone is not enough for the AI call. Its answer can land
    * inside the quarter second a Tab press waits for the target to stop moving —
    * after the new target is chosen, before `run` has bumped the sequence — and
    * showing the previous language's translation under the new target is exactly
@@ -257,25 +306,28 @@ class TranslateStore {
     return seq !== this.seq || !sameQuery(query, this.query);
   }
 
-  /** Drops the LLM half. The machine translation is left exactly as it is. */
+  /** Drops the AI half. The fast translation is left exactly as it is. */
   private clearLlm() {
     this.llmText = null;
     this.llmError = null;
     this.llmLoading = false;
+    // Anything still streaming belongs to a call nothing is waiting for, so its
+    // deltas must not be able to paint over whatever comes next.
+    this.llmStream = null;
   }
 
   /**
-   * Asks the LLM again for the text already on screen.
+   * Asks the AI endpoint again for the text already on screen.
    *
-   * Without this the rate limit would be a dead end: once a translation is up,
-   * Enter copies instead of re-running, and going through Tab would spend the
-   * machine request again for an answer that is already correct.
+   * Worth keeping even though nothing here is rate limited by the second: the
+   * endpoint answers with a quota error when the anonymous allowance runs out,
+   * and a dropped connection fails the same way a real refusal does. Neither is
+   * a reason to make the user retype the sentence — the text is still on screen,
+   * so retrying is one click. It is not offered while a call is already in
+   * flight, and not for text that has moved on since the error was drawn.
    */
   async retryLlm(): Promise<void> {
     const query = this.done;
-    // Not while one is already in flight, and not for text that has moved on
-    // since the error was drawn — the request is rate limited, so it is worth
-    // not spending one on an answer that would be dropped on arrival.
     if (this.llmLoading || !query || !sameQuery(query, this.query)) return;
     await this.runLlm(query, this.seq);
   }
@@ -331,24 +383,25 @@ class TranslateStore {
   }
 
   /**
-   * Enter: the LLM answer once it is ready, the machine one until then.
+   * Enter: the AI answer once it is whole, the fast one until then.
    *
    * The footer chip names which of the two this will take, so the switch from
    * one to the other is never silent.
    */
   async copy(): Promise<boolean> {
     if (this.loading) return false;
-    return this.copyText(this.llmText ?? this.result?.translation.text);
+    return this.copyText(this.llmReady ? this.llmText : this.result?.translation.text);
   }
 
-  /** Ctrl+1: the machine translation, by name. */
+  /** Ctrl+1: the fast translation, by name. */
   async copyMachine(): Promise<boolean> {
     if (this.loading) return false;
     return this.copyText(this.result?.translation.text);
   }
 
-  /** Ctrl+2: the LLM translation, by name. */
+  /** Ctrl+2: the AI translation, by name. Nothing until it is whole. */
   async copyLlm(): Promise<boolean> {
+    if (!this.llmReady) return false;
     return this.copyText(this.llmText);
   }
 

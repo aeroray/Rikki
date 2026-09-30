@@ -8,9 +8,11 @@ import type { MessageKey } from "$lib/i18n/zh-CN";
  * the rest. `labelKey` is an i18n key so the order stays independent of the
  * language on screen.
  *
- * These are Sogou codes. The service writes Chinese as `zh-CHS` — plain `zh` is
- * rejected — and it does not accept `auto` for the source, which is why the
- * source is always guessed below rather than asked for.
+ * These are Youdao codes, which is what both sentence endpoints take. The
+ * service writes Chinese as `zh-CHS` — plain `zh` is not one of its languages —
+ * and although it accepts `auto` for the source and does detect it, the source
+ * is always guessed below rather than asked for: a detection round trip is a
+ * second request before the first one can start.
  *
  * `short` is the language's own name, which is why it is a literal rather than
  * an i18n key: a language list is conventionally written in the languages
@@ -41,10 +43,11 @@ export function targetLabelKey(code: string): MessageKey | null {
 /**
  * Which language the text is in.
  *
- * The service will not detect it, so this is the only thing between a request
- * and an error. Script is enough for the languages that have a distinctive one;
- * everything else — French, German, a lone digit — is treated as English, which
- * is the harmless guess because it is the language most text is written in.
+ * Asked rather than detected, so this is the only thing standing between a
+ * request and a wrong source language. Script is enough for the languages that
+ * have a distinctive one; everything else — French, German, a lone digit — is
+ * treated as English, which is the harmless guess because it is the language
+ * most text is written in.
  */
 export function guessSourceLang(text: string): string {
   if (/[\u3040-\u30ff]/.test(text)) return "ja";

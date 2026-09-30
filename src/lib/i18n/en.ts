@@ -359,14 +359,14 @@ export const en: Record<MessageKey, string> = {
   "translate.examples": "Examples",
   "translate.phonetic.uk": "UK",
   "translate.phonetic.us": "US",
-  // A sentence gets both: the phrase-based answer the endpoint returns at once,
-  // and the LLM one that follows seconds later. The labels are also the footer's
-  // Ctrl+1 / Ctrl+2 chip text, which is why they are this short.
-  "translate.machine": "Machine",
-  "translate.llm": "AI",
+  // A sentence gets both: the fast answer the endpoint returns in under a
+  // second, and the AI one that streams in over the next few. The labels are
+  // also the footer's Ctrl+1 / Ctrl+2 chip text, which is why they are this
+  // short.
+  "translate.machine": "Standard",
+  "translate.llm": "Advanced",
   "translate.llmLoading": "Translating with AI…",
-  "translate.llmFailed": "AI translation failed",
-  "translate.llmBusy": "AI is busy — try again shortly",
+  "translate.llmFailed": "AI translation is temporarily unavailable",
   "translate.network": "The request failed",
   "translate.failed": "Translation failed",
   "translate.language.zh": "Chinese",

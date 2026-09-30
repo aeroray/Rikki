@@ -5,6 +5,18 @@ export type Translation = {
   to: string;
 };
 
+/**
+ * One slice of the AI answer, from the `translate-llm-delta` event.
+ *
+ * `stream` is the id the store gave its own call. A superseded call keeps
+ * streaming for seconds after the store stopped waiting for it, so a delta is
+ * only worth appending when it names the call that is still on screen.
+ */
+export type LlmDelta = {
+  stream: string;
+  delta: string;
+};
+
 /** One sense of a word. `partOfSpeech` is empty when the dictionary gave none. */
 export type WordDefinition = {
   partOfSpeech: string;
