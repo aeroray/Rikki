@@ -2,8 +2,11 @@
 
 Tombstones are newest first.
 
+## Tombstone: WebView2's own permission UI
+Do not reintroduce unless the user explicitly reverses this. Reason: a page permission left to WebView2's default is a system modal in a launcher — it takes the keyboard, cannot be answered without leaving the palette, and can outlive the window it belongs to. `src-tauri/src/permissions.rs` answers every `PermissionRequested` in Rust (`DENY` for every kind, `ALLOW` for autoplay alone) so the dialog is never created. `WebviewBuilder::enable_clipboard_access()` is not the alternative: it makes `navigator.clipboard` work silently instead of removing the call that needs it. Date: 2026-10-01.
+
 ## Tombstone: `navigator.clipboard` in the palette webview
-Do not reintroduce unless the user explicitly reverses this. Reason: WebView2 answers `navigator.clipboard.read()` with a permission dialog in the middle of a launcher, and the clipboard plugin already reads text and images on the Rust side with no prompt and no capability — the QR decode is the last caller that had to move. Date: 2026-10-01.
+Do not reintroduce unless the user explicitly reverses this. Reason: WebView2 answers `navigator.clipboard.read()` with a permission dialog in the middle of a launcher, and the clipboard plugin already reads text and images on the Rust side with no prompt and no capability — the QR decode is the last caller that had to move. Date: 2026-10-01. A call that comes back is now denied without a dialog by `src-tauri/src/permissions.rs`; that guard is a safety net, not a licence.
 
 ## Tombstone: a backup folder, a backup history, and a pre-import snapshot
 Do not reintroduce unless the user explicitly reverses this. Reason: the user asked for the two things every app has — export the current configuration to a file they choose, and import that file on another machine — so the app keeps no copy of its own and no history: no `app_data_dir/backups/`, no `list_backups`, no snapshot taken before an import, no typed-path sub-screen. Export and import are two rows in the settings list, each opening the system dialog directly. Two things are explicitly *not* part of this and stay: a file missing a section is refused whole (no per-part import, which could leave two thirds of a restore applied), and the three files are committed together. Date: 2026-10-01. This reverses the "two settings rows for export/import" half of the entry it replaces, on the user's explicit request; the partial-import half is unchanged.

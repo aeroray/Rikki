@@ -9,90 +9,77 @@
   <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-Rikki stays in the tray and opens a glass palette on a hotkey. Type to launch installed apps, or a prefix plus space for clipboard, snippets, converters, and system actions. The name is a play on raccoon and “quick”.
+Rikki sits in the tray and opens a glass palette on a hotkey. Type to launch an app, or a prefix and a space for everything else. The name is a play on raccoon and "quick".
 
-## Features
+## What it does
 
-- **App search** from the empty palette — icons, launch-frequency ranking, and pinyin matching (`wx` → 微信). No `open` prefix.
-- **Prefix commands** for clipboard, snippets, todos, calc, anniversaries, calendar, emoji, translate, color, JSON, Base64, timestamps, and QR codes.
-- **Web search** with `gg`, `bd`, `bing`, `ddg`, `sogou`, or any unmatched query of 2+ characters (default engine from settings).
-- **Resident process** with a tray icon. Hide the palette; the hotkey still works.
-- **简体中文 / English**, following the OS or a setting. Dark and light themes.
+- **Launch apps** — type any part of the name. Icons, pinyin (`wx` → 微信), ranked by how often you open it.
+- **Clipboard history** — text, images and copied files. Pin what you want to keep; `Tab` previews an image.
+- **Snippets** — save text once, copy it with `sn`. `{{date}}`, `{{time}}` and `{{clipboard}}` expand on copy.
+- **Converters** — calc, color, JSON, Base64, timestamps, QR codes (make one, or read one from the clipboard).
+- **Translate** — no API key. A word gets a dictionary card; a sentence gets two translations.
+- **System** — lock, sleep, shutdown, reboot, logout; web search with `gg`, `bd`, `bing`, `ddg`, `sogou`.
+- **中文 / English**, dark and light, and the hotkey is yours to rebind.
 
-## Develop
+## Run it
 
-Requires [pnpm](https://pnpm.io), [Rust](https://rustup.rs), and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
+Needs [pnpm](https://pnpm.io), [Rust](https://rustup.rs), and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
 
 ```bash
 pnpm install
-pnpm tauri dev
+pnpm tauri dev      # run
+pnpm tauri build    # package
 ```
 
-Type-check the frontend with `pnpm check`.
+`pnpm check` type-checks the frontend, `pnpm test` runs the unit tests.
 
 > [!TIP]
-> On Windows, if `pnpm tauri dev` exits with cargo lock errors, quit any running `rikki.exe` and try again.
+> On Windows, if `pnpm tauri dev` fails with a cargo lock error, quit the running `rikki.exe` and try again.
 
-## Hotkeys
+## Use it
 
-| Action | Windows | macOS |
-| --- | --- | --- |
-| Toggle palette | `Alt+Space` | `⌘K` |
-| Hide | Click outside, or the hotkey again | same |
-| Rebind | `settings` → Hotkey | same |
+`Alt+Space` on Windows, `⌘K` on macOS. Rebind it in `settings`.
 
-Defaults match common launchers. Change them if they collide with another app.
+- **Enter** does the thing: copy, paste, launch, run.
+- **Tab** does the second thing: preview an image, minify JSON, save a PNG, flip Base64.
+- **Esc** backs out one step at a time, and hides the palette from an empty one.
+- Losing focus hides the palette but keeps your query, so the next show picks up where you left off.
+
+Every command also answers to its Chinese name and to its pinyin, so it can be found while an IME is still composing — `rili` reaches 万年历, `chongqi` reaches 重启. The whole vocabulary is in one table, `src/lib/commands/aliases.ts`.
 
 ## Commands
 
-Type the prefix and a space to open the panel. Root search (no prefix) launches apps. A hex, `rgb()`, or `hsl()` value also opens the color panel.
-
-Every command also answers to its Chinese name and to its **pinyin**, which matters if you type with an IME on: while it composes, the box holds the pinyin rather than the characters, so `wnl`, `rili` or `chongqi` find their command without anything being committed. Full-width letters and the IME's own space are accepted too. The whole vocabulary lives in one table, `src/lib/commands/aliases.ts`.
+Type the prefix and a space to open its panel. Root search (no prefix) launches apps; a bare `#ff6363`, `rgb()` or `hsl()` opens the color panel.
 
 | Prefix | Also | Enter | Notes |
 | --- | --- | --- | --- |
-| _(empty)_ | apps | Launch | Unmatched 2+ character queries search the web |
-| `clip` | 剪贴板, 剪切板 | Paste selected | `Tab` previews images; `Shift+Delete` clears unpinned history |
-| `sn` | `snippet`, `snip`, 片段, 常用语 | Copy snippet | `sn add` or `Ctrl+N` creates; `{{date}}` / `{{time}}` / `{{clipboard}}` expand on copy |
-| `todo` | 待办, 待办事项 | Add a todo | Stays open |
-| `calc` | 计算器, 计算 | Copy result | History is saved |
-| `ann` | `anniversary`, `days`, 纪念日, 倒计时 | Edit selected, or create | Birthdays and anniversaries, solar or lunar. Type a date to count down without saving: `1001`, `20261001`, `n1001` (lunar), `nr1001` (lunar leap month) |
-| `cal` | `calendar`, `date`, 万年历, 日历 | Copy the date | Month grid with lunar dates. Arrows pick a day, PgUp/PgDn change month, Shift+↑↓ change year, Home returns to today; `cal 20261001` jumps to a date |
-| `em` | `emoji`, 表情 | Copy glyph | Browse categories, then search English keywords |
-| `tr` | `translate`, 翻译 | Translate, then copy | Baidu AppID and secret in settings |
-| `color` | `clr`, 颜色 | Copy HEX | Also from a bare `#ff6363` |
-| `json` | `jsonf`, 格式化 | Copy, or edit if invalid | `Tab` pretty / compact |
+| _(empty)_ | apps | Launch | An unmatched query of 2+ characters searches the web |
+| `clip` | 剪贴板, 剪切板 | Paste the selected item | `Tab` previews images; `Shift+Delete` clears the unpinned ones |
+| `sn` | `snippet`, `snip`, 片段, 常用语 | Copy the snippet | `sn add` or `Ctrl+N` creates one |
+| `todo` | 待办, 待办事项 | Add an item | The panel stays open |
+| `calc` | 计算器, 计算 | Copy the result | History is saved |
+| `ann` | `anniversary`, `days`, 纪念日, 倒计时 | Edit the selected one, or create | Solar or lunar. Type a date to count down without saving: `1001`, `20261001`, `n1001` (lunar), `nr1001` (lunar leap month) |
+| `cal` | `calendar`, `date`, 万年历, 日历 | Copy the date | Month grid with lunar dates. Arrows pick a day, PgUp/PgDn a month, Shift+↑↓ a year, Home goes to today; `cal 20261001` jumps |
+| `em` | `emoji`, 表情 | Copy the glyph | Browse by category, then search in English |
+| `tr` | `translate`, 翻译 | Translate, then copy on the next `Enter` | `Tab` cycles the target language |
+| `color` | `clr`, 颜色 | Copy HEX | Also opens from a bare `#ff6363` |
+| `json` | `jsonf`, 格式化 | Copy, or edit when invalid | `Tab` toggles pretty / compact |
 | `b64` | `base64`, `b64e`, `encode`, 编码 | Copy | `Tab` flips to decode (`b64d`) |
-| `ts` | `timestamp`, 时间戳 | Copy primary value | Unix seconds/millis or `YYYY-MM-DD` |
-| `qr` | `qrcode`, 二维码 | Copy SVG | `Tab` saves PNG |
-| `qrd` | `qrdecode`, `scan`, 识码, 扫码 | Copy payload | Reads a clipboard image |
-| `settings` | `set`, 设置, 配置, `preferences` | Open a setting | Theme, hotkey, language, translate API, clip retention, backup |
+| `ts` | `timestamp`, 时间戳 | Copy the main value | Unix seconds or millis, or `YYYY-MM-DD` |
+| `qr` | `qrcode`, 二维码 | Copy the SVG | `Tab` saves a PNG |
+| `qrd` | `qrdecode`, `scan`, 识码, 扫码 | Copy the payload | Reads the image on the clipboard |
+| `settings` | `set`, 设置, 配置, `preferences` | Open a setting | See below |
 | `gg` `bd` `bing` `ddg` `sogou` | 谷歌, 百度, 必应, 搜狗 | Search in the browser | |
-| `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏, 休眠, 关机, 重启, 注销; `restart`, `signout` | Run immediately | `shutdown`, `reboot` and `logout` ask for a second `Enter` |
+| `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏, 休眠, 关机, 重启, 注销; `restart`, `signout` | Run it | `shutdown`, `reboot` and `logout` ask for a second `Enter` |
 
-Home-list order follows how often you open each command. Clip and snippets stay near the top until you use something else more.
-
-## Interaction
-
-- **Enter** completes the current command: copy, paste, launch, translate, or run.
-- **Tab** is the secondary action (image preview, minify, save PNG, swap Base64 direction).
-- **Esc** closes overlays and drills first, then clears the query back to the empty home. Esc on an empty home hides the palette.
-- Blur or the palette hotkey hides **without** clearing, so you can come back to the last page.
-- Launching, copying, or opening a web search resets the query on the next show.
-- Arrow keys move the selection in lists. Convert panels use the search field only.
+The empty palette lists commands by how often you open them, with clipboard and snippets near the top until something else overtakes them.
 
 ## Settings
 
-Open with `settings`. Aside from theme, language, and the hotkey:
+`settings` opens one list: search engine, browser, theme, hotkey, language, clipboard retention, cleanup of expired records, and export / import.
 
-- **Search engine** — built-in engines plus custom `http(s)` URLs with `%s`.
-- **Translate** — Baidu AppID, secret, and default / second target languages. Credentials save as you type.
-- **Clipboard retention** — 7 days, 30 days, or never. Cleanup of expired unpinned text is a settings action, not a timer.
-- **Backup** — export / import a JSON file of todos, snippets, and settings. Clip history is not included.
-
-> [!NOTE]
-> `tr` calls Baidu’s API from the app. Without AppID and secret, the translate panel cannot run a request.
+Export writes todos, snippets and settings to a JSON file wherever you point it; import reads one back and asks before replacing anything. Clipboard history is not part of it.
 
 ## Stack
 
-Tauri 2 (Rust) + SvelteKit 2 / Svelte 5 + Tailwind CSS 4. Data lives in the OS app-data directory (`todos.json`, `snippets.json`, `settings.json`, clipboard index and images, and so on) — not in `localStorage`.
+Tauri 2 (Rust) + SvelteKit 2 / Svelte 5 + Tailwind CSS 4. Everything persists in the OS app-data directory — `todos.json`, `snippets.json`, `settings.json`, `clipboard/` and so on. No `localStorage`.
