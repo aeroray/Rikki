@@ -169,7 +169,11 @@
    * engine may be a custom one, which has no mark and so keeps the magnifier.
    */
   const searchEngineId = $derived.by((): string | null => {
-    if (ui.matchedCommand) return engineIdForCommand(ui.matchedCommand.id);
+    // A web-search command shows its engine once it is active. Before that the
+    // query is still just a query, and the fallback engine is what would take it.
+    if (ui.view !== "empty" && ui.view !== "suggest" && ui.matchedCommand) {
+      return engineIdForCommand(ui.matchedCommand.id);
+    }
     if (canFallbackSearch(ui.searchText, ui.rootHits.length)) return settings.engine.id;
     return null;
   });
@@ -182,10 +186,17 @@
    * left the same magnifier as an empty field, and the panel that opened was the
    * only thing that said otherwise. A gear for 设置 and a calendar for 万年历 make
    * the field itself say where it leads.
+   *
+   * Only once the command is *active*. `matchedCommand` is set as soon as the text
+   * could be a prefix, so `tr` — no space, nothing chosen — already matched
+   * translate, and drawing its glyph there promised a panel the next keystroke
+   * could still take away. The row in the list is what offers the command; the
+   * field should not claim it was taken.
    */
-  const commandIconName = $derived(
-    searchEngineId ? undefined : (ui.matchedCommand?.icon ?? undefined),
-  );
+  const commandIconName = $derived.by(() => {
+    if (ui.view === "empty" || ui.view === "suggest") return undefined;
+    return searchEngineId ? undefined : (ui.matchedCommand?.icon ?? undefined);
+  });
 
   $effect(() => {
     ui.showNonce;

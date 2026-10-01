@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - A shortcut's icon comes from where it says, not from the shell
+Decision:
+`windows_icon` asks `IShellLink::GetIconLocation` for a `.lnk` and extracts from that with `SHDefExtractIcon` before falling back to `SHGetFileInfo`. `Win32_System_Com` and `Win32_System_Environment` join the windows features; `expand_environment` resolves the `%windir%`-style paths these store.
+Reason:
+Every Start Menu row wore a shortcut arrow. `SHGetFileInfo` with `SHGFI_ICON` answers with what Explorer draws for a `.lnk`, and Explorer draws shortcuts with the arrow overlay baked in. There is no flag that removes it: `SHGFI_ADDOVERLAYS` asks for *more* overlays, and leaving it off only means "no extras". A launcher's whole list is shortcuts, so the badge was on every row and said nothing.
+Note:
+`SHDefExtractIcon` is the call that matters, not `ExtractIconEx`: the stored index is often negative — `imageres.dll,-27` is a resource ID, not an ordinal — and only the former reads those. A shortcut with no icon location is normal and falls back to the shell's answer, arrow and all. The COM apartment is initialised per call and only uninitialised when this code was the one that set it up, because `RPC_E_CHANGED_MODE` means someone else chose the other model. Measured in the running app after clearing the icon cache: `git` and `reg` list clean icons with no arrows.
+
+## 2026-10-01 - The field claims a command only once it is taken
+Decision:
+`commandIconName` and `searchEngineId` in `SearchBar` both require `ui.view` to be neither `empty` nor `suggest`.
+Reason:
+The field drew the current command's glyph as soon as the text could be a prefix, so `tr` — no space, nothing chosen — already showed translate's icon while the panel below still offered it as a row to pick. `matchedCommand` is set that early by design, so it is the wrong question; `view` already distinguishes "offering" from "entered".
+Note:
+Verified in the running app: `tr` keeps the magnifier, `tr ` switches to translate's glyph.
+
 ## 2026-10-01 - The tray uses the mark, not the app icon
 Decision:
 `tray.rs` loads `icons/tray.png` — `design/brand/mark.png` cropped to its content and scaled to 32px — instead of `app.default_window_icon()`. `tauri` gains the `image-png` feature, because `Image::from_bytes` does not exist without it. The file is made by hand; `scripts/generate-icons.mjs` and the brand README both say so.

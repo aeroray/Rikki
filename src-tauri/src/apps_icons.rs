@@ -144,6 +144,19 @@ fn write_png(dest: &Path, width: u32, height: u32, rgba: Vec<u8>) -> Result<(), 
 
 #[cfg(target_os = "windows")]
 fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
+    // A shortcut first, because Explorer draws one with the little arrow overlay
+    // baked into the icon it hands back, and no flag removes it:
+    // `SHGFI_ADDOVERLAYS` asks for more overlays, and leaving it off only means
+    // "no extras". The row showed a link badge on every Start Menu entry, which
+    // is noise in a launcher — the whole list is shortcuts.
+    if app_path.to_ascii_lowercase().ends_with(".lnk") {
+        if let Some(pixels) = shortcut_icon(app_path) {
+            if pixels.chunks_exact(4).any(|pixel| pixel[3] != 0) {
+                return write_png(dest, ICON_SIZE, ICON_SIZE, pixels);
+            }
+        }
+    }
+
     use std::mem::size_of;
     use windows::core::HSTRING;
     use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
@@ -175,6 +188,109 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
         return Err("icon has nothing visible in it".into());
     };
     write_png(dest, ICON_SIZE, ICON_SIZE, pixels)
+}
+
+/// The icon a shortcut *names*, rather than the one the shell draws for it.
+///
+/// Two steps, and both are needed. `IShellLink::GetIconLocation` gives the path
+/// and index the shortcut stores — usually into an executable, a DLL or an `.ico`,
+/// and sometimes negative, which means a resource ID rather than an ordinal.
+/// `SHDefExtractIcon` is the extractor that accepts a negative index;
+/// `ExtractIconEx` does not, which is why `imageres.dll,-27` needs this one.
+///
+/// `None` when anything along the way fails, so the caller can fall back to the
+/// shell's own answer. A shortcut with no `IconLocation` is normal — it means
+/// "use the target's icon" — and the fallback is right for those.
+#[cfg(target_os = "windows")]
+fn shortcut_icon(lnk: &str) -> Option<Vec<u8>> {
+    use windows::core::{HSTRING, Interface};
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER,
+        COINIT_APARTMENTTHREADED, IPersistFile, STGM_READ,
+    };
+    use windows::Win32::UI::Shell::{SHDefExtractIconW, ShellLink, IShellLinkW};
+    use windows::Win32::UI::WindowsAndMessaging::DestroyIcon;
+
+    /// Plenty for an icon path; `GetIconLocation` truncates rather than fails.
+    const ICON_PATH: usize = 260;
+
+    unsafe {
+        // The apartment may already be set up, and this runs on whichever thread
+        // the icon job landed on. `RPC_E_CHANGED_MODE` means someone else chose
+        // the other model, which is fine — COM is usable either way, only the
+        // matching `CoUninitialize` is not ours to call.
+        let initialised = CoInitializeEx(None, COINIT_APARTMENTTHREADED).is_ok();
+
+        let path = (|| -> Option<(String, i32)> {
+            let link: IShellLinkW =
+                CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
+            let file: IPersistFile = link.cast().ok()?;
+            file.Load(&HSTRING::from(lnk), STGM_READ).ok()?;
+
+            let mut buffer = [0u16; ICON_PATH];
+            let mut index = 0i32;
+            link.GetIconLocation(&mut buffer, &mut index).ok()?;
+
+            let end = buffer.iter().position(|unit| *unit == 0)?;
+            if end == 0 {
+                return None;
+            }
+            // `%windir%` and friends are common in these, and the extractor wants
+            // a real path.
+            let raw = String::from_utf16_lossy(&buffer[..end]);
+            let expanded = expand_environment(&raw)?;
+            Some((expanded, index))
+        })();
+
+        let pixels = path.and_then(|(file, index)| -> Option<Vec<u8>> {
+            let mut large = Default::default();
+            // `SHDefExtractIcon` takes the two sizes packed into one `u32`.
+            let size = (ICON_SIZE & 0xFFFF) | (ICON_SIZE << 16);
+            if SHDefExtractIconW(
+                &HSTRING::from(file.as_str()),
+                index,
+                0,
+                Some(&mut large),
+                None,
+                size,
+            )
+            .is_err()
+            {
+                return None;
+            }
+            let rgba = visible_rgba(large);
+            let _ = DestroyIcon(large);
+            rgba
+        });
+
+        if initialised {
+            CoUninitialize();
+        }
+        pixels
+    }
+}
+
+/// Expands `%VAR%` references, which shortcut icon paths use freely.
+#[cfg(target_os = "windows")]
+fn expand_environment(value: &str) -> Option<String> {
+    use windows::core::HSTRING;
+    use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
+
+    if !value.contains('%') {
+        return Some(value.to_string());
+    }
+    let wide = HSTRING::from(value);
+    let needed = unsafe { ExpandEnvironmentStringsW(&wide, None) };
+    if needed == 0 {
+        return None;
+    }
+    let mut buffer = vec![0u16; needed as usize];
+    let written = unsafe { ExpandEnvironmentStringsW(&wide, Some(&mut buffer)) };
+    if written == 0 || written > needed {
+        return None;
+    }
+    let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(buffer.len());
+    Some(String::from_utf16_lossy(&buffer[..end]))
 }
 
 /// Straight RGBA for an icon, or `None` when it carries no transparency to take
