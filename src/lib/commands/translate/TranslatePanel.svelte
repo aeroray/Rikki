@@ -2,6 +2,7 @@
   import type { Accent } from "$lib/stores/translate.svelte";
   import { translate } from "$lib/stores/translate.svelte";
   import { SUPPORTED_TARGETS } from "$lib/commands/translate/parse";
+  import { primaryShortcut } from "$lib/commands/settings/engines";
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
@@ -100,10 +101,10 @@
     // The accents keep their keys: a word card has no second translation for
     // them to conflict with, and there is no other way to play a clip.
     if (translate.hasAudio("us")) {
-      shortcuts.push({ keys: "Ctrl+1", label: i18n.t("translate.keyPlayUs") });
+      shortcuts.push({ keys: primaryShortcut("1"), label: i18n.t("translate.keyPlayUs") });
     }
     if (translate.hasAudio("uk")) {
-      shortcuts.push({ keys: "Ctrl+2", label: i18n.t("translate.keyPlayUk") });
+      shortcuts.push({ keys: primaryShortcut("2"), label: i18n.t("translate.keyPlayUk") });
     }
     return shortcuts;
   });

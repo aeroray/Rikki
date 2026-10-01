@@ -4,6 +4,7 @@
   import EngineSelector from "$lib/commands/settings/EngineSelector.svelte";
   import HotkeyRecorder from "$lib/commands/settings/HotkeyRecorder.svelte";
   import { parseSettingsScreen, type SettingsScreen } from "$lib/commands/settings/parse";
+  import { primaryShortcut } from "$lib/commands/settings/engines";
   import SettingItem from "$lib/commands/settings/SettingItem.svelte";
   import ThemeSelector from "$lib/commands/settings/ThemeSelector.svelte";
   import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
@@ -110,7 +111,7 @@
     if (screen === "engine") {
       const shortcuts: FooterShortcut[] = [
         { keys: "Enter", label: i18n.t("settings.keySetDefault") },
-        { keys: "Ctrl+N", label: i18n.t("key.add") },
+        { keys: primaryShortcut("N"), label: i18n.t("key.add") },
       ];
       // Delete only reaches a custom engine, and the row the highlight is on is
       // what the chip would act on: offering it over a built-in is a key that

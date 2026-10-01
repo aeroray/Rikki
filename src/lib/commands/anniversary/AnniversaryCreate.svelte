@@ -7,6 +7,7 @@
     toLunarText,
   } from "$lib/commands/anniversary/dates";
   import { recurrenceLabel } from "$lib/commands/anniversary/format";
+  import { primaryShortcut } from "$lib/commands/settings/engines";
   import { anniversaries } from "$lib/stores/anniversaries.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
@@ -68,13 +69,16 @@
   });
 
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
-    const shortcuts: FooterShortcut[] = [{ keys: "Ctrl+Enter", label: i18n.t("key.save") }];
+    const shortcuts: FooterShortcut[] = [
+      { keys: primaryShortcut("Enter"), label: i18n.t("key.save") },
+    ];
     // Offered only while it would do something, the way the cleanup row hides its
     // own key when retention is off.
-    if (lunarText) shortcuts.push({ keys: "Ctrl+L", label: i18n.t("anniversary.toLunar") });
+    if (lunarText)
+      shortcuts.push({ keys: primaryShortcut("L"), label: i18n.t("anniversary.toLunar") });
     if (resolved?.leapMonth) {
       shortcuts.push({
-        keys: "Ctrl+R",
+        keys: primaryShortcut("R"),
         label: i18n.t("anniversary.leapToggle", { month: resolved.leapMonth }),
       });
     }

@@ -72,6 +72,23 @@ export function isMac(): boolean {
   return /Mac|iPhone|iPad/.test(navigator.userAgent);
 }
 
+/**
+ * The modifier the app's own shortcuts are written against.
+ *
+ * Every handler accepts both `ctrlKey` and `metaKey`, so the keys already work on
+ * a Mac — but the chips, hints and footer labels all said "Ctrl+", which told a Mac
+ * user to press a key that does nothing there. One helper, so the labels and the
+ * handlers cannot disagree again.
+ */
+export function primaryModifier(): string {
+  return isMac() ? "⌘" : "Ctrl";
+}
+
+/** A shortcut label with the platform's own modifier, e.g. `⌘N` or `Ctrl+N`. */
+export function primaryShortcut(key: string): string {
+  return isMac() ? `⌘${key}` : `Ctrl+${key}`;
+}
+
 export function defaultHotkey(): string {
   return isMac() ? "Command+K" : "Alt+Space";
 }

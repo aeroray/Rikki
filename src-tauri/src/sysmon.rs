@@ -10,7 +10,7 @@
 //! CPU usage and GPU usage are deltas between two readings, so a fresh sampler
 //! answers zero the first time and is only correct from the second call onward.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
@@ -120,24 +120,23 @@ struct Inner {
 }
 
 pub struct Monitor {
-    inner: Mutex<Inner>,
+    /// Built on the first snapshot, not at startup.
+    ///
+    /// Constructing the sampler walks the CPU table, and doing it while the app
+    /// boots makes every user pay for a panel most of them never open. It is built
+    /// on the thread that first asks, which is the panel's own.
+    inner: OnceLock<Mutex<Inner>>,
 }
 
 impl Monitor {
     pub fn new() -> Self {
-        let mut system = System::new_all();
-        // One reading now, so the first snapshot the panel asks for is already a
-        // delta rather than a row of zeroes.
-        system.refresh_cpu_all();
         Self {
-            inner: Mutex::new(Inner {
-                system,
-                processes: Vec::new(),
-                // Zero, so the first snapshot fills the list immediately rather
-                // than showing an empty section for three seconds.
-                processes_at: Instant::now() - PROCESS_INTERVAL,
-            }),
+            inner: OnceLock::new(),
         }
+    }
+
+    fn inner(&self) -> &Mutex<Inner> {
+        self.inner.get_or_init(|| Mutex::new(Inner::new()))
     }
 
     pub fn snapshot(&self) -> Stats {
@@ -145,17 +144,44 @@ impl Monitor {
         // timer: panicking here would take the panel down for the rest of the
         // session over an unrelated failure.
         let mut inner = self
-            .inner
+            .inner()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
+        inner.snapshot()
+    }
+}
 
-        // The field is split rather than borrowed whole, so the process list can be
-        // written while the sampler is being read.
+impl Inner {
+    fn new() -> Self {
+        // `System::new()`, not `new_all()`.
+        //
+        // `new_all` walks every process, every disk and the network before it
+        // returns. Measured on this machine: `new_all` 429ms, `new` 0.3ms. Nothing
+        // is lost — the process list is filled by the first snapshot, which
+        // `processes_at` below already forces, and every figure the panel shows
+        // comes from `refresh_cpu_all` and `refresh_memory` either way.
+        let mut system = System::new();
+        // One reading now, so the first snapshot is already a delta rather than a
+        // row of zeroes.
+        system.refresh_cpu_all();
+        system.refresh_memory();
+        Self {
+            system,
+            processes: Vec::new(),
+            // Backdated, so the first snapshot fills the list immediately rather
+            // than showing an empty section for three seconds.
+            processes_at: Instant::now() - PROCESS_INTERVAL,
+        }
+    }
+
+    fn snapshot(&mut self) -> Stats {
+        // Borrowed field by field rather than as a whole, so the process list can
+        // be written while the sampler is being read.
         let Inner {
             system,
             processes,
             processes_at,
-        } = &mut *inner;
+        } = self;
 
         system.refresh_cpu_all();
         system.refresh_memory();
@@ -334,7 +360,13 @@ mod gpu {
             return BTreeMap::new();
         }
 
-        let mut buffer = vec![0u8; size as usize];
+        // The buffer has to be aligned for the items, not merely long enough.
+        // `vec![0u8; size]` asks the allocator for alignment 1 and only appears to
+        // work because malloc hands back a wider-aligned block; casting it to a
+        // struct that needs 8 is undefined behaviour, and the cast below is what
+        // the compiler is told to trust. `Vec<u64>` asks for 8 directly, which
+        // covers every field PDH writes here.
+        let mut buffer = vec![0u64; (size as usize).div_ceil(8)];
         let items = buffer.as_mut_ptr() as *mut PDH_FMT_COUNTERVALUE_ITEM_W;
         if PdhGetFormattedCounterArrayW(
             counter,

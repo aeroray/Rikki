@@ -12,7 +12,13 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
 
     let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        // Windows and Linux expect a tray left click to *do* something, so the
+        // menu is moved to the right button and the left one opens the palette.
+        // macOS is the other way round: a menu-bar icon's left click opens its
+        // menu, and that menu is the only place Quit lives, so taking the click
+        // for the palette would leave the menu on a right click — not the
+        // platform's convention, and the wrong way to reach Quit.
+        .show_menu_on_left_click(cfg!(target_os = "macos"))
         .tooltip(tooltip())
         .on_menu_event(|app, event| {
             // A native popup menu can leave the ShowCursor counter below zero,
@@ -47,7 +53,16 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 ..
             } = event
             {
+                // On macOS a menu-bar icon opens its menu on a left click, and the
+                // menu is the only way to reach Quit there — a left click that
+                // instead summoned the palette would leave the menu unreachable
+                // without a right click, which is not the platform's convention.
+                // Windows and Linux keep the left-click-to-show behaviour, which
+                // is what they expect.
+                #[cfg(not(target_os = "macos"))]
                 show_palette(tray.app_handle());
+                #[cfg(target_os = "macos")]
+                let _ = tray;
             }
         });
 

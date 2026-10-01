@@ -47,6 +47,8 @@ class UiStore {
    */
   pendingConfirm = $state<{ action: string; body: string } | null>(null);
   private pendingConfirmRun: (() => void) | null = null;
+  /** Runs when the dialog is declined, for a caller holding a resource. */
+  private pendingConfirmCancel: (() => void) | null = null;
   private pendingReset = false;
   private hideFlushers = new Set<() => void>();
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -156,9 +158,23 @@ class UiStore {
     this.showNonce += 1;
   }
 
-  /** Arms a destructive action; `runConfirm` carries it out. */
-  requestConfirm(action: string, run: () => void, body: string = i18n.t("confirm.body")) {
+  /**
+   * Arms a destructive action; `runConfirm` carries it out.
+   *
+   * `oncancel` runs only when the user declines, and exists because a caller can
+   * hold something that has to be given back either way — the updater holds a
+   * Rust-side resource, and a cancelled dialog used to drop the handle silently.
+   * It is not called by `requestConfirm` replacing an earlier one, which is a
+   * caller mistake rather than a user decision.
+   */
+  requestConfirm(
+    action: string,
+    run: () => void,
+    body: string = i18n.t("confirm.body"),
+    oncancel?: () => void,
+  ) {
     this.pendingConfirmRun = run;
+    this.pendingConfirmCancel = oncancel ?? null;
     this.pendingConfirm = { action, body };
   }
 
@@ -166,12 +182,16 @@ class UiStore {
     const run = this.pendingConfirmRun;
     this.pendingConfirm = null;
     this.pendingConfirmRun = null;
+    this.pendingConfirmCancel = null;
     run?.();
   }
 
   cancelConfirm() {
+    const oncancel = this.pendingConfirmCancel;
     this.pendingConfirm = null;
     this.pendingConfirmRun = null;
+    this.pendingConfirmCancel = null;
+    oncancel?.();
   }
 
   flash(message: string) {

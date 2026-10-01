@@ -5,14 +5,25 @@
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { sysmon } from "$lib/stores/sysmon.svelte";
-  import { onMount } from "svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { onDestroy } from "svelte";
 
-  // Sampling runs while the panel is on screen and stops with it. A tray app that
-  // polled the machine around the clock would be trading battery for nothing.
-  onMount(() => {
-    sysmon.start();
-    return () => sysmon.stop();
+  /**
+   * Sampling follows the palette being *open*, not this component being mounted.
+   *
+   * Hiding the palette only fades the shell — the panel stays mounted, and for a
+   * tray app hidden is the normal state, so tying the timer to mount/unmount left
+   * it reading the machine every second forever. `ui.shellOpen` is the real signal,
+   * and it is also what the renderer already animates on.
+   */
+  $effect(() => {
+    if (ui.shellOpen && ui.view === "sysmon") sysmon.start();
+    else sysmon.stop();
   });
+
+  // The timer is a singleton on the store, so it has to be stopped explicitly when
+  // this component goes away rather than left to the effect's cleanup.
+  onDestroy(() => sysmon.stop());
 
   const stats = $derived(sysmon.stats);
 

@@ -3,6 +3,7 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import { closeSettingsDrill } from "$lib/commands/settings/actions";
+  import { primaryShortcut } from "$lib/commands/settings/engines";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
 
   const canSave = $derived(
@@ -12,7 +13,7 @@
   // Key glyphs are not translated: they name physical keys, which read the same
   // in every locale.
   const footerShortcuts = $derived<FooterShortcut[]>([
-    { keys: "Ctrl+Enter", label: i18n.t("key.save") },
+    { keys: primaryShortcut("Enter"), label: i18n.t("key.save") },
     { keys: "Esc", label: i18n.t("key.cancel") },
   ]);
 

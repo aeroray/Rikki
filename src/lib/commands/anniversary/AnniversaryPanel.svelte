@@ -4,6 +4,7 @@
   import AnniversaryItem from "$lib/commands/anniversary/AnniversaryItem.svelte";
   import AnniversaryPreview from "$lib/commands/anniversary/AnniversaryPreview.svelte";
   import { parseAnniversaryScreen } from "$lib/commands/anniversary/parse";
+  import { primaryModifier, primaryShortcut } from "$lib/commands/settings/engines";
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
@@ -34,7 +35,7 @@
     }
     return [
       { keys: "Enter", label: i18n.t("key.edit") },
-      { keys: "Ctrl+N", label: i18n.t("key.add") },
+      { keys: primaryShortcut("N"), label: i18n.t("key.add") },
       { keys: "Delete", label: i18n.t("key.delete") },
       { keys: "Esc", label: i18n.t("key.back") },
     ];
@@ -42,7 +43,8 @@
 
   const footerMessage = $derived.by((): string | null => {
     if (anniversaries.notice) return anniversaries.notice;
-    if (anniversaries.items.length === 0) return i18n.t("anniversary.emptyHint");
+    if (anniversaries.items.length === 0)
+      return i18n.t("anniversary.emptyHint", { mod: primaryModifier() });
     if (screen.type === "invalid") return i18n.t("anniversary.invalidDate");
     return null;
   });
@@ -89,7 +91,7 @@
           <p class="mt-2 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
             <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">ann 10-01</kbd>
             <span>{i18n.t("anniversary.or")}</span>
-            <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">Ctrl+N</kbd>
+            <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">{primaryShortcut("N")}</kbd>
           </p>
         </PanelEmpty>
       {:else if visible.length === 0}

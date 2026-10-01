@@ -1,6 +1,7 @@
 <script lang="ts">
   import { startSnippetCreate } from "$lib/commands/snippet/actions";
   import { parseSnippetAction, snippetListQuery } from "$lib/commands/snippet/parse";
+  import { primaryModifier, primaryShortcut } from "$lib/commands/settings/engines";
   import SnippetCreate from "$lib/commands/snippet/SnippetCreate.svelte";
   import SnippetItem from "$lib/commands/snippet/SnippetItem.svelte";
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
@@ -24,18 +25,19 @@
     if (items.length === 0 && !querying) return [];
     // A query with no hits leaves no row to act on, so copy/edit/delete would
     // all be dead keys. Only creating is still possible.
-    if (items.length === 0) return [{ keys: "Ctrl+N", label: i18n.t("snippet.keyNew") }];
+    if (items.length === 0) return [{ keys: primaryShortcut("N"), label: i18n.t("snippet.keyNew") }];
     return [
       { keys: "Enter", label: i18n.t("key.copy") },
-      { keys: "Ctrl+N", label: i18n.t("snippet.keyNew") },
-      { keys: "Ctrl+E", label: i18n.t("key.edit") },
+      { keys: primaryShortcut("N"), label: i18n.t("snippet.keyNew") },
+      { keys: primaryShortcut("E"), label: i18n.t("key.edit") },
       { keys: "Delete", label: i18n.t("key.delete") },
     ];
   });
 
   const footerMessage = $derived.by((): string | null => {
     if (snippets.notice) return snippets.notice;
-    if (items.length === 0 && !querying) return i18n.t("snippet.emptyHint");
+    if (items.length === 0 && !querying)
+      return i18n.t("snippet.emptyHint", { mod: primaryModifier() });
     return null;
   });
 
@@ -85,7 +87,7 @@
             <p class="mt-2 flex items-center justify-center gap-2 text-[12px] leading-[1.4] text-ink-tertiary">
               <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">sn add</kbd>
               <span>{i18n.t("snippet.or")}</span>
-              <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">Ctrl+N</kbd>
+              <kbd class="rounded-sm bg-canvas px-1.5 py-0.5 font-sans">{primaryShortcut("N")}</kbd>
             </p>
           </PanelEmpty>
         {/if}

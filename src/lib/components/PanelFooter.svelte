@@ -1,5 +1,6 @@
 <script lang="ts">
   import KeyChip from "$lib/components/KeyChip.svelte";
+  import { primaryShortcut } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
   import { update } from "$lib/stores/update.svelte";
   import { ArrowUpCircle } from "@lucide/svelte";
@@ -75,7 +76,7 @@
         </span>
       </li>
       <li class="shrink-0">
-        <KeyChip keys="Ctrl+U" label={i18n.t("update.install")} />
+        <KeyChip keys={primaryShortcut("U")} label={i18n.t("update.install")} />
       </li>
     </ul>
     <!-- The mouse's way in. A plain press, with no confirmation: reaching for

@@ -1,5 +1,6 @@
 <script lang="ts">
   import ClipItem from "$lib/commands/clip/ClipItem.svelte";
+  import { primaryShortcut } from "$lib/commands/settings/engines";
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
@@ -23,7 +24,7 @@
       { keys: "Tab", label: i18n.t("clip.keyPreview") },
       { keys: "Delete", label: i18n.t("key.delete") },
       { keys: "Shift+Delete", label: i18n.t("clip.keyClear") },
-      { keys: "Ctrl+P", label: i18n.t("clip.keyPin") },
+      { keys: primaryShortcut("P"), label: i18n.t("clip.keyPin") },
     ];
   });
 

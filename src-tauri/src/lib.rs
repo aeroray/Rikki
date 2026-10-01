@@ -508,6 +508,13 @@ pub fn run() {
 
             if let Some(window) = palette_window(app.handle()) {
                 apply_platform_window(&window);
+                // A launcher belongs in the menu bar, not the Dock. Without this
+                // macOS shows a Dock icon and a menu bar for an app whose only
+                // window is a borderless palette that is usually hidden, so
+                // clicking the Dock icon activates an app with nothing to show.
+                // `Accessory` is the policy menu-bar apps use.
+                #[cfg(target_os = "macos")]
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
                 // Before the first page load can ask for anything. A launcher
                 // must not answer a keystroke with a permission dialog, and the
                 // page has no use for one: see `permissions`.

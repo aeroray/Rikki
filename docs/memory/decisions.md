@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - Review fixes: the sampler is lazy, and the panel stops when hidden
+Decision:
+`Monitor` holds a `OnceLock<Mutex<Inner>>` and builds its sampler on the first snapshot; `Inner::new` uses `System::new()` rather than `new_all()`. `SysmonPanel` starts and stops sampling from an `$effect` on `ui.shellOpen`, not from `onMount`. The PDH buffer is `Vec<u64>` rather than `Vec<u8>`. `update.close()` is now called when a held update is discarded, and `ui.requestConfirm` takes an optional `oncancel`.
+Reason:
+Four separate faults, all found by review and each measured or traced rather than guessed. `System::new_all()` cost **429ms** on this machine against **0.3ms** for `System::new()` — a 1268× difference paid on the main thread at startup by every user, including those who never open the panel; the process list is filled by the first snapshot anyway. The polling timer was tied to mount/unmount, but hiding the palette only fades the shell, so the panel stays mounted and for a tray app hidden is the normal state — the machine was being read every second forever. Measured after the fix: **0.000s of CPU over 7.5 seconds while hidden**. `vec![0u8; size]` asks for alignment 1 and was cast to a struct needing 8; malloc happens to over-align so it never crashed, but the cast is what the compiler is told to trust. And a cancelled update dialog dropped the `Update` handle without `close()`, which the plugin's own docs require.
+Note:
+The PowerShell `Set-Content -Encoding UTF8` round-trip corrupted em-dashes and Chinese in six source files and both i18n catalogs — it reads as ANSI. Every one was restored with `git checkout` and redone with the `edit` tool. Never rewrite a UTF-8 source file through PowerShell here; `edit` is the only safe path.
+
+## 2026-10-01 - macOS: no Dock icon, menu on left click, and Cmd in the labels
+Decision:
+`set_activation_policy(Accessory)` at setup so the app is a menu-bar app. The tray takes `show_menu_on_left_click(cfg!(target_os = "macos"))` and only shows the palette on a left click off macOS. `primaryModifier()` / `primaryShortcut()` in `engines.ts` supply the platform's own modifier, and the three hint strings take it as `{mod}`.
+Reason:
+The app had no `Accessory` policy, so macOS would show a Dock icon for an app whose only window is a hidden borderless palette. A menu-bar icon's left click opens its menu on macOS — and that menu is the only place Quit lives — so taking the click for the palette left Quit on a right click, which is not the platform's convention. Separately, every keyboard handler already accepted `metaKey`, but fifteen chips, hints and footers hardcoded "Ctrl+", telling a Mac user to press a key that does nothing there.
+Note:
+Verified on Windows only: `Ctrl+N 添加` still renders, `svelte-check` clean, 105 Rust tests pass. The macOS paths are read and reasoned about, never executed — there is no Mac here. The hand-written IOKit FFI in `sysmon.rs` does typecheck for `aarch64-apple-darwin` in isolation, but the full cross-build cannot run without an Apple C toolchain.
+
 ## 2026-10-01 - GPUs are named from DXGI, and virtual adapters are dropped
 Decision:
 `gpu::usage` matches each PDH counter LUID against DXGI's adapter list and keeps only the ones it finds, taking the description and a discrete/integrated kind from there. A LUID the counters report but DXGI does not is dropped.

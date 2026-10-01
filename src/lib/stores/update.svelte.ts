@@ -39,6 +39,14 @@ class UpdateStore {
 
   private lastCheck = 0;
   /**
+   * True while a background check is in flight.
+   *
+   * `lastCheck` alone is not enough to keep two overlapping checks apart, and a
+   * second `Update` that nobody installs holds a Rust-side resource until it is
+   * closed.
+   */
+  private checking = false;
+  /**
    * The `check()` result, held rather than closed.
    *
    * `check` hands back a resource that has to be closed or installed, and this is
@@ -64,12 +72,13 @@ class UpdateStore {
    * nothing at all when the answer is "no" or the request fails.
    */
   async checkQuietly(): Promise<void> {
-    if (this.pending) return;
+    if (this.pending || this.checking) return;
     const now = Date.now();
     if (now - this.lastCheck < CHECK_INTERVAL) return;
     // Stamped before the request, so a slow or failing one cannot make every open
     // try again.
     this.lastCheck = now;
+    this.checking = true;
     try {
       const found = await check();
       if (!found) return;
@@ -77,6 +86,11 @@ class UpdateStore {
       this.available = found.version;
     } catch {
       // Offline, or no release published yet. Nothing to say.
+    } finally {
+      // Cleared in a `finally`, not after the `await`: two palette openings a
+      // second apart while the first request is still in flight both passed the
+      // stamp check, and the loser's `Update` was dropped without being closed.
+      this.checking = false;
     }
   }
 
@@ -91,44 +105,62 @@ class UpdateStore {
 
   /** The settings row: asks, then confirms through the dialog. */
   async checkNow(): Promise<void> {
-    if (this.busy) return;
+    if (this.busy || this.checking) return;
 
     // Already holding an answer from the background check — the dialog is the only
     // thing left to do.
     if (this.pending) {
-      const found = this.pending;
-      ui.requestConfirm(
-        i18n.t("settings.update.action", { version: found.version }),
-        () => void this.installHeld(found),
-        i18n.t("settings.update.body", { version: found.version }),
-      );
+      this.confirmHeld();
       return;
     }
 
-    this.busy = true;
+    this.checking = true;
     ui.flash(i18n.t("settings.update.checking"));
     try {
       const found = await check();
       if (!found) {
         ui.flash(i18n.t("settings.update.latest", { version: this.version }));
-        this.busy = false;
         return;
       }
-      // Cleared before the dialog opens, because cancelling it never reaches
-      // `install` — and `install` sets it again for as long as it runs.
-      this.busy = false;
-      ui.requestConfirm(
-        i18n.t("settings.update.action", { version: found.version }),
-        () => void this.installHeld(found),
-        i18n.t("settings.update.body", { version: found.version }),
-      );
+      this.pending = found;
+      this.confirmHeld();
     } catch {
       ui.flash(i18n.t("settings.update.failed"));
-      this.busy = false;
+    } finally {
+      this.checking = false;
     }
   }
 
+  /**
+   * Asks about the held update, and closes it if the user says no.
+   *
+   * The `Update` holds a resource on the Rust side, so a cancelled dialog has to
+   * give it back — the confirm dialog is generic and knows nothing about it, and
+   * cancelling used to drop the handle silently.
+   */
+  private confirmHeld(): void {
+    const found = this.pending;
+    if (!found) return;
+    ui.requestConfirm(
+      i18n.t("settings.update.action", { version: found.version }),
+      () => void this.installHeld(found),
+      i18n.t("settings.update.body", { version: found.version }),
+      () => this.discard(),
+    );
+  }
+
+  /** Gives back a held update nobody is going to install. */
+  private discard(): void {
+    const found = this.pending;
+    this.pending = null;
+    this.available = null;
+    void found?.close().catch(() => {
+      // Nothing to do about it: the resource is going away with the process anyway.
+    });
+  }
+
   private async installHeld(update: Update): Promise<void> {
+    // Cleared without closing: this is the path that consumes the resource.
     this.pending = null;
     this.available = null;
     await this.install(update);
