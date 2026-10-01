@@ -36,9 +36,15 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
+          # `app` as well as `dmg`, and the order matters to nobody but the
+          # updater: on macOS an update replaces the whole bundle, so what it
+          # downloads is the `.app.tar.gz` and its signature. Building only the
+          # DMG produces an installer with nothing behind it — `latest.json`
+          # carries no `darwin-aarch64` entry and an installed Mac can never
+          # update, which is silent until someone tries.
           - platform: macos-14
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
     runs-on: ${{ matrix.platform }}
 
     steps:
