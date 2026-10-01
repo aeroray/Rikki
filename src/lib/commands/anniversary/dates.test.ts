@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { parseDateQuery, toLunarText } from "$lib/commands/anniversary/dates";
+import { draftTextFor, parseDateQuery, toLunarText } from "$lib/commands/anniversary/dates";
 import { ensureLunar, lunarApi } from "$lib/commands/anniversary/lunar";
 
 /**
@@ -55,5 +55,35 @@ describe("converting a solar date to lunar", () => {
     expect(toLunarText("nonsense")).toBeNull();
     // Out of the library's range, so there is nothing to convert through.
     expect(toLunarText("18000101")).toBeNull();
+  });
+});
+
+/**
+ * The form's leap-month toggle rewrites the field through `draftTextFor`, so this
+ * is the round trip that has to hold: press the toggle, and what lands in the
+ * field has to parse back to the same date with the flag flipped.
+ */
+describe("rendering a date back into the field", () => {
+  it("marks a leap month and leaves a regular one alone", () => {
+    expect(draftTextFor({ month: 6, day: 15, calendar: "lunar", leapMonth: true, startYear: 2025 })).toBe(
+      "nr20250615",
+    );
+    expect(draftTextFor({ month: 6, day: 15, calendar: "lunar", leapMonth: false, startYear: 2025 })).toBe(
+      "n20250615",
+    );
+  });
+
+  it("parses back to the date it rendered, leap flag included", () => {
+    for (const leapMonth of [true, false]) {
+      const text = draftTextFor({ month: 6, day: 15, calendar: "lunar", leapMonth, startYear: 2025 });
+      expect(parseDateQuery(text)).toEqual({
+        kind: "date",
+        month: 6,
+        day: 15,
+        year: 2025,
+        calendar: "lunar",
+        leapMonth,
+      });
+    }
   });
 });

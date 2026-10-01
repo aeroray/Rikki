@@ -1,11 +1,17 @@
 <script lang="ts">
   import { closeAnniversaryDrill } from "$lib/commands/anniversary/actions";
-  import { lunarLeapMonth, parseDateQuery, toLunarText } from "$lib/commands/anniversary/dates";
+  import {
+    draftTextFor,
+    lunarLeapMonth,
+    parseDateQuery,
+    toLunarText,
+  } from "$lib/commands/anniversary/dates";
   import { recurrenceLabel } from "$lib/commands/anniversary/format";
   import { anniversaries } from "$lib/stores/anniversaries.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
+  import { Check } from "@lucide/svelte";
 
   let titleEl: HTMLInputElement | undefined = $state();
   let dateEl: HTMLInputElement | undefined = $state();
@@ -33,11 +39,14 @@
       calendar: lunar ? i18n.t("anniversary.lunar") : i18n.t("anniversary.solar"),
       year: query.year,
       leap,
-      // Explained when the date is not a leap month but the year does repeat one.
-      leapNote:
-        lunar && query.year !== null && !leap && yearLeap > 0
-          ? i18n.t("anniversary.leapNote", { month: yearLeap })
-          : null,
+      // Offered only for the one month the question is about.
+      //
+      // This used to announce the year's leap month whenever the year had one,
+      // which is noise to anyone entering 十月初三 in a year that repeats 六月:
+      // the two have nothing to do with each other. Worse, it answered a
+      // question that only exists for that single month by asking the user to
+      // type an `r` into the field themselves.
+      leapMonth: lunar && query.month === yearLeap ? yearLeap : 0,
       // Warn when the leap month was asked for but the year has none; the
       // occurrence then falls back to the regular month.
       leapMissing: lunar && leap && query.year !== null && yearLeap === 0,
@@ -63,12 +72,37 @@
     // Offered only while it would do something, the way the cleanup row hides its
     // own key when retention is off.
     if (lunarText) shortcuts.push({ keys: "Ctrl+L", label: i18n.t("anniversary.toLunar") });
+    if (resolved?.leapMonth) {
+      shortcuts.push({
+        keys: "Ctrl+R",
+        label: i18n.t("anniversary.leapToggle", { month: resolved.leapMonth }),
+      });
+    }
     shortcuts.push({ keys: "Esc", label: i18n.t("key.back") });
     return shortcuts;
   });
 
   function convertToLunar() {
     if (draft && lunarText) draft.dateText = lunarText;
+  }
+
+  /**
+   * Flips the leap-month flag by rewriting the field.
+   *
+   * `draftTextFor` is the same function that renders a saved anniversary back
+   * into the field, so the round trip is the one already covered by tests: the
+   * marker ends up exactly where the parser expects it, whatever the user had
+   * typed by hand (`农1003`, `10-03`, `n20250615`).
+   */
+  function toggleLeap() {
+    if (!draft || query.kind !== "date") return;
+    draft.dateText = draftTextFor({
+      month: query.month,
+      day: query.day,
+      calendar: query.calendar,
+      leapMonth: !query.leapMonth,
+      startYear: query.year,
+    });
   }
 
   $effect(() => {
@@ -96,6 +130,13 @@
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "l") {
       event.preventDefault();
       convertToLunar();
+      return;
+    }
+    // Guarded, because `toggleLeap` would happily mark any month as the leap one
+    // and leave the form warning that the year has no such month.
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r" && resolved?.leapMonth) {
+      event.preventDefault();
+      toggleLeap();
       return;
     }
     if (event.key === "Tab") {
@@ -191,10 +232,28 @@
           <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">
             {i18n.t("anniversary.leapMissing", { year: resolved.year })}
           </p>
-        {:else if resolved.leap}
-          <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("anniversary.leapDetected")}</p>
-        {:else if resolved.leapNote}
-          <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{resolved.leapNote}</p>
+        {/if}
+        <!-- The leap question, asked only for the month it applies to, and
+             answered by pressing rather than by editing the date text. -->
+        {#if resolved.leapMonth}
+          <button
+            type="button"
+            aria-pressed={resolved.leap}
+            class="pressable flex items-center gap-2 self-start rounded-md px-1 py-1 text-[12px] leading-[1.4] {resolved.leap
+              ? 'text-primary hover:text-primary-hover'
+              : 'text-ink-subtle hover:text-ink'} active:scale-[0.96]"
+            onclick={toggleLeap}
+          >
+            <span
+              class="flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-hairline bg-surface-1"
+              aria-hidden="true"
+            >
+              {#if resolved.leap}
+                <Check class="size-3 text-primary" strokeWidth={2} fill="currentColor" />
+              {/if}
+            </span>
+            <span>{i18n.t("anniversary.leapToggle", { month: resolved.leapMonth })}</span>
+          </button>
         {/if}
       {:else}
         <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("anniversary.dateHint")}</p>

@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The leap month is a checkbox, asked only for the month it applies to
+Decision:
+The anniversary form offers a 闰{month}月 checkbox, and only when the typed month is the one that lunar year repeats. It flips the flag by rewriting the field through `draftTextFor`. `Ctrl+R` does the same and appears in the footer only while it would do something. `anniversary.leapNote` and `anniversary.leapDetected` are gone.
+Reason:
+The old note announced a year's leap month whenever the year had one and told the user to add an `r` themselves. It named the wrong month — entering 十月初三 in a year that repeats 六月 has nothing to do with 六月 — and it answered a yes/no question by teaching a notation, which is the part users cannot do: they do not know the syntax, and the field is the one place they should not need to. The question only exists for the single month that has two of them, so that is the only place it is asked now.
+Note:
+`draftTextFor` is the function that already renders a saved anniversary back into the field, so routing the toggle through it means the round trip is normalised and tested rather than string-spliced: `农1003`, `10-03` and `n20250615` all come out as `n…` / `nr…`. Verified in the running app: `n20250615` shows an unticked 闰6月 and a Ctrl+R chip, pressing it gives `nr20250615` and 闰六月十五, and `n20251003` in the same year shows neither.
+
 ## 2026-10-01 - The footer is one height, and a row leads with the calendar its date is kept in
 Decision:
 `PanelFooter` is `min-h-8` with no vertical padding, so the bar is 32px whether it holds key chips, translate's target picker or a form's save button. And `occurrenceMeta` puts the saved calendar first: a lunar anniversary reads 十月初三 · 11月11日, a solar one 07月10日 · 六月初七.
