@@ -17,16 +17,13 @@ use commands::anniversary::{
     create_anniversary, delete_anniversary, get_anniversaries, update_anniversary,
 };
 use commands::apps::{bump_usage, get_installed_apps, get_usage_counts, launch_app, AppIndex};
-use commands::backup::{
-    create_backup, import_backup_from, inspect_backup, list_backups, open_backups_dir,
-    pick_backup_file, save_backup_copy,
-};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::qr::save_png_file;
 use commands::settings::{
     add_custom_engine, begin_hotkey_capture, cancel_hotkey_capture, delete_custom_engine,
     get_settings, update_setting, update_tray_menu,
 };
+use commands::transfer::{export_settings, import_settings, pick_import_file};
 use commands::translate::{lookup_word, pronounce, pronounce_sentence, translate, translate_llm};
 use commands::web::{list_browsers, open_web_url};
 use storage::settings_store;
@@ -89,9 +86,79 @@ fn should_hide_on_blur(app: &tauri::AppHandle) -> bool {
     }
 }
 
-pub(crate) fn set_ignore_blur(app: &tauri::AppHandle, ignore: bool) {
+fn set_ignore_blur(app: &tauri::AppHandle, ignore: bool) {
     if let Some(state) = app.try_state::<PaletteState>() {
         *lock(&state.ignore_blur) = ignore;
+    }
+}
+
+/// A system dialog is on screen, and the palette must not be over it.
+///
+/// Two things have to hold while it is open, and they only work as a pair. The
+/// palette is a topmost window (`alwaysOnTop` in `tauri.conf.json`), and the
+/// dialog has no owner to keep it above one: `tauri-plugin-dialog` leaves
+/// `parent` unset, so rfd hands a null owner to `IFileDialog::Show` and Windows
+/// is free to paint a `WS_EX_TOPMOST` window over it — which is what covered the
+/// dialog's own buttons. Dropping topmost is what puts the dialog back on top.
+///
+/// The other half is the blur. The dialog takes focus, and hiding on blur is
+/// exactly what the palette does with a focus it lost; without the suppression
+/// it would take the screen the user was on down with it.
+///
+/// Both are restored on drop, on every path out of the command, a cancelled
+/// dialog included.
+pub(crate) struct NativeDialog {
+    app: tauri::AppHandle,
+    window: Option<WebviewWindow>,
+    /// Read before the change rather than assumed, so a palette that was not
+    /// topmost is not made topmost by the act of closing a dialog.
+    restore_topmost: bool,
+}
+
+pub(crate) fn begin_native_dialog(app: &tauri::AppHandle) -> NativeDialog {
+    let window = palette_window(app);
+    let restore_topmost = window
+        .as_ref()
+        .and_then(|window| window.is_always_on_top().ok())
+        .unwrap_or(true);
+    if let Some(window) = window.as_ref() {
+        let _ = window.set_always_on_top(false);
+        // Reading the flag back is a round trip through the main thread's
+        // message queue, so it cannot answer before the change above has been
+        // applied. That matters because the dialog is opened from a blocking
+        // thread a moment later, and `HWND_NOTOPMOST` puts a window at the
+        // *front* of the non-topmost band: a palette that stepped aside after
+        // the dialog appeared would land back on top of it.
+        let _ = window.is_always_on_top();
+    }
+    set_ignore_blur(app, true);
+    NativeDialog {
+        app: app.clone(),
+        window,
+        restore_topmost,
+    }
+}
+
+impl Drop for NativeDialog {
+    fn drop(&mut self) {
+        // Before the flag is cleared, so a focus event the dialog left behind
+        // cannot hide the palette in the moment it comes back.
+        mark_shown(&self.app);
+        set_ignore_blur(&self.app, false);
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        if self.restore_topmost {
+            let _ = window.set_always_on_top(true);
+        }
+        // The dialog had the keyboard, and a palette that comes back looking
+        // exactly as it did while swallowing nothing is the state this whole
+        // guard exists to avoid. Unless it was hidden while the dialog was up —
+        // the hotkey still works during one — in which case it stays hidden and
+        // the next show is the one that takes focus.
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.set_focus();
+        }
     }
 }
 
@@ -451,13 +518,9 @@ pub fn run() {
             pronounce,
             pronounce_sentence,
             save_png_file,
-            list_backups,
-            create_backup,
-            inspect_backup,
-            import_backup_from,
-            save_backup_copy,
-            pick_backup_file,
-            open_backups_dir,
+            export_settings,
+            pick_import_file,
+            import_settings,
             list_browsers,
             open_web_url
         ])

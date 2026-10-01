@@ -66,21 +66,15 @@ export interface InstalledBrowser {
 }
 
 /**
- * One file in the backup folder, as `list_backups` reports it.
+ * The file the import row picked, as `pick_import_file` reports it.
  *
- * `valid` is false for a file that is in the folder but cannot be read as a
- * backup — hand-edited, truncated, or not one of ours. It is still listed, with
- * a row that says so, because a backup that silently vanished from the list is
- * worse than one that admits it cannot be read.
+ * The path is handed straight back to `import_settings`, and the name is what
+ * the confirmation shows: the user chose that file in a system dialog, and its
+ * name is the only thing that says which file they chose.
  */
-export interface BackupFile {
-  name: string;
+export interface PickedFile {
   path: string;
-  /** RFC3339 UTC, empty when the file could not be read. */
-  exportedAt: string;
-  todos: number;
-  snippets: number;
-  valid: boolean;
+  name: string;
 }
 
 export interface Snippet {

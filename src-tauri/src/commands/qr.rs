@@ -1,27 +1,21 @@
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 pub async fn save_png_file(app: AppHandle, bytes: Vec<u8>, default_name: String) -> Result<bool, String> {
-    crate::set_ignore_blur(&app, true);
-    let result = save_png_inner(app.clone(), bytes, default_name).await;
-    crate::set_ignore_blur(&app, false);
-    if !matches!(result, Ok(true)) {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_focus();
-        }
-    }
-    result
-}
-
-async fn save_png_inner(app: AppHandle, bytes: Vec<u8>, default_name: String) -> Result<bool, String> {
+    // The guard holds the palette off the dialog for as long as it is open, and
+    // puts it back — visible, focused and topmost — however this returns.
+    let _native = crate::begin_native_dialog(&app);
     let name = sanitize_file_name(&default_name);
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .add_filter("PNG", &["png"])
-            .set_file_name(&name)
-            .blocking_save_file()
+    let picked = tauri::async_runtime::spawn_blocking({
+        let app = app.clone();
+        move || {
+            app.dialog()
+                .file()
+                .add_filter("PNG", &["png"])
+                .set_file_name(&name)
+                .blocking_save_file()
+        }
     })
     .await
     .map_err(|err| err.to_string())?;

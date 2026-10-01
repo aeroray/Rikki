@@ -1,6 +1,5 @@
 pub mod anniversary;
 pub mod apps;
-pub mod backup;
 pub mod calc;
 pub mod clipboard;
 pub mod qr;
@@ -8,5 +7,6 @@ pub mod settings;
 pub mod snippet;
 pub mod system;
 pub mod todo;
+pub mod transfer;
 pub mod translate;
 pub mod web;

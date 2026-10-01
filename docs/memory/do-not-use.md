@@ -2,8 +2,11 @@
 
 Tombstones are newest first.
 
-## Tombstone: two settings rows for export/import, and partial imports
-Do not reintroduce unless the user explicitly reverses this. Reason: export and import are two views of one folder, so they are one screen with one vocabulary rather than two rows that each opened a native dialog; and a per-part import could leave two thirds of a restore applied, so a file missing a section is now refused whole instead of applied in part. Date: 2026-10-01.
+## Tombstone: a backup folder, a backup history, and a pre-import snapshot
+Do not reintroduce unless the user explicitly reverses this. Reason: the user asked for the two things every app has — export the current configuration to a file they choose, and import that file on another machine — so the app keeps no copy of its own and no history: no `app_data_dir/backups/`, no `list_backups`, no snapshot taken before an import, no typed-path sub-screen. Export and import are two rows in the settings list, each opening the system dialog directly. Two things are explicitly *not* part of this and stay: a file missing a section is refused whole (no per-part import, which could leave two thirds of a restore applied), and the three files are committed together. Date: 2026-10-01. This reverses the "two settings rows for export/import" half of the entry it replaces, on the user's explicit request; the partial-import half is unchanged.
+
+## Tombstone: a save dialog that leaves the palette topmost over it
+Do not reintroduce unless the user explicitly reverses this. Reason: a native file dialog has no owner window, so a topmost palette covers it and its buttons cannot be clicked. `begin_native_dialog` drops topmost for the dialog's lifetime and restores it on drop; suppressing blur-hide without dropping topmost is the bug, not the fix. Date: 2026-10-01.
 
 ## Tombstone: Simple Icons (and its Svelte wrappers) as the brand-logo source
 Do not reintroduce unless the user explicitly reverses this. Reason: the package has no Bing icon at all — checked at 16.33.0, and at 16.12.0, which is the snapshot the wrappers bundle — so it cannot cover the five search engines the settings offer. `@iconify-icons/cib` (CoreUI Brands, CC0, one module per icon) has all five. Date: 2026-09-30.

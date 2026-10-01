@@ -45,15 +45,14 @@ impl<'a> JsonWrite<'a> {
 
 /// Replaces several files as one commit.
 ///
-/// Each store owns one file, so restoring a backup is three writes at once.
-/// Writing them one at a time leaves the app holding a mixture of two backups
-/// when the disk fills up on the second one. Every temp file is written first —
-/// which is where a full disk or a denied permission shows up — and only then
-/// are the renames issued back to back.
+/// Each store owns one file, so importing a configuration is three writes at
+/// once. Writing them one at a time leaves the app holding a mixture of two
+/// configurations when the disk fills up on the second one. Every temp file is
+/// written first — which is where a full disk or a denied permission shows up —
+/// and only then are the renames issued back to back.
 ///
 /// A rename that fails midway still leaves the earlier files replaced, so this
-/// narrows the window rather than closing it; the caller is expected to have a
-/// copy of what it is replacing.
+/// narrows the window rather than closing it.
 pub fn write_all_or_nothing(entries: &[JsonWrite<'_>]) -> Result<(), String> {
     let mut temps = Vec::with_capacity(entries.len());
     for entry in entries {
@@ -95,10 +94,10 @@ pub fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> 
         Err(err) => {
             let moved = quarantine(path);
             Err(match moved {
-                Some(backup) => format!(
+                Some(kept) => format!(
                     "parse {}: {err} (kept a copy at {})",
                     label(path),
-                    backup.to_string_lossy()
+                    kept.to_string_lossy()
                 ),
                 None => format!("parse {}: {err}", label(path)),
             })
@@ -126,8 +125,8 @@ fn quarantine(path: &Path) -> Option<PathBuf> {
         .map(|duration| duration.as_secs())
         .unwrap_or(0);
     let replacement = format!("json.corrupt-{stamp}");
-    let backup = path.with_extension(replacement);
-    fs::rename(path, &backup).ok().map(|()| backup)
+    let kept = path.with_extension(replacement);
+    fs::rename(path, &kept).ok().map(|()| kept)
 }
 
 fn tmp_path(path: &Path) -> PathBuf {

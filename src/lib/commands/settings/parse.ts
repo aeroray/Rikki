@@ -5,8 +5,7 @@ export type SettingsScreen =
   | "theme"
   | "hotkey"
   | "language"
-  | "retention"
-  | "backup";
+  | "retention";
 
 const SCREENS: Array<{ screen: Exclude<SettingsScreen, "list">; aliases: string[] }> = [
   { screen: "engine", aliases: ["搜索引擎", "search engine", "search", "engine", "引擎", "搜索"] },
@@ -15,12 +14,6 @@ const SCREENS: Array<{ screen: Exclude<SettingsScreen, "list">; aliases: string[
   { screen: "hotkey", aliases: ["快捷键", "hotkey", "shortcut", "热键"] },
   { screen: "language", aliases: ["语言", "language", "lang", "locale", "国际化"] },
   { screen: "retention", aliases: ["保留", "retention", "clipboard", "clip", "清理", "过期", "剪贴板保留"] },
-  // Export and import are one screen now, so they are one word to type. Both
-  // spellings stay, and so do 导出/导入: they are what a user reaches for.
-  {
-    screen: "backup",
-    aliases: ["备份", "backup", "导出", "导入", "export", "import", "恢复", "restore", "数据", "data"],
-  },
 ];
 
 export function parseSettingsScreen(rest: string): SettingsScreen {

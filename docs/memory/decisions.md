@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The palette steps out of the way of every system dialog
+Decision:
+`alwaysOnTop` stays — a launcher has to overlay other apps — but it is dropped for as long as a system dialog is up, together with the blur-hide suppression that keeps the palette from vanishing when the dialog takes focus. The two are one object: `crate::begin_native_dialog` returns a guard that does both and restores both on drop, so a cancelled dialog leaves the palette visible, focused and topmost again with the screen the user was on still there. The dialogs are `export_settings` (save), `pick_import_file` (open) and `qr`'s `save_png_file`. Topmost is dropped *before* the dialog is created, and the change is confirmed by reading the flag back: `set_always_on_top` only posts a message to the main thread, and `HWND_NOTOPMOST` puts a window at the *front* of the non-topmost band, so a palette that stepped aside after the dialog appeared would land back on top of it.
+Reason:
+The system file dialog has no owner window — `tauri-plugin-dialog` leaves `parent` unset, so rfd hands a null owner to `IFileDialog::Show` — and nothing keeps a `WS_EX_TOPMOST` window from being painted over it, which is what covered the dialog's own buttons. The 2026-08-29 note that "a save dialog must ignore blur-hide so the palette stays up" is what left it on screen: staying up was never the problem, being topmost was.
+Note:
+Established by reading the tree, not by running the app: `alwaysOnTop` in `tauri.conf.json` is the only always-on-top in the repository, and no `set_always_on_top` call existed. Supersedes the blur-hide half of the 2026-08-29 QR entry. Unverified: the z-order itself, and macOS, where rfd shows a modal panel rather than an owned window.
+
+## 2026-10-01 - Export and import are two settings rows, and there is no backup folder
+Decision:
+The backup screen is gone: no list of past backups, no `app_data_dir/backups/`, no snapshot taken before an import, no typed-path sub-screen. `settings` has two rows that act rather than open a screen — 导出配置 opens the system save dialog and writes todos, snippets and settings wherever the user points; 导入配置 opens the system open dialog, reads the file it returns, and only then asks through `ActionConfirm` before replacing anything. The whole-file validation and the three-file `write_all_or_nothing` commit stay. Export asks nothing, because the save dialog already is the decision and it cannot destroy anything — the app's rule is that confirmation is for what cannot be undone.
+Reason:
+The user asked for the two things every app has: put the current configuration where they can copy it from (a desktop, a sync folder) and read it back on another machine. A folder of the app's own, a history and a snapshot are a second copy they did not ask for, and one they cannot see from the machine they are importing on. Two rows rather than a screen because there is nothing left for the two actions to share: the screen would hold two rows and nothing else, for one extra keystroke in each direction.
+Note:
+The file format is unchanged, so files the backup screen wrote still import. `list_backups`, `create_backup`, `inspect_backup`, `save_backup_copy`, `pick_backup_file`, `open_backups_dir`, `unique_path` and the `BackupFile` shape are deleted rather than kept "in case". The file is read as it is picked, so a file that is not ours is refused while the data on screen is still untouched. Not verified in the running app: the two dialogs and the confirmation.
+
 ## 2026-10-01 - Backups are one screen in the palette, not two native dialogs
 Decision:
 Export and import are one settings row (备份与恢复) opening one screen, `settings backup`. That screen is a single list: `新建备份`, whose value is the live counts of what it would write; then the files in `app_data_dir/backups/`, newest first, each labelled with its local `YYYY-MM-DD HH:MM:SS` and its counts, with a file that will not parse listed as 无法读取 rather than dropped; then `从文件导入…`, `另存为…` and `打开备份文件夹`. Enter on a file arms the existing `ActionConfirm` with a body naming the current data it would replace. `从文件导入…` opens a path field that describes the file it resolves to as it is typed (250ms debounce) and offers the native picker beside it; `另存为…` keeps the native save dialog. Before anything is replaced, the current data is written into the backup folder as a snapshot, and todos, snippets and settings are then committed through `json_file::write_all_or_nothing` — every temp written first, then the renames. A file that is missing a section is refused whole, and `settings.import.partial` is gone.
@@ -9,6 +25,7 @@ Reason:
 The folder is the app's own, so export and import are two views of one thing and belonged in one list with one vocabulary, not on two settings rows that each opened a system modal in front of a 600×400 palette. A native dialog is not foreign to this app — the QR panel saves a PNG through one — but it is the wrong default for a recurring operation whose result the app can list itself. Restoring is irreversible, so it goes through the one confirmation dialog the app already has, and the snapshot is what makes it reversible anyway: an import that fails between the three writes, or a shortcut the imported settings cannot register, leaves the previous state in the folder as a file the user can restore.
 Note:
 The file name carries the local clock and is built in the frontend, because Rust has no local time without another dependency and the name is what the user reads in Explorer or Finder. `list_backups` reads at most 20 files, at boot and after anything writes to the folder. Not verified in the running app: the panel's height with a full header, and the two native dialogs (they are the parts that need a real window).
+Superseded by the entry above (2026-10-01, two settings rows): the screen, the folder, the list and the snapshot are gone and the two native dialogs are the only way in or out. The whole-file refusal is not part of what was reversed and stays.
 
 ## 2026-10-01 - One empty state for every panel, and the backdrop carries its own corners
 Decision:
@@ -155,9 +172,11 @@ The clip panel is for browsing and pasting; bulk delete belongs with retention o
 
 ## 2026-08-29 - Backups overwrite todos, snippets, and settings
 Decision:
-Settings can export and import a versioned JSON backup of todos, snippets, and settings. Import replaces those files in full. Clip history is not included.
+Settings can export and import a versioned JSON file of todos, snippets, and settings. Import replaces those files in full. Clip history is not included.
 Reason:
 Those three are user-owned; clip is ephemeral, and merge or cloud sync would add UI the launcher does not need.
+Note:
+Still true of the 2026-10-01 export/import rows; only the vocabulary moved from "backup" to 导出配置 / 导入配置, because there is no backup folder for the word to point at.
 
 ## 2026-08-29 - Clip texts stay; images cap at 200 and 5MB
 Decision:
@@ -181,7 +200,7 @@ Navigator clipboard was silent on failure and polluted clip history with convert
 Decision:
 `qr`/`qrcode` builds an SVG in the search bar (Enter copies SVG, Tab saves PNG). `qrd`/`qrdecode` runs jsQR on clipboard images. Black/white, error level H. No camera, logo, or color options.
 Reason:
-Screenshots already land in clip history, so decode does not need a camera; a save dialog must ignore blur-hide so the palette stays up.
+Screenshots already land in clip history, so decode does not need a camera. (The other half of this reason — "a save dialog must ignore blur-hide so the palette stays up" — is superseded: see the 2026-10-01 entry on system dialogs. Staying up over the dialog is exactly what hid the dialog's own buttons.)
 
 ## 2026-08-29 - Timestamp converts in the search bar
 Decision:

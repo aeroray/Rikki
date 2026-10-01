@@ -96,14 +96,9 @@
       const screen = parseSettingsScreen(ui.commandRest);
       const index = settings.selectedIndex;
       if (screen === "hotkey") return undefined;
-      if (settings.importDraft) return undefined;
       if (screen === "engine") {
         const engine = settings.engines[index];
         return engine ? `engine-${engine.id}` : undefined;
-      }
-      if (screen === "backup") {
-        const row = settings.backupRows[index];
-        return row ? `backup-${row.key}` : undefined;
       }
       if (screen === "theme") {
         const option = settings.themes[index];
@@ -157,7 +152,7 @@
     if (ui.view === "settings") {
       // The draft replaces the panel; `countFor` already reports 0 for the
       // screens that render a form or the recorder instead of a list.
-      if (settings.engineDraft || settings.importDraft) return 0;
+      if (settings.engineDraft) return 0;
       return settings.countFor(parseSettingsScreen(ui.commandRest));
     }
     return 0;
@@ -192,8 +187,7 @@
       ui.focusField === "search" &&
       !ui.imagePreviewSrc &&
       !snippets.draft &&
-      !settings.engineDraft &&
-      !settings.importDraft
+      !settings.engineDraft
     ) {
       requestAnimationFrame(() => inputEl?.focus());
     }
@@ -558,15 +552,6 @@
         if (event.key === "Enter") {
           event.preventDefault();
           void settings.saveEngineDraft();
-        }
-        return;
-      }
-      if (settings.importDraft) {
-        // The path field has focus, but every shortcut in the palette is bound
-        // here, so Enter has to be routed from the same place as the rest.
-        if (event.key === "Enter") {
-          event.preventDefault();
-          void settings.submitImportDraft();
         }
         return;
       }

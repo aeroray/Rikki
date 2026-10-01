@@ -4,10 +4,7 @@
     Compass,
     Download,
     Eraser,
-    FileJson,
-    FolderOpen,
     Globe,
-    HardDriveDownload,
     Keyboard,
     KeyRound,
     Languages,
@@ -39,10 +36,7 @@
       | "Timer"
       | "Eraser"
       | "Download"
-      | "Upload"
-      | "FileJson"
-      | "HardDriveDownload"
-      | "FolderOpen";
+      | "Upload";
     selected: boolean;
     onselect: () => void;
     current?: boolean;
@@ -59,9 +53,6 @@
     Upload,
     Timer,
     Eraser,
-    FileJson,
-    HardDriveDownload,
-    FolderOpen,
   };
   const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();

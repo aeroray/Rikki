@@ -34,11 +34,6 @@ export function openRetentionSettings(): void {
   ui.focusField = "search";
 }
 
-export function openBackupSettings(): void {
-  ui.searchText = "settings backup";
-  ui.focusField = "search";
-}
-
 export function startClipCleanup(): void {
   const days = settings.clipTextRetentionDays;
   if (days <= 0) {
@@ -62,11 +57,6 @@ export function closeSettingsDrill(): boolean {
     return true;
   }
 
-  if (settings.importDraft) {
-    settings.closeImportDraft();
-    return true;
-  }
-
   if (settings.recording) {
     void settings.stopRecording();
     ui.searchText = "settings ";
@@ -83,11 +73,6 @@ export function closeSettingsDrill(): boolean {
 export async function handleSettingsEnter(): Promise<void> {
   if (settings.engineDraft) {
     await settings.saveEngineDraft();
-    return;
-  }
-
-  if (settings.importDraft) {
-    await settings.submitImportDraft();
     return;
   }
 
@@ -118,10 +103,6 @@ export async function handleSettingsEnter(): Promise<void> {
     if (option) await settings.setClipRetention(option.id);
     return;
   }
-  if (screen === "backup") {
-    await settings.runBackupRow(settings.selectedIndex);
-    return;
-  }
 
   const item = settings.listItems[settings.selectedIndex];
   if (item?.id === "engine") openEngineSettings();
@@ -134,5 +115,13 @@ export async function handleSettingsEnter(): Promise<void> {
     startClipCleanup();
     return;
   }
-  if (item?.id === "backup") openBackupSettings();
+  // The two transfer rows act on the list rather than opening a screen of their
+  // own: there is nothing between the keystroke and the system dialog.
+  if (item?.id === "export") {
+    await settings.exportSettings();
+    return;
+  }
+  if (item?.id === "import") {
+    await settings.importSettings();
+  }
 }
