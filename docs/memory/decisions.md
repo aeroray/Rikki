@@ -2,6 +2,30 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The theme preference and the painted theme are two things, and the default is `system`
+Decision:
+`ThemePref` (`system` / `dark` / `light`) is what the user picked and what `settings.json` stores; `ThemeId` (`dark` / `light`) is what is painted. `src/lib/commands/settings/theme.ts` owns the one function that turns the first into the second, and `+layout.svelte` is the only place that writes `data-theme`. The settings store keeps the OS answer live through a `matchMedia` listener, so a switch made while the palette is hidden is already in effect on the next show. The default, for a new install and for an unrecognised stored value, is `system`.
+Reason:
+The app shipped two themes and a stored choice, so a user who had never opened settings was pinned to whichever one the default happened to be, and changing the OS did nothing. `system` is the answer that needs no decision, which is why it is also what an unreadable value falls back to rather than an error. Splitting the preference from the painted theme is what keeps every other caller from having to ask what `system` means today.
+Note:
+`docs/memory/preferences.md`-style prior art aside, this is the first setting whose *value* is not directly paintable. Measured in the running app: with the machine in dark mode, a `theme` of `system` paints dark and the row reads 跟随系统（暗色）; the same build with `theme: light` paints light. The light theme is a peer, not a fallback — DESIGN.md says so.
+
+## 2026-10-01 - The app updates itself from GitHub Releases, and one workflow builds both packages
+Decision:
+`tauri-plugin-updater` plus `tauri-plugin-process`, an endpoint of `https://github.com/aeroray/Rikki/releases/latest/download/latest.json`, and a minisign public key in `tauri.conf.json`. A `检查更新` row in settings checks, confirms through the app's existing destructive dialog, downloads with a per-percent notice, and restarts. `.github/workflows/release.yml` builds exactly two targets on a `v*` tag: the NSIS installer on `windows-latest` and the DMG on `macos-14` (Apple silicon), both as a **draft** release.
+Reason:
+The updater's signature is not optional the way code signing is: every installed copy verifies the download against the public key compiled into it, so losing the private key means no further update can ever be published for that app. That is why the key is generated once, kept outside the repository, and handed to the user to paste into GitHub Secrets. The draft release is deliberate — a tag is not the same decision as "this is public", and the updater only sees a published release. Nothing checks on its own: a launcher that interrupts a keystroke with an update card is the behaviour this app exists to avoid.
+Note:
+The NSIS installer is `perMachine`, not the CLI default, so the install path is `C:\Program Files\Rikki` and does not depend on the user's account name — the requirement was an English path and an English product name even though the installer itself is multilingual (`SimpChinese` + `English`, with the language picker shown). Measured: `makensis` produced `Rikki_0.1.0_x64-setup.exe`, and the generated script carries both `MUI_LANGUAGE` lines and `RequestExecutionLevel admin`. Neither package is code signed, so Windows shows SmartScreen's unknown publisher and macOS needs `xattr -cr /Applications/Rikki.app`. Unverified: the macOS job, which has never run, and an actual update round-trip, which needs a published release to check against.
+
+## 2026-10-01 - The tray icon was never stale; the binary was
+Decision:
+No change. The tray uses `app.default_window_icon()`, which `tauri-codegen` resolves on Windows to `icons/icon.ico` and elsewhere to `icons/icon.png`, and the icons were already regenerated.
+Reason:
+The report was that the tray still showed the old mark. It does not: `default_window_icon` is compiled into the executable at build time, so a running process keeps the icon it started with, and Windows caches notification-area icons on top of that. Rebuilding and restarting is the whole fix — which is worth writing down, because "the asset changed but the app did not" is indistinguishable from a broken asset until you know where the bytes come from.
+Note:
+Measured: after a rebuild, the notification area shows the black tile with the lavender raccoon. The one thing genuinely worth changing later is macOS, where a black tile is the wrong shape for a menu bar that wants a monochrome template image; `mark.png` is the asset that would be used, and it cannot be verified without a Mac.
+
 ## 2026-10-01 - A footer status sits at the far right, and the clip list has one heading, not two
 Decision:
 `PanelFooter`'s message is pushed to the end of the row with an auto margin (`ml-auto` beside shortcuts, `mx-auto` alone) instead of taking `flex-1`. The clip panel drops its `最近 N` heading — the pinned block keeps `已固定 N` — and the footer count becomes `共 {count} 条` / `{count} items`. `clip.recent` is deleted from both catalogs.

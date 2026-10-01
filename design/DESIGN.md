@@ -7,6 +7,7 @@ Product design spec for the Spotlight-style launcher. This file is the in-app sy
 - Cool near-black canvas (`#07080a`), charcoal panels, one lavender accent.
 - 4px spacing grid. Hairlines are translucent, not solid gray.
 - Motion is short, spatial, and interruptible. `prefers-reduced-motion` disables enter/exit and glow.
+- Dark and light are peers, not a default and a fallback: `system` follows the OS and is what the app ships with, and the light theme is designed as carefully as the dark one.
 
 ## Brand
 

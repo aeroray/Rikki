@@ -19,7 +19,7 @@ Rikki sits in the tray and opens a glass palette on a hotkey. Type to launch an 
 - **Converters** — calc, color, JSON, Base64, timestamps, QR codes (make one, or read one from the clipboard).
 - **Translate** — no API key. A word gets a dictionary card; a sentence gets two translations.
 - **System** — lock, sleep, shutdown, reboot, logout; web search with `gg`, `bd`, `bing`, `ddg`, `sogou`.
-- **中文 / English**, dark and light, and the hotkey is yours to rebind.
+- **中文 / English**, dark, light or following the system, and the hotkey is yours to rebind.
 
 ## Run it
 
@@ -78,9 +78,11 @@ The empty palette lists commands by how often you open them, with clipboard and 
 
 ## Settings
 
-`settings` opens one list: search engine, browser, theme, hotkey, language, clipboard retention, cleanup of expired records, and export / import.
+`settings` opens one list: search engine, browser, theme, hotkey, language, clipboard retention, cleanup of expired records, export / import, and check for updates.
 
 Export writes todos, snippets and settings to a JSON file wherever you point it; import reads one back and asks before replacing anything. Clipboard history is not part of it.
+
+Rikki updates itself. The last row checks GitHub Releases, verifies the download against a key baked into the app, and restarts into the new version. Neither package is code signed yet, so Windows shows SmartScreen's "unknown publisher" and macOS needs the quarantine flag cleared by hand: `xattr -cr /Applications/Rikki.app`.
 
 ## Stack
 
