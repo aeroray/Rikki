@@ -11,6 +11,7 @@
   import "$lib/commands/settings";
   import "$lib/commands/snippet";
   import "$lib/commands/sys";
+  import "$lib/commands/sysmon";
   import "$lib/commands/timestamp";
   import "$lib/commands/todo";
   import "$lib/commands/translate";
@@ -28,6 +29,7 @@
   import EmojiPanel from "$lib/commands/emoji/EmojiPanel.svelte";
   import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
+  import SysmonPanel from "$lib/commands/sysmon/SysmonPanel.svelte";
   import { toggleSelectedPreview } from "$lib/commands/clip/preview";
   import { escapePalette } from "$lib/commands/escape";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
@@ -205,6 +207,8 @@
       <EmojiPanel />
     {:else if ui.view === "translate"}
       <TranslatePanel />
+    {:else if ui.view === "sysmon"}
+      <SysmonPanel />
     {:else if ui.view === "color"}
       <ColorPanel />
     {:else if ui.view === "json"}

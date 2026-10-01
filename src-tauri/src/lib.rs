@@ -16,6 +16,7 @@ mod keyboard;
 mod permissions;
 mod storage;
 #[cfg(desktop)]
+mod sysmon;
 mod tray;
 
 use commands::anniversary::{
@@ -247,6 +248,15 @@ fn toggle_palette(app: &tauri::AppHandle) {
     }
 }
 
+/// One reading of the machine, for the `sys` panel.
+///
+/// The sampler is held in state rather than built per call: CPU and GPU usage are
+/// deltas between two readings, so a fresh sampler answers zero.
+#[tauri::command]
+fn system_stats(monitor: tauri::State<sysmon::Monitor>) -> sysmon::Stats {
+    monitor.snapshot()
+}
+
 #[tauri::command]
 fn request_hide_window(app: tauri::AppHandle) {
     request_hide(&app);
@@ -411,6 +421,8 @@ fn apply_platform_window(window: &WebviewWindow) {
 pub fn run() {
     tauri::Builder::default()
         .manage(AppIndex::default())
+        // Built once, because its readings are deltas between calls.
+        .manage(sysmon::Monitor::new())
         .manage(PaletteState {
             last_shown_at: Mutex::new(None),
             hide: Mutex::new(HideGate {
@@ -563,7 +575,8 @@ pub fn run() {
             import_settings,
             list_browsers,
             open_web_url,
-            keyboard::caps_lock_state
+            keyboard::caps_lock_state,
+            system_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

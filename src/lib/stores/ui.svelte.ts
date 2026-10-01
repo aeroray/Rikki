@@ -57,7 +57,7 @@ class UiStore {
   matched = $derived(match(this.searchText));
   matchedCommand = $derived(this.matched?.command ?? null);
   commandRest = $derived(this.matched?.rest ?? "");
-  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" | "json" | "base64" | "timestamp" | "qr" | "qrdecode" | "anniversary" | "calendar" => {
+  view = $derived.by((): "empty" | "suggest" | "todo" | "calc" | "clip" | "snippet" | "settings" | "emoji" | "translate" | "color" | "json" | "base64" | "timestamp" | "qr" | "qrdecode" | "anniversary" | "calendar" | "sysmon" => {
     if (!this.searchText.trim()) return "empty";
     if (this.isCommandActive("todo")) return "todo";
     if (this.isCommandActive("calc")) return "calc";
@@ -65,6 +65,7 @@ class UiStore {
     if (this.isCommandActive("snippet")) return "snippet";
     if (this.isCommandActive("anniversary")) return "anniversary";
     if (this.isCommandActive("calendar")) return "calendar";
+    if (this.isCommandActive("sysmon")) return "sysmon";
     if (this.isCommandActive("settings")) return "settings";
     if (this.isCommandActive("emoji")) return "emoji";
     if (this.isCommandActive("translate")) return "translate";

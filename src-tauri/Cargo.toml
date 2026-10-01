@@ -34,10 +34,15 @@ rand = "0.8"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+sysinfo = "0.39.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 plist = "1"
 icns = "0.3"
+# GPU usage on macOS, read out of the accelerator's performance dictionary in the
+# I/O registry. The IOKit calls themselves are declared in `sysmon.rs`; this is
+# only for reading the CFDictionary they hand back.
+core-foundation = "0.10"
 
 [target.'cfg(windows)'.dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -57,6 +62,7 @@ windows = { version = "0.58", features = [
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
     "Win32_System_Environment",
+    "Win32_System_Performance",
     "Win32_System_Registry",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Shell",

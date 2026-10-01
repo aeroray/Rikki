@@ -1,4 +1,5 @@
 import {
+  Activity,
   Binary,
   Braces,
   Calculator,
@@ -41,6 +42,7 @@ import {
  * looks deliberate.
  */
 export const ICONS = {
+  Activity,
   Binary,
   Braces,
   Calculator,

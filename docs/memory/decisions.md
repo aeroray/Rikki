@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - System stats come from sysinfo, and GPU usage from the drivers
+Decision:
+`sys` opens a live panel — CPU with a tick per core, memory and swap, every GPU, the OS and uptime, and the eight processes using the most memory. Figures come from `sysinfo`; GPU usage is read per platform in `src-tauri/src/sysmon.rs`, from Windows performance counters and from the `PerformanceStatistics` dictionary every macOS accelerator keeps in the I/O registry.
+Reason:
+`sysinfo` carries CPU, memory, system and processes on every platform, and it is the only crate worth using for that: `heim` has not been touched since 2020 and `systemstat` is thinner. GPU is the exception — no crate does it across platforms, and the ones that try are either vendor-locked (`nvml-wrapper` is NVIDIA only) or far too small to depend on. Both branches read a figure the driver already publishes rather than talking to the hardware, which is what makes them work for NVIDIA, AMD, Intel and Apple's own without a library per brand, and what makes the macOS side need no privileges.
+Note:
+Two things are load-bearing. The sampler is held in state rather than built per call, because CPU and GPU usage are both deltas between two readings and a fresh sampler answers zero — including the PDH query, which resets if it is reopened. And the panel polls once a second while it is open and stops with it: this app lives in the tray, and sampling around the clock would be trading battery for nothing. Measured on Windows: 12th Gen Intel Core i5-12400F, 12 cores at 2.5 GHz, 10.2 / 15.8 GB, two GPUs at 7% and 0%, and the busiest processes by memory. The macOS branch is written but unverified — there is no Mac here.
+
 ## 2026-10-01 - The Start Menu is re-read while the app runs
 Decision:
 `refresh_apps` runs `load_or_refresh` again and stores the result; `apps.refresh()` calls it when the palette opens, throttled to a minute.
