@@ -36,6 +36,7 @@ class ClipboardStore {
   private ignoreTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
   private imagesDir = "";
+  private pendingCapture: Promise<void> = Promise.resolve();
 
   constructor() {
     this.ready = this.hydrate();
@@ -62,7 +63,9 @@ class ClipboardStore {
       }
       await startListening();
       await listen(CLIPBOARD_CHANGED, () => {
-        void this.handleChange();
+        // Held rather than dropped so a decode can wait for a capture of the
+        // same image; never rejected, so awaiting it is safe.
+        this.pendingCapture = this.handleChange().catch(() => {});
       });
     } catch {
       this.started = false;
@@ -211,6 +214,44 @@ class ClipboardStore {
       this.suppressNextCapture(false);
       ui.flash(i18n.t("clip.pasteFailed"));
       return false;
+    }
+  }
+
+  /**
+   * The image on the clipboard right now, as bytes, without recording it.
+   *
+   * Decoding is a read, not a copy, so this must not reach `capture()` and add a
+   * history row. The plugin names the file after a hash of the image bytes, so a
+   * decode and a capture of the same image share one path: the file is discarded
+   * only once no entry references it, or the clip row would point at a deleted
+   * image.
+   */
+  async readCurrentImage(): Promise<Uint8Array | null> {
+    if (!this.imagesDir) return null;
+    // The reference check below reads `entries`, so wait for the hydration, and
+    // for a capture of this same image that may be between writing the file and
+    // recording the entry that keeps it referenced.
+    await this.ready;
+    await this.pendingCapture;
+    let path = "";
+    try {
+      const image = await readImage(this.imagesDir);
+      path = typeof image.path === "string" ? image.path : String(image.path ?? "");
+    } catch {
+      // No image on the clipboard is the ordinary case, not a failure.
+      return null;
+    }
+    if (!path) return null;
+    try {
+      const raw = await invoke<number[] | Uint8Array>("read_clipboard_image", { path });
+      return raw instanceof Uint8Array ? raw : Uint8Array.from(raw);
+    } catch {
+      return null;
+    } finally {
+      const referenced = this.entries.some(
+        (entry) => entry.type === "image" && sameImage(entry.content, path),
+      );
+      if (!referenced) await invoke("discard_clipboard_image", { path }).catch(() => {});
     }
   }
 

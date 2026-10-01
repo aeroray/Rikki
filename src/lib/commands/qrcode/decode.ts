@@ -27,8 +27,8 @@ export async function decodeClipboardQr(): Promise<DecodeOutcome> {
     if (data) return { ok: true, data };
   }
 
-  const pasted = await decodeNavigatorClipboard();
-  if (pasted) return { ok: true, data: pasted };
+  const current = await decodeCurrentImage();
+  if (current) return { ok: true, data: current };
   if (images.length === 0) return { ok: false, reason: "empty" };
   return { ok: false, reason: "none" };
 }
@@ -64,21 +64,17 @@ async function decodeEntry(entry: ClipboardEntry): Promise<string | null> {
   }
 }
 
-async function decodeNavigatorClipboard(): Promise<string | null> {
-  if (!navigator.clipboard?.read) return null;
-  try {
-    const items = await navigator.clipboard.read();
-    for (const item of items) {
-      const type = item.types.find((name) => name.startsWith("image/"));
-      if (!type) continue;
-      const blob = await item.getType(type);
-      const outcome = await decodeQrBlob(blob);
-      if (outcome.ok) return outcome.data;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+/**
+ * The image copied most recently may not be in the history yet — the capture is
+ * asynchronous — so the clipboard itself is read once more. It goes through the
+ * Rust plugin rather than `navigator.clipboard`, which asks the user for
+ * permission before handing an image to the webview.
+ */
+async function decodeCurrentImage(): Promise<string | null> {
+  const bytes = await clipboard.readCurrentImage();
+  if (!bytes) return null;
+  const outcome = await decodeQrBlob(new Blob([bytes]));
+  return outcome.ok ? outcome.data : null;
 }
 
 async function decodePixels(imageData: ImageData): Promise<string | null> {

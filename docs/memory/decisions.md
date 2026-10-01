@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The QR decode reads the clipboard in Rust, not in the webview
+Decision:
+`qrd` no longer calls `navigator.clipboard.read()`. The live clipboard image is read through the clipboard plugin instead: `ClipboardStore.readCurrentImage()` has the plugin write the clipboard bitmap into `clipboard/images/`, reads those bytes back with `read_clipboard_image`, and discards the file again with `discard_clipboard_image` unless an entry already references it. The history scan that runs first (the five newest image entries) is unchanged, and so is the reason the second read exists at all: the image copied a moment ago may not have been captured into the history yet.
+Reason:
+WebView2 answers `navigator.clipboard.read()` with a permission dialog ("http://localhost:1420 想要 查看复制到剪贴板的文本和图像") — a system modal in the middle of a keystroke-driven launcher, and one the user cannot answer without leaving the keyboard. Every other clipboard read in the app already goes through the plugin, which reads on the Rust side and asks for nothing: the clip history, the JSON panel's clipboard seed, `{{clipboard}}` in snippets. This path was the only one that did not. It needs no capability either — app commands are outside `capabilities/default.json`.
+Note:
+The plugin names the image file after a hash of its bytes, so a decode and a capture of the same image share one path — hence the reference check before the discard, and the wait on `pendingCapture` (a capture can be between writing the file and recording the entry that keeps it referenced). `src/lib/stores/clipboard.test.ts` covers the three outcomes: bytes without a history row, discard when unreferenced, keep when referenced. Not verified in the running app: that the prompt is gone, and macOS, where the plugin reads NSPasteboard and was not exercised.
+
 ## 2026-10-01 - The palette steps out of the way of every system dialog
 Decision:
 `alwaysOnTop` stays — a launcher has to overlay other apps — but it is dropped for as long as a system dialog is up, together with the blur-hide suppression that keeps the palette from vanishing when the dialog takes focus. The two are one object: `crate::begin_native_dialog` returns a guard that does both and restores both on drop, so a cancelled dialog leaves the palette visible, focused and topmost again with the screen the user was on still there. The dialogs are `export_settings` (save), `pick_import_file` (open) and `qr`'s `save_png_file`. Topmost is dropped *before* the dialog is created, and the change is confirmed by reading the flag back: `set_always_on_top` only posts a message to the main thread, and `HWND_NOTOPMOST` puts a window at the *front* of the non-topmost band, so a palette that stepped aside after the dialog appeared would land back on top of it.
