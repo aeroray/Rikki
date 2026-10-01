@@ -97,25 +97,24 @@
           </section>
         {/if}
 
+        <!-- The recent block has no heading: everything below the pinned ones is
+             recent, so the label only repeated what the list already showed. The
+             pinned block keeps its own, because that split is the one a reader
+             cannot see for themselves. -->
         {#if recent.length > 0}
-          <section>
-            <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">
-              {i18n.t("clip.recent")} <span class="tabular-nums">{recent.length}</span>
-            </p>
-            <ul class="flex flex-col gap-1">
-              {#each recent as entry, index (entry.id)}
-                <li>
-                  <ClipItem
-                    {entry}
-                    {now}
-                    selected={clipboard.selectedIndex === pinned.length + index}
-                    onselect={() => paste(entry.id)}
-                    onpin={() => clipboard.togglePin(entry.id)}
-                  />
-                </li>
-              {/each}
-            </ul>
-          </section>
+          <ul class="flex flex-col gap-1">
+            {#each recent as entry, index (entry.id)}
+              <li>
+                <ClipItem
+                  {entry}
+                  {now}
+                  selected={clipboard.selectedIndex === pinned.length + index}
+                  onselect={() => paste(entry.id)}
+                  onpin={() => clipboard.togglePin(entry.id)}
+                />
+              </li>
+            {/each}
+          </ul>
         {/if}
       </ScrollArea>
     {/if}

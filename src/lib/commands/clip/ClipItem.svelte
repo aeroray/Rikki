@@ -1,11 +1,47 @@
 <script lang="ts">
   import type { ClipboardEntry } from "$lib/commands/types";
+  import {
+    clipFileName,
+    clipFilePaths,
+    clipKind,
+    clipLineCount,
+    clipPreview,
+    type ClipKind,
+  } from "$lib/commands/clip/content";
   import { parseColor } from "$lib/commands/color/parse";
   import { i18n } from "$lib/i18n";
   import { relativeTime } from "$lib/relativeTime";
   import { imagePreviewSrc } from "$lib/commands/clip/preview";
   import { ui } from "$lib/stores/ui.svelte";
-  import { Clipboard, Image as ImageIcon, Pin, SwatchBook, ZoomIn } from "@lucide/svelte";
+  import {
+    File as FileIcon,
+    FileText,
+    Files,
+    Image as ImageIcon,
+    Link,
+    Mail,
+    Pin,
+    Type,
+    ZoomIn,
+  } from "@lucide/svelte";
+
+  /**
+   * One glyph per kind, and none for the two that carry their own picture: an
+   * image shows its thumbnail and a colour shows its swatch, so a glyph beside
+   * either would only be saying the same thing twice.
+   */
+  type IconKind = Exclude<ClipKind, "image" | "color">;
+  const KIND_ICON: Record<IconKind, typeof Type> = {
+    url: Link,
+    email: Mail,
+    path: FileIcon,
+    files: Files,
+    multiline: FileText,
+    text: Type,
+  };
+
+  /** A line count past this is not worth printing exactly. */
+  const LINE_LIMIT = 99;
 
   let {
     entry,
@@ -23,18 +59,64 @@
 
   let row: HTMLDivElement | undefined = $state();
   let broken = $state(false);
-  const color = $derived(entry.type === "text" ? parseColor(entry.content) : null);
-  const preview = $derived(entry.type === "text" ? truncate(entry.content) : "");
-  const isUrl = $derived(entry.type === "text" && /^https?:\/\//i.test(entry.content.trim()));
+
+  const kind = $derived(clipKind(entry));
+  const KindIcon = $derived(kind === "image" || kind === "color" ? Type : KIND_ICON[kind]);
+  const color = $derived(kind === "color" ? parseColor(entry.content) : null);
+  const paths = $derived(clipFilePaths(entry));
   const thumb = $derived(entry.type === "image" ? (imagePreviewSrc(entry) ?? "") : "");
-  const dims = $derived(
-    entry.width && entry.height ? `${entry.width}×${entry.height}` : "",
-  );
+  const dims = $derived(entry.width && entry.height ? `${entry.width}×${entry.height}` : "");
   const sizeLabel = $derived(formatSize(entry.size));
   const ago = $derived(relativeTime(entry.createdAt, now));
-  const meta = $derived(
-    buildMeta(entry.type === "image", dims, sizeLabel, isUrl, entry.appName, ago),
-  );
+
+  const title = $derived.by(() => {
+    if (entry.type === "image") return i18n.t("clip.image");
+    if (entry.type === "files") return paths[0] ? clipFileName(paths[0]) : "";
+    return clipPreview(entry.content);
+  });
+
+  const meta = $derived.by(() => {
+    const parts: string[] = [];
+    if (entry.appName) parts.push(entry.appName);
+    if (entry.type === "image") {
+      if (dims) parts.push(dims);
+      if (sizeLabel) parts.push(sizeLabel);
+    } else if (entry.type === "files") {
+      parts.push(i18n.t("clip.files", { count: paths.length }));
+      if (sizeLabel) parts.push(sizeLabel);
+    } else {
+      if (kind === "url") parts.push(i18n.t("clip.link"));
+      if (kind === "multiline") {
+        parts.push(i18n.t("clip.lines", { count: lineLabel(entry.content) }));
+      }
+    }
+    parts.push(ago);
+    return parts.join(" · ");
+  });
+
+  /**
+   * The hover tooltip. A file list is the one kind whose row cannot show what it
+   * holds — the title is the first name and the count is in the meta — so the
+   * paths go here, where there is room for them.
+   */
+  const tooltip = $derived.by(() => {
+    const when = [entry.appName, new Date(entry.createdAt).toLocaleString()]
+      .filter(Boolean)
+      .join(" · ");
+    if (entry.type !== "files") return when;
+    return [pathSummary(paths), when].filter(Boolean).join("\n");
+  });
+
+  function pathSummary(list: string[], limit = 10): string {
+    if (list.length <= limit) return list.join("\n");
+    return [...list.slice(0, limit), "…"].join("\n");
+  }
+
+  /** `99+` rather than a number nobody reads, and never a walk over the body. */
+  function lineLabel(content: string): string {
+    const count = clipLineCount(content, LINE_LIMIT);
+    return count > LINE_LIMIT ? `${LINE_LIMIT}+` : String(count);
+  }
 
   $effect(() => {
     entry.content;
@@ -46,11 +128,6 @@
       row?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   });
-
-  function truncate(text: string): string {
-    const compact = text.replace(/\s+/g, " ").trim();
-    return compact.length > 60 ? `${compact.slice(0, 60)}…` : compact;
-  }
 
   function openPreview(event: MouseEvent) {
     event.stopPropagation();
@@ -64,24 +141,10 @@
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  function buildMeta(
-    image: boolean,
-    dimensions: string,
-    size: string,
-    url: boolean,
-    appName: string,
-    time: string,
-  ): string {
-    const parts: string[] = [];
-    if (appName) parts.push(appName);
-    if (image) {
-      if (dimensions) parts.push(dimensions);
-      if (size) parts.push(size);
-    } else if (url) {
-      parts.push(i18n.t("clip.link"));
-    }
-    parts.push(time);
-    return parts.join(" · ");
+  function pasteLabel(): string | undefined {
+    if (entry.type === "image") return i18n.t("clip.pasteImage", { dims: dims ? ` ${dims}` : "", ago });
+    if (entry.type === "files") return i18n.t("clip.pasteFiles", { count: paths.length, ago });
+    return undefined;
   }
 </script>
 
@@ -128,36 +191,32 @@
     role="option"
     aria-selected={selected}
     class="pressable flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left active:scale-[0.96]"
-    aria-label={entry.type === "image" ? i18n.t("clip.pasteImage", { dims: dims ? ` ${dims}` : "", ago }) : undefined}
-    title={[entry.appName, new Date(entry.createdAt).toLocaleString()].filter(Boolean).join(" · ")}
+    aria-label={pasteLabel()}
+    title={tooltip}
     onclick={onselect}
   >
     {#if entry.type === "image"}
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{i18n.t("clip.image")}</span>
-        <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
-          {meta}
-        </span>
-      </span>
-    {:else if color}
-      <span
-        class="media-outline size-4 shrink-0 rounded-sm"
-        style="background-color: {color.rgbaCss}"
-        aria-hidden="true"
-      ></span>
-      <SwatchBook class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
-      <span class="min-w-0 flex-1">
-        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{preview}</span>
+        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{title}</span>
         <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
           {meta}
         </span>
       </span>
     {:else}
-      <span class="flex size-4 shrink-0 items-center justify-center text-ink-subtle">
-        <Clipboard class="size-4" strokeWidth={1.5} aria-hidden="true" />
-      </span>
+      {#if kind === "color"}
+        <!-- The swatch is this row's icon: it shows the colour the row holds. -->
+        <span
+          class="media-outline size-4 shrink-0 rounded-sm"
+          style="background-color: {color?.rgbaCss}"
+          aria-hidden="true"
+        ></span>
+      {:else}
+        <span class="flex size-4 shrink-0 items-center justify-center text-ink-subtle">
+          <KindIcon class="size-4" strokeWidth={1.5} aria-hidden="true" />
+        </span>
+      {/if}
       <span class="min-w-0 flex-1">
-        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{preview}</span>
+        <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{title}</span>
         <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
           {meta}
         </span>

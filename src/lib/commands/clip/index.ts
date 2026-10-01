@@ -8,8 +8,8 @@ export const clipCommand: Command = {
   prefix: "clip",
   title: "Clipboard",
   titleZh: "剪贴板",
-  description: "Text and image history",
-  descriptionZh: "文本与图片历史",
+  description: "Text, image and file history",
+  descriptionZh: "文本、图片与文件历史",
   icon: "Clipboard",
   run(_input) {
     if (ui.view !== "clip") {

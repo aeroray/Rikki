@@ -90,13 +90,18 @@ export interface Snippet {
 
 export interface ClipboardEntry {
   id: string;
-  type: "text" | "image";
+  type: "text" | "image" | "files";
+  /**
+   * The body itself. For an image it is the file the plugin wrote, and for a
+   * `files` entry it is the copied paths joined by a newline.
+   */
   content: string;
   appName: string;
   createdAt: number;
   pinned: boolean;
   width?: number;
   height?: number;
+  /** Bytes: the image file, or the total size of a copied file list. */
   size?: number;
   isColor?: boolean;
 }

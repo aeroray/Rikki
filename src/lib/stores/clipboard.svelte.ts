@@ -2,23 +2,35 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { isColorValue } from "$lib/commands/color/parse";
 import { applyExpire, parseClipRetentionDays, previewExpire } from "$lib/commands/clip/cleanup";
+import { clipFilePaths, matchesClipQuery } from "$lib/commands/clip/content";
 import type { ClipboardEntry } from "$lib/commands/types";
-import { fuzzyScore } from "$lib/fuzzy";
 import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 import {
   hasFiles,
   hasImage,
   hasText,
+  readFiles,
   readImage,
   readText,
   startListening,
+  writeFiles,
   writeImage,
   writeText,
 } from "tauri-plugin-clipboard-x-api";
 
 const MAX_IMAGES = 200;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+/**
+ * The largest body the history keeps, text and file lists alike.
+ *
+ * Text has no *count* cap, and the whole index is rewritten on every clipboard
+ * change, so one "select all" in a large file would make every later copy
+ * rewrite a multi-megabyte `index.json`. Half a million characters is far past
+ * anything anyone pastes back, and small enough that the rewrite stays
+ * invisible.
+ */
+const MAX_TEXT_CHARS = 512 * 1024;
 const CLIPBOARD_CHANGED = "plugin:clipboard-x://clipboard_changed";
 /** How long changes are collected before the index is rewritten. */
 const WRITE_DEBOUNCE_MS = 150;
@@ -49,7 +61,7 @@ class ClipboardStore {
     const recent = this.entries.filter((entry) => !entry.pinned);
     const list = [...pinned, ...recent];
     if (!q) return list;
-    return list.filter((entry) => matchesQuery(entry, q));
+    return list.filter((entry) => matchesClipQuery(entry, q));
   }
 
   async start() {
@@ -72,9 +84,17 @@ class ClipboardStore {
     }
   }
 
+  /**
+   * Records a text copy.
+   *
+   * Only the emptiness check is trimmed, for the reason `writeClipboardText`
+   * records on the way out: the body is stored exactly as it was copied, so
+   * pasting it back keeps the leading indentation and the trailing newline of a
+   * multi-line snippet. Trimming here undid that on the way in.
+   */
   capture(content: string, appName = "") {
-    const value = content.trim();
-    if (!value) return;
+    if (!content.trim()) return;
+    if (content.length > MAX_TEXT_CHARS) return;
     if (this.ignoreNext) {
       this.suppressNextCapture(false);
       return;
@@ -83,11 +103,11 @@ class ClipboardStore {
       this.upsert({
         id: clipId(),
         type: "text",
-        content: value,
+        content,
         appName,
         createdAt: Date.now(),
         pinned: false,
-        isColor: isColorValue(value),
+        isColor: isColorValue(content),
       });
     });
   }
@@ -204,6 +224,8 @@ class ClipboardStore {
     try {
       if (entry.type === "image") {
         await writeImage(entry.content);
+      } else if (entry.type === "files") {
+        await writeFiles(clipFilePaths(entry));
       } else {
         await writeText(entry.content);
       }
@@ -262,18 +284,55 @@ class ClipboardStore {
     }
     try {
       const appName = await invoke<string>("get_foreground_app").catch(() => "");
-      if (await hasFiles()) return;
-      const text = (await hasText()) ? (await readText()).trim() : "";
+      // Files are read first because Explorer also puts the paths on the
+      // clipboard as text: recording that instead would turn one copied folder
+      // into a wall of paths, and pasting it back would paste the paths rather
+      // than the files.
+      if (await hasFiles()) {
+        await this.captureFiles(appName);
+        return;
+      }
+      const text = (await hasText()) ? await readText() : "";
+      const trimmed = text.trim();
       const image = await hasImage();
-      const urlLike = /^https?:\/\//i.test(text);
-      if (image && (!text || urlLike) && this.imagesDir) {
+      const urlLike = /^https?:\/\//i.test(trimmed);
+      if (image && (!trimmed || urlLike) && this.imagesDir) {
         await this.captureImage(appName);
         return;
       }
+      // The untrimmed body is what gets stored; `trimmed` only answers the two
+      // questions above.
       if (text) this.capture(text, appName);
     } catch {
       // Browser preview and unsupported clipboard payloads are ignored.
     }
+  }
+
+  /**
+   * Records a copied file list.
+   *
+   * The paths are stored joined by a newline in `content`, the same field a text
+   * clip uses, so the whole history stays one list of one shape. A path with a
+   * line break in it cannot be pasted back correctly, which is the one thing
+   * this format gives up.
+   */
+  private async captureFiles(appName: string) {
+    const files = await readFiles();
+    if (!Array.isArray(files?.paths)) return;
+    const paths = files.paths.filter((path) => path.trim().length > 0);
+    if (paths.length === 0) return;
+    const content = paths.join("\n");
+    if (content.length > MAX_TEXT_CHARS) return;
+    await this.ready;
+    this.upsert({
+      id: clipId(),
+      type: "files",
+      content,
+      appName,
+      createdAt: Date.now(),
+      pinned: false,
+      size: Number(files.size) || 0,
+    });
   }
 
   private async captureImage(appName: string) {
@@ -375,15 +434,6 @@ class ClipboardStore {
       return false;
     }
   }
-}
-
-function matchesQuery(entry: ClipboardEntry, query: string): boolean {
-  if (entry.type === "image") {
-    const dims =
-      entry.width && entry.height ? `${entry.width}x${entry.height}` : "";
-    return fuzzyScore(query, `图片 image png ${dims} ${entry.appName}`) > 0;
-  }
-  return fuzzyScore(query, entry.content) > 0 || fuzzyScore(query, entry.appName) > 0;
 }
 
 /** Two captures inside the same millisecond must not share a row id. */

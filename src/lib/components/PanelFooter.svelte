@@ -45,6 +45,15 @@
      */
     children?: Snippet;
   } = $props();
+
+  /**
+   * Where a status goes when shortcuts share the row.
+   *
+   * The far right, pushed by an auto margin rather than by `flex-1`: the message
+   * keeps its own width, and it truncates from its end instead of losing its
+   * first word, which is what right-aligning the text itself would do.
+   */
+  const messageAlign = $derived(shortcuts.length > 0 ? "ml-auto" : "mx-auto");
 </script>
 
 <!-- With neither shortcuts nor a message there is nothing to say, and a bare
@@ -67,8 +76,11 @@
         {@render children()}
       </div>
     {:else if message}
+      <!-- The status used to take `flex-1` and nothing else, which left it jammed
+           against the last chip, where it read as one more shortcut instead of a
+           remark about the panel. -->
       <p
-        class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle"
+        class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle tabular-nums {messageAlign}"
         aria-live="polite"
       >
         {message}
