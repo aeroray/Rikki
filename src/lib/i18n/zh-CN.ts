@@ -14,6 +14,7 @@ export const zhCN = {
   "sysmon.memory": "内存",
   "sysmon.swap": "交换",
   "sysmon.system": "系统",
+  "sysmon.host": "主机",
   "sysmon.uptime": "已运行",
   "sysmon.processes": "进程",
   "sysmon.cores": "{count} 核",

@@ -11,6 +11,7 @@
 //! answers zero the first time and is only correct from the second call onward.
 
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use sysinfo::{ProcessesToUpdate, System};
@@ -18,6 +19,16 @@ use sysinfo::{ProcessesToUpdate, System};
 /// How many processes the panel shows. It is a list to glance at, not a task
 /// manager, and the rows it does not show are the ones nobody is looking for.
 const PROCESS_LIMIT: usize = 8;
+
+/// How often the process list is rebuilt, as opposed to how often the CPU and
+/// memory are read.
+///
+/// Walking every process and working out its CPU share costs far more than reading
+/// the CPU counters, and the list barely moves between one second and the next: it
+/// is sorted by memory, which changes slowly. Three seconds is also the interval
+/// `sysinfo` needs between two readings of a process for its CPU figure to mean
+/// anything at all.
+const PROCESS_INTERVAL: Duration = Duration::from_secs(3);
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,6 +83,7 @@ struct SystemFacts {
 }
 
 #[derive(Serialize)]
+#[derive(Clone)]
 #[serde(rename_all = "camelCase")]
 struct ProcessRow {
     pid: u32,
@@ -83,8 +95,19 @@ struct ProcessRow {
     memory: u64,
 }
 
+/// The sampler and the last process reading, behind one lock.
+///
+/// They are one value rather than two because a snapshot reads both, and two locks
+/// would let a process refresh land between the CPU reading and the process one.
+struct Inner {
+    system: System,
+    processes: Vec<ProcessRow>,
+    /// When `processes` was taken. The list is rebuilt on its own, slower, clock.
+    processes_at: Instant,
+}
+
 pub struct Monitor {
-    system: Mutex<System>,
+    inner: Mutex<Inner>,
 }
 
 impl Monitor {
@@ -94,7 +117,13 @@ impl Monitor {
         // delta rather than a row of zeroes.
         system.refresh_cpu_all();
         Self {
-            system: Mutex::new(system),
+            inner: Mutex::new(Inner {
+                system,
+                processes: Vec::new(),
+                // Zero, so the first snapshot fills the list immediately rather
+                // than showing an empty section for three seconds.
+                processes_at: Instant::now() - PROCESS_INTERVAL,
+            }),
         }
     }
 
@@ -102,15 +131,46 @@ impl Monitor {
         // A poisoned lock still holds the last good sampler, and this runs on a
         // timer: panicking here would take the panel down for the rest of the
         // session over an unrelated failure.
-        let mut system = self
-            .system
+        let mut inner = self
+            .inner
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
+        // The field is split rather than borrowed whole, so the process list can be
+        // written while the sampler is being read.
+        let Inner {
+            system,
+            processes,
+            processes_at,
+        } = &mut *inner;
+
         system.refresh_cpu_all();
         system.refresh_memory();
-        system.refresh_processes(ProcessesToUpdate::All, true);
 
+        // The expensive half, on its own clock. See `PROCESS_INTERVAL`.
+        if processes_at.elapsed() >= PROCESS_INTERVAL {
+            system.refresh_processes(ProcessesToUpdate::All, true);
+            let mut rows: Vec<ProcessRow> = system
+                .processes()
+                .iter()
+                .map(|(pid, process)| ProcessRow {
+                    pid: pid.as_u32(),
+                    name: process.name().to_string_lossy().to_string(),
+                    cpu: process.cpu_usage(),
+                    memory: process.memory(),
+                })
+                .collect();
+            // By memory rather than CPU: a process's CPU figure is a delta since
+            // its own last refresh, so a freshly started one reads zero for a tick
+            // and the list would reshuffle on every poll. Memory is stable.
+            rows.sort_by(|a, b| b.memory.cmp(&a.memory));
+            rows.truncate(PROCESS_LIMIT);
+            *processes = rows;
+            *processes_at = Instant::now();
+        }
+
+        let processes = processes.clone();
+        let system = &*system;
         let cpus = system.cpus();
         let cpu = Cpu {
             usage: system.global_cpu_usage(),
@@ -126,22 +186,6 @@ impl Monitor {
             swap_total: system.total_swap(),
             swap_used: system.used_swap(),
         };
-
-        let mut processes: Vec<ProcessRow> = system
-            .processes()
-            .iter()
-            .map(|(pid, process)| ProcessRow {
-                pid: pid.as_u32(),
-                name: process.name().to_string_lossy().to_string(),
-                cpu: process.cpu_usage(),
-                memory: process.memory(),
-            })
-            .collect();
-        // By memory rather than CPU: CPU usage of a process is a delta since its
-        // own last refresh, so a freshly started process reads zero for a tick and
-        // the list would reshuffle on every poll. Memory is stable between polls.
-        processes.sort_by(|a, b| b.memory.cmp(&a.memory));
-        processes.truncate(PROCESS_LIMIT);
 
         Stats {
             cpu,

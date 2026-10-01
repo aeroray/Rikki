@@ -16,6 +16,7 @@ export const en: Record<MessageKey, string> = {
   "sysmon.memory": "Memory",
   "sysmon.swap": "Swap",
   "sysmon.system": "System",
+  "sysmon.host": "Host",
   "sysmon.uptime": "Uptime",
   "sysmon.processes": "Processes",
   "sysmon.cores": "{count} cores",

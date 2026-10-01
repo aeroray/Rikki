@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The system panel leads with charts, and samples on two clocks
+Decision:
+Each figure is a large number over a one-minute sparkline of its own history, with a per-core equalizer under the CPU. The charts are hand-drawn SVG — no charting library. On the Rust side the CPU and memory are read every second, but the process list is rebuilt every third second, on its own clock.
+Reason:
+The first version was a column of rows with a bar under each, which read as a form rather than a reading: nothing said whether a number was climbing, and every figure carried the same weight. A number over its own recent shape answers both "how much" and "which way". No library, because 60 points per series is far below the point where one pays for itself — the guidance is SVG under 1000 points — and a charting package would be tens of kilobytes for three polylines. The two clocks are the performance work: walking every process and computing its CPU share costs far more than reading the CPU counters, and the list is sorted by memory, which moves slowly. Three seconds is also the interval `sysinfo` needs between two readings of a process for its figure to mean anything.
+Note:
+The equalizer is drawn in inline pixel heights, not percentages. A percentage height inside a flex row does not resolve, because the row's height comes from `align-items: stretch` and the browser does not treat that as a definite height — the bars drew at zero through two attempts, `items-end` then `h-full` plus absolute positioning, before inline pixels worked. Verified by pixel-scanning the screenshot rather than by eye, which is what caught it; the chart lines were checked the same way, with CPU at 33% and memory at 72% drawing at matching heights.
+
 ## 2026-10-01 - System stats come from sysinfo, and GPU usage from the drivers
 Decision:
 `sys` opens a live panel — CPU with a tick per core, memory and swap, every GPU, the OS and uptime, and the eight processes using the most memory. Figures come from `sysinfo`; GPU usage is read per platform in `src-tauri/src/sysmon.rs`, from Windows performance counters and from the `PerformanceStatistics` dictionary every macOS accelerator keeps in the I/O registry.
