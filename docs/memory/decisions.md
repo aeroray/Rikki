@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - Explorer gets its switch unquoted, and the folder button shows on hover
+Decision:
+`reveal` passes `/select,<path>` through `CommandExt::raw_arg` rather than `arg`. The folder button in `AppItem` fades in on `group-hover` as well as on `selected`, and sits in the layout at `opacity-0` rather than appearing.
+Reason:
+Every press opened Documents. `Command::arg` quotes any argument containing a space, and Explorer does not follow the usual quoting rules: given `"/select,C:\Program Files\…"` it opens Documents instead, silently. Measured against the alternatives, the unquoted form is the one that works and the quoted one is the only one that lands somewhere else — so the switch has to reach it exactly as written, which is what `raw_arg` is for. Separately, the button appeared only on the keyboard's row, and a mouse user hovering a row had no way to know it existed. The app is keyboard-first, not keyboard-only.
+Note:
+`opacity` rather than a conditional render, so the row's text does not shift sideways when the button fades in. Verified in the running app: hovering a row that is not the highlighted one shows its button, and pressing the highlighted row's button opens the folder the shortcut lives in rather than Documents.
+
 ## 2026-10-01 - An empty icon location means the target's icon, not none
 Decision:
 `shortcut_icon` reads both `IShellLink::GetIconLocation` and `IShellLink::GetPath`, and tries the icon location first, then the target, before the caller falls back to the shell.

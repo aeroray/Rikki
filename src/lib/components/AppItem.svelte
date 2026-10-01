@@ -34,9 +34,10 @@
 
 <!-- `role="presentation"` keeps the option button as the listbox's own child in
      the accessibility tree, the way the clipboard rows do. The wrapper is a `div`
-     rather than a button because a button cannot hold another one. -->
+     rather than a button because a button cannot hold another one, and it is a
+     `group` so the folder button can appear on hover. -->
 <div
-  class="row-hit flex items-center gap-2 pr-1 {selected ? 'is-selected' : ''}"
+  class="group row-hit flex items-center gap-2 pr-1 {selected ? 'is-selected' : ''}"
   role="presentation"
 >
   <button
@@ -75,20 +76,21 @@
       <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-subtle">{i18n.t("app.kind")}</span>
     </span>
   </button>
-  <!-- Only on the highlighted row. It is an occasional errand, and a button on
-       every row would be a column of them competing with the icons down the
-       left. No shortcut either: the footer is for keys people press often. -->
-  {#if selected}
-    <button
-      type="button"
-      class="pressable flex size-8 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
-      aria-label={i18n.t("app.reveal", { name: app.name })}
-      onclick={(event) => {
-        event.stopPropagation();
-        void apps.reveal(app.path);
-      }}
-    >
-      <FolderOpen class="size-4" strokeWidth={1.5} aria-hidden="true" />
-    </button>
-  {/if}
+  <!-- The keyboard's row shows it, and so does a mouse hovering the row: the app
+       is keyboard-first, not keyboard-only. It stays in the layout at
+       `opacity-0` rather than appearing, so the row's text does not shift when it
+       fades in. No shortcut either — the footer is for keys people press often. -->
+  <button
+    type="button"
+    class="pressable flex size-8 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96] {selected
+      ? 'opacity-100'
+      : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"
+    aria-label={i18n.t("app.reveal", { name: app.name })}
+    onclick={(event) => {
+      event.stopPropagation();
+      void apps.reveal(app.path);
+    }}
+  >
+    <FolderOpen class="size-4" strokeWidth={1.5} aria-hidden="true" />
+  </button>
 </div>

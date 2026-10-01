@@ -120,8 +120,16 @@ pub fn reveal_app(path: String) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn reveal(path: &str) -> std::io::Result<std::process::Child> {
+    use std::os::windows::process::CommandExt;
+
+    // `raw_arg`, not `arg`. `Command` quotes any argument containing a space, and
+    // Explorer does not follow the usual quoting rules: handed
+    // `"/select,C:\Program Files\…"` it opens Documents instead, silently, which
+    // is exactly what every press of the button did. The switch wants the path
+    // straight after the comma, spaces and all — measured, and the quoted form is
+    // the only one that lands somewhere else.
     std::process::Command::new("explorer")
-        .arg(format!("/select,{path}"))
+        .raw_arg(format!("/select,{path}"))
         .spawn()
 }
 
