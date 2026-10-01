@@ -206,7 +206,8 @@ export const en: Record<MessageKey, string> = {
 
   "color.emptyHint": "Type a color, like #ff6363 or rgb(255, 99, 99)",
   "color.invalid": "Not a valid color",
-  "color.keyCopyHex": "Copy HEX",
+  "color.keyCopy": "Copy",
+  "color.listLabel": "Colors",
   "color.noteAnyFormat": "Click a format to copy",
   "color.copy": "Copy",
   "color.hex": "HEX",
@@ -291,7 +292,7 @@ export const en: Record<MessageKey, string> = {
   "clip.pasteFiles": "Paste {count} files, {ago}",
   "clip.pin": "Pin",
   "clip.unpin": "Unpin",
-  "clip.previewTitle": "Image preview",
+  "clip.previewTitle": "Preview",
   "clip.closePreview": "Close preview",
   "clip.previewAlt": "Clipboard image preview",
   "clip.previewMissing": "This image is missing",

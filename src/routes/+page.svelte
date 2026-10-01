@@ -24,11 +24,11 @@
   import ColorPanel from "$lib/commands/color/ColorPanel.svelte";
   import Base64Panel from "$lib/commands/base64/Base64Panel.svelte";
   import JsonPanel from "$lib/commands/json/JsonPanel.svelte";
-  import ImagePreview from "$lib/commands/clip/ImagePreview.svelte";
+  import ClipPreview from "$lib/commands/clip/ClipPreview.svelte";
   import EmojiPanel from "$lib/commands/emoji/EmojiPanel.svelte";
   import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
-  import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
+  import { toggleSelectedPreview } from "$lib/commands/clip/preview";
   import { escapePalette } from "$lib/commands/escape";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
   import { saveQrPng } from "$lib/commands/qrcode/actions";
@@ -80,8 +80,8 @@
   });
 
   $effect(() => {
-    if (ui.view !== "clip" && ui.imagePreviewSrc) {
-      ui.imagePreviewSrc = null;
+    if (ui.view !== "clip" && ui.preview) {
+      ui.preview = null;
     }
   });
 
@@ -128,7 +128,7 @@
 
     if (ui.view === "clip") {
       event.preventDefault();
-      toggleSelectedImagePreview();
+      toggleSelectedPreview();
       return;
     }
     if (ui.view === "json") {
@@ -154,6 +154,11 @@
   }
 </script>
 
+<!-- Bubbles, not captures. The autofill dropdown that used to swallow Tab is
+     switched off at the source (`src-tauri/src/autofill.rs`), and claiming keys in
+     the capture phase turned out to cost more than it bought: `SearchBar` handles
+     Escape on the input, so a capture-phase handler here ran it twice and one Esc
+     walked two steps back and hid the palette. -->
 <svelte:window onkeydown={onWindowKeydown} />
 
 <!-- The window shell is inlined rather than named: it is used exactly once, and
@@ -236,7 +241,7 @@
      corner the tint therefore covered about half of what the blur did, and the
      undimmed shell showed through as a white sliver along the arc. Out here the
      only rounded clip on the path is the backdrop's own, so the two agree. -->
-<ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
+<ClipPreview preview={ui.preview} onclose={() => (ui.preview = null)} />
 <ClipConfirm />
 <ActionConfirm />
 </div>

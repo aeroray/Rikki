@@ -11,7 +11,7 @@
   import { parseColor } from "$lib/commands/color/parse";
   import { i18n } from "$lib/i18n";
   import { relativeTime } from "$lib/relativeTime";
-  import { imagePreviewSrc } from "$lib/commands/clip/preview";
+  import { imagePreviewSrc, previewFor } from "$lib/commands/clip/preview";
   import { ui } from "$lib/stores/ui.svelte";
   import {
     File as FileIcon,
@@ -131,8 +131,8 @@
 
   function openPreview(event: MouseEvent) {
     event.stopPropagation();
-    if (!thumb || broken) return;
-    ui.imagePreviewSrc = thumb;
+    if (entry.type === "image" && (!thumb || broken)) return;
+    ui.preview = previewFor(entry);
   }
 
   function formatSize(bytes?: number): string {

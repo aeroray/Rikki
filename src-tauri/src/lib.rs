@@ -6,6 +6,8 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 mod apps;
 mod apps_icons;
+#[cfg(windows)]
+mod autofill;
 mod commands;
 mod cursor;
 mod input;
@@ -495,6 +497,10 @@ pub fn run() {
                 // page has no use for one: see `permissions`.
                 #[cfg(windows)]
                 permissions::mute_prompts(&window);
+                // Same reason, different affordance: WebView2's autofill
+                // dropdown takes Tab, which is the clipboard preview key.
+                #[cfg(windows)]
+                autofill::disable(&window);
                 let handle = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::Focused(false) = event {

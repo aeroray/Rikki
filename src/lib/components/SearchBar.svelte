@@ -11,7 +11,6 @@
   import { activateCommand } from "$lib/commands/activate";
   import { canFallbackSearch, runFallbackSearch } from "$lib/commands/fallback";
   import { engineIdForCommand } from "$lib/commands/web";
-  import { toggleSelectedImagePreview } from "$lib/commands/clip/preview";
   import {
     handleSnippetEnter,
     startSnippetCreate,
@@ -24,7 +23,7 @@
     startEngineCreate,
   } from "$lib/commands/settings/actions";
   import { parseSettingsScreen } from "$lib/commands/settings/parse";
-  import { copyColorHex } from "$lib/commands/color/actions";
+  import { colorOptions, runColorOption } from "$lib/commands/color/selection";
   import { handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
   import { handleJsonEnter } from "$lib/commands/json/actions";
   import { escapePalette } from "$lib/commands/escape";
@@ -150,6 +149,7 @@
         ? emojis.categories.length
         : emojis.visible(ui.commandRest).length;
     }
+    if (ui.view === "color") return colorOptions().length;
     if (ui.view === "settings") {
       // The draft replaces the panel; `countFor` already reports 0 for the
       // screens that render a form or the recorder instead of a list.
@@ -175,7 +175,7 @@
 
   $effect(() => {
     ui.showNonce;
-    ui.imagePreviewSrc;
+    ui.preview;
     // Closing either dialog removes the button that had focus, which drops focus
     // to <body> with nobody to take it back.
     ui.pendingConfirm;
@@ -186,7 +186,7 @@
     if (ui.pendingConfirm || clipboard.confirm) return;
     if (
       ui.focusField === "search" &&
-      !ui.imagePreviewSrc &&
+      !ui.preview &&
       !snippets.draft &&
       !settings.engineDraft
     ) {
@@ -528,9 +528,22 @@
     }
 
     if (ui.view === "color") {
+      // The formats of the colour being typed, then the recent strip: one list,
+      // because that is how the panel renders them.
+      const count = colorOptions().length;
+      if (event.key === "ArrowDown" && count > 0) {
+        event.preventDefault();
+        ui.selectedIndex = Math.min(count - 1, ui.selectedIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && count > 0) {
+        event.preventDefault();
+        ui.selectedIndex = Math.max(0, ui.selectedIndex - 1);
+        return;
+      }
       if (event.key === "Enter") {
         event.preventDefault();
-        void copyColorHex();
+        runColorOption(ui.selectedIndex);
         return;
       }
     }

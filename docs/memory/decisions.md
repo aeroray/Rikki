@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - Tab previews every clipboard kind, and WebView2's autofill is off
+Decision:
+`ui.preview` replaces `ui.imagePreviewSrc` and carries one of three shapes — image, text, colour — rendered by `ClipPreview`. A long body opens in a focusable scrollable card, so the arrow keys page through it; a colour opens a swatch with all five notations; a copied file list opens its paths. WebView2's general autofill and password autosave are switched off in `src-tauri/src/autofill.rs`.
+Reason:
+The footer advertised "Tab previews" while Tab did nothing for anything but an image, which is a promise the panel could not keep. The autofill dropdown is the reason it looked like a dead key on some entries: Tab is the palette's own key, and WebView2 opened its suggestion list instead. That is not a DOM event — a `keydown` handler cannot claim it, in the bubble phase or the capture phase, because the webview has already acted by then. It is switched off where it lives, the way `permissions.rs` answers the browser's dialogs.
+Note:
+Claiming Tab in the capture phase was tried first and reverted: `SearchBar` handles Escape on the input, so a capture-phase handler ran it twice and one Esc walked two steps back and hid the palette. With autofill off at the source, bubbling is enough. Verified in the running app: `clip` on a text entry opens a card, and on a colour entry a swatch with HEX/RGB/HSL/RGBA/HSLA; the startup log prints `rikki: webview autofill off`.
+
+## 2026-10-01 - The colour panel's rows are one list for the keyboard
+Decision:
+`color/selection.ts` owns the order the arrows walk — the formats of the colour being typed, then the recent strip — and `ColorPanel` renders from it while `SearchBar` moves through it. Enter runs whichever row is highlighted; the footer says 复制 rather than 复制 HEX. The strip's `mt-4` applies only when something sits above it.
+Reason:
+The panel had no keyboard navigation at all: the arrows did nothing, so the recent colours were reachable only by mouse, and Enter always copied HEX no matter what was highlighted. Two copies of "the formats come first" would drift and put the highlight on the wrong row, which is why the order is one module rather than two loops. The gap was left over from when the strip always sat under an empty state or a swatch; alone it was 16px of nothing between the search field and the heading.
+Note:
+`optionCount` in `SearchBar` counts the same list, so `aria-expanded` is right for this panel too. Verified in the running app: two ArrowDowns highlight HSL and Enter copies it.
+
 ## 2026-10-01 - The colour panel's empty state and its recents are alternatives
 Decision:
 `ColorPanel` shows one or the other. With no recent colours the empty state takes the whole column (`class="flex-1"`, the way every other panel's does); with recent colours the strip is shown under its 最近颜色 heading and the empty-state line is gone. `color.recentEmpty` is deleted. The anniversary date hint is one short line about a leading year, because the syntax it used to teach is now two controls.

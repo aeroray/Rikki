@@ -11,6 +11,19 @@ const COMMAND_USAGE_PREFIX = "command:";
 
 const ROOT_HIT_LIMIT = 20;
 
+/**
+ * What Tab opens over the palette in the clipboard panel.
+ *
+ * Three kinds share one overlay because they are one interaction: show the whole
+ * thing, which a row only has room to summarise. Images came first, and the
+ * footer advertised "Tab previews" long before anything else could answer it —
+ * pressing Tab on a paragraph did nothing at all.
+ */
+export type ClipPreview =
+  | { kind: "image"; src: string }
+  | { kind: "text"; body: string }
+  | { kind: "color"; content: string };
+
 class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
@@ -19,7 +32,7 @@ class UiStore {
   showNonce = $state(0);
   shellOpen = $state(false);
   shellExiting = $state(false);
-  imagePreviewSrc = $state<string | null>(null);
+  preview = $state<ClipPreview | null>(null);
   notice = $state<string | null>(null);
   /**
    * A destructive action waiting for a second Enter. Held as state rather than
@@ -129,7 +142,7 @@ class UiStore {
     this.selectedIndex = 0;
     this.todoPanelOpen = false;
     this.focusField = "search";
-    this.imagePreviewSrc = null;
+    this.preview = null;
     this.notice = null;
     this.cancelConfirm();
     this.showNonce += 1;
@@ -206,7 +219,7 @@ class UiStore {
       clearTimeout(this.noticeTimer);
       this.noticeTimer = null;
     }
-    this.imagePreviewSrc = null;
+    this.preview = null;
     this.shellExiting = true;
     this.shellOpen = false;
     void requestHidePalette();

@@ -44,6 +44,11 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 # identical-looking ones. Bump this whenever `tauri` moves: two versions in the
 # graph fail to compile with a message about 2368 `CanInto` impls.
 webview2-com = "0.39"
+# The `Interface` trait that `cast` comes from, at the version `webview2-com`
+# itself uses. `windows`'s own `windows-core` is a different major and its trait
+# does not apply to these interfaces, so `ICoreWebView2Settings` cannot be cast
+# to `ICoreWebView2Settings4` through it. Bump with `webview2-com`.
+windows-core = "0.62"
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",

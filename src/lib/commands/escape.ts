@@ -13,8 +13,8 @@ export function escapePalette(): void {
     ui.cancelConfirm();
     return;
   }
-  if (ui.imagePreviewSrc) {
-    ui.imagePreviewSrc = null;
+  if (ui.preview) {
+    ui.preview = null;
     return;
   }
   if (clipboard.confirm) {

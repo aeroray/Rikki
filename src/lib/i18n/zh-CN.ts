@@ -203,7 +203,8 @@ export const zhCN = {
 
   "color.emptyHint": "输入颜色值，例如 #ff6363 或 rgb(255, 99, 99)",
   "color.invalid": "不是有效的颜色",
-  "color.keyCopyHex": "复制 HEX",
+  "color.keyCopy": "复制",
+  "color.listLabel": "颜色",
   "color.noteAnyFormat": "点击任意格式复制",
   "color.copy": "复制",
   "color.hex": "HEX",
@@ -288,7 +289,7 @@ export const zhCN = {
   "clip.pasteFiles": "粘贴 {count} 个文件，{ago}",
   "clip.pin": "固定",
   "clip.unpin": "取消固定",
-  "clip.previewTitle": "图片预览",
+  "clip.previewTitle": "预览",
   "clip.closePreview": "关闭预览",
   "clip.previewAlt": "剪贴板图片预览",
   "clip.previewMissing": "找不到这张图片",

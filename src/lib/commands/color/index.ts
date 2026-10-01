@@ -1,8 +1,8 @@
 import { register } from "$lib/commands/registry";
 import type { Command } from "$lib/commands/types";
 import { ui } from "$lib/stores/ui.svelte";
-import { copyColorHex } from "./actions";
 import { parseColor } from "./parse";
+import { runColorOption } from "./selection";
 
 export const colorCommand: Command = {
   id: "color",
@@ -20,7 +20,9 @@ export const colorCommand: Command = {
       return;
     }
     if (!parseColor(text) && !parseColor(ui.searchText.trim())) return;
-    void copyColorHex();
+    // The highlighted row, not always HEX: the arrows move through the formats
+    // and then the recent strip, so Enter has to follow them.
+    runColorOption(ui.selectedIndex);
   },
 };
 
