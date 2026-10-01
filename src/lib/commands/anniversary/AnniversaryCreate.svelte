@@ -1,11 +1,11 @@
 <script lang="ts">
   import { closeAnniversaryDrill } from "$lib/commands/anniversary/actions";
-  import { lunarLeapMonth, parseDateQuery } from "$lib/commands/anniversary/dates";
+  import { lunarLeapMonth, parseDateQuery, toLunarText } from "$lib/commands/anniversary/dates";
   import { recurrenceLabel } from "$lib/commands/anniversary/format";
   import { anniversaries } from "$lib/stores/anniversaries.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
-  import KeyChip from "$lib/components/KeyChip.svelte";
+  import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
 
   let titleEl: HTMLInputElement | undefined = $state();
   let dateEl: HTMLInputElement | undefined = $state();
@@ -44,10 +44,38 @@
     };
   });
 
+  /**
+   * The lunar reading of what is typed, offered as a one-press conversion.
+   *
+   * Only for a solar date: a lunar one has nothing to convert to, and the button
+   * disappears with the value once it has been pressed.
+   */
+  const lunarText = $derived.by(() => {
+    if (!draft) return null;
+    // `lunarApi()` is a plain module value Svelte cannot see, so reading the flag
+    // is what makes this recompute once the tables land.
+    anniversaries.lunarReady;
+    return toLunarText(draft.dateText);
+  });
+
+  const footerShortcuts = $derived.by((): FooterShortcut[] => {
+    const shortcuts: FooterShortcut[] = [{ keys: "Ctrl+Enter", label: i18n.t("key.save") }];
+    // Offered only while it would do something, the way the cleanup row hides its
+    // own key when retention is off.
+    if (lunarText) shortcuts.push({ keys: "Ctrl+L", label: i18n.t("anniversary.toLunar") });
+    shortcuts.push({ keys: "Esc", label: i18n.t("key.back") });
+    return shortcuts;
+  });
+
+  function convertToLunar() {
+    if (draft && lunarText) draft.dateText = lunarText;
+  }
+
   $effect(() => {
-    if (query.kind === "date" && query.calendar === "lunar" && !anniversaries.lunarReady) {
-      void anniversaries.ensureLunar();
-    }
+    // Any valid date wants the tables now, not just a lunar one: the conversion
+    // button reads them too.
+    if (query.kind !== "date" || anniversaries.lunarReady) return;
+    void anniversaries.ensureLunar();
   });
 
   $effect(() => {
@@ -65,6 +93,11 @@
       return;
     }
     if (event.isComposing || composing) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "l") {
+      event.preventDefault();
+      convertToLunar();
+      return;
+    }
     if (event.key === "Tab") {
       // Tab moves between the two fields instead of leaving the form.
       event.preventDefault();
@@ -81,89 +114,106 @@
 </script>
 
 {#if draft}
-  <form
-    class="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-3 pt-1"
-    onsubmit={(event) => {
-      event.preventDefault();
-      void anniversaries.saveDraft();
-    }}
-  >
-    <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">
-      {anniversaries.editingId ? i18n.t("anniversary.editTitle") : i18n.t("anniversary.addTitle")}
-    </p>
+  <!-- The form is the content column and the footer is its sibling, the way every
+       other panel is built: the shared footer brings its own hairline and padding,
+       which is what the hand-rolled row here used to be missing. -->
+  <div class="flex min-h-0 flex-1 flex-col">
+    <form
+      class="flex min-h-0 flex-1 flex-col gap-2 px-3 pt-1"
+      onsubmit={(event) => {
+        event.preventDefault();
+        void anniversaries.saveDraft();
+      }}
+    >
+      <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">
+        {anniversaries.editingId ? i18n.t("anniversary.editTitle") : i18n.t("anniversary.addTitle")}
+      </p>
 
-    <label class="flex items-center rounded-md bg-surface-1 px-3 py-2">
-      <span class="sr-only">{i18n.t("anniversary.name")}</span>
-      <input
-        bind:this={titleEl}
-        bind:value={draft.title}
-        class="w-full bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
-        placeholder={i18n.t("anniversary.namePlaceholder")}
-        maxlength={60}
-        autocomplete="off"
-        spellcheck="false"
-        onfocus={() => (ui.focusField = "anniversary-title")}
-        onkeydown={onKeydown}
-        oncompositionstart={() => (composing = true)}
-        oncompositionend={() => (composing = false)}
-      />
-    </label>
+      <label class="flex items-center rounded-md bg-surface-1 px-3 py-2">
+        <span class="sr-only">{i18n.t("anniversary.name")}</span>
+        <input
+          bind:this={titleEl}
+          bind:value={draft.title}
+          class="w-full bg-transparent text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary"
+          placeholder={i18n.t("anniversary.namePlaceholder")}
+          maxlength={60}
+          autocomplete="off"
+          spellcheck="false"
+          onfocus={() => (ui.focusField = "anniversary-title")}
+          onkeydown={onKeydown}
+          oncompositionstart={() => (composing = true)}
+          oncompositionend={() => (composing = false)}
+        />
+      </label>
 
-    <!-- One field carries the date, the calendar, and the start year: `n1001`
-         is lunar Oct 1, `19900515` is solar May 15 first marked in 1990. -->
-    <label class="flex items-center gap-3 rounded-md bg-surface-1 px-3 py-2">
-      <span class="shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("anniversary.date")}</span>
-      <input
-        bind:this={dateEl}
-        bind:value={draft.dateText}
-        class="min-w-0 flex-1 bg-transparent font-sans text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary tabular-nums"
-        placeholder={i18n.t("anniversary.datePlaceholder")}
-        autocomplete="off"
-        spellcheck="false"
-        onfocus={() => (ui.focusField = "anniversary-date")}
-        onkeydown={onKeydown}
-        oncompositionstart={() => (composing = true)}
-        oncompositionend={() => (composing = false)}
-      />
-    </label>
-
-    {#if resolved}
-      <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-1">
-        <span class="text-[13px] leading-5 text-ink">{resolved.label}</span>
-        <span class="text-[12px] leading-[1.4] text-ink-subtle">{resolved.calendar}</span>
-        {#if resolved.year}
-          <span class="text-[12px] leading-[1.4] text-ink-subtle">
-            {i18n.t("anniversary.startsFrom", { year: resolved.year })}
-          </span>
+      <!-- One field carries the date, the calendar, and the start year: `n1001`
+           is lunar Oct 1, `19900515` is solar May 15 first marked in 1990. -->
+      <div class="flex items-center gap-2">
+        <label class="flex min-w-0 flex-1 items-center gap-3 rounded-md bg-surface-1 px-3 py-2">
+          <span class="shrink-0 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("anniversary.date")}</span>
+          <input
+            bind:this={dateEl}
+            bind:value={draft.dateText}
+            class="min-w-0 flex-1 bg-transparent font-sans text-[14px] leading-5 text-ink outline-none placeholder:text-ink-tertiary tabular-nums"
+            placeholder={i18n.t("anniversary.datePlaceholder")}
+            autocomplete="off"
+            spellcheck="false"
+            onfocus={() => (ui.focusField = "anniversary-date")}
+            onkeydown={onKeydown}
+            oncompositionstart={() => (composing = true)}
+            oncompositionend={() => (composing = false)}
+          />
+        </label>
+        <!-- Offered only while there is something to convert: pressing it turns
+             the field lunar, and a lunar date has nothing left to convert to. -->
+        {#if lunarText}
+          <button
+            type="button"
+            class="pressable flex h-9 shrink-0 items-center rounded-md bg-surface-1 px-2.5 text-[12px] leading-[1.4] text-primary hover:text-primary-hover active:scale-[0.96]"
+            onclick={convertToLunar}
+          >
+            {i18n.t("anniversary.toLunar")}
+          </button>
         {/if}
       </div>
-      {#if resolved.leapMissing && resolved.year !== null}
-        <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">
-          {i18n.t("anniversary.leapMissing", { year: resolved.year })}
-        </p>
-      {:else if resolved.leap}
-        <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("anniversary.leapDetected")}</p>
-      {:else if resolved.leapNote}
-        <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{resolved.leapNote}</p>
-      {/if}
-    {:else}
-      <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("anniversary.dateHint")}</p>
-    {/if}
 
-    <div class="mt-auto flex items-center justify-between gap-2 px-1">
-      <span class="flex items-center gap-3">
-        <KeyChip keys="Ctrl+Enter" label={i18n.t("key.save")} />
-        <KeyChip keys="Esc" label={i18n.t("key.back")} />
-      </span>
-      <button
-        type="submit"
-        class="pressable flex h-10 items-center rounded-md px-2 text-[12px] leading-[1.4] {canSave
-          ? 'text-primary hover:text-primary-hover'
-          : 'text-ink-tertiary'}"
-        disabled={!canSave}
-      >
-        {i18n.t("anniversary.save")}
-      </button>
-    </div>
-  </form>
+      {#if resolved}
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-1">
+          <span class="text-[13px] leading-5 text-ink">{resolved.label}</span>
+          <span class="text-[12px] leading-[1.4] text-ink-subtle">{resolved.calendar}</span>
+          {#if resolved.year}
+            <span class="text-[12px] leading-[1.4] text-ink-subtle">
+              {i18n.t("anniversary.startsFrom", { year: resolved.year })}
+            </span>
+          {/if}
+        </div>
+        {#if resolved.leapMissing && resolved.year !== null}
+          <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">
+            {i18n.t("anniversary.leapMissing", { year: resolved.year })}
+          </p>
+        {:else if resolved.leap}
+          <p class="px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("anniversary.leapDetected")}</p>
+        {:else if resolved.leapNote}
+          <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{resolved.leapNote}</p>
+        {/if}
+      {:else}
+        <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("anniversary.dateHint")}</p>
+      {/if}
+    </form>
+
+    <PanelFooter shortcuts={footerShortcuts}>
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="pressable flex h-8 items-center rounded-md px-2 text-[12px] leading-[1.4] {canSave
+            ? 'text-primary hover:text-primary-hover'
+            : 'text-ink-tertiary'}"
+          disabled={!canSave}
+          onclick={() => void anniversaries.saveDraft()}
+        >
+          {i18n.t("anniversary.save")}
+        </button>
+      </div>
+    </PanelFooter>
+  </div>
 {/if}

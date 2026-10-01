@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The anniversary form converts a solar date to lunar, and stops claiming to repeat
+Decision:
+`toLunarText` in `dates.ts` turns a solar date into the `n…` / `nr…` text the date field already accepts, offered as a 转为农历 button beside the field and as `Ctrl+L`. The `· repeats every year` half of `anniversary.previewSolar` / `previewLunar` is gone; those labels now read 公历日期 / 农历日期.
+Reason:
+A lunar anniversary is what people actually keep — a birthday, a 忌日 — but nobody knows the lunar date offhand, and the field demanded it in a notation the user had to derive themselves. Converting is a one-press fix. The "repeats every year" line was answering a question nobody asked: every anniversary in this app repeats, there is no toggle and never was, and printing it beside a form made it read as a setting that could be changed. It is the definition of the feature, not an option in it.
+Note:
+The conversion carries a typed year into the result, because a lunar date without one means nothing: the calendar drifts about eleven days a year, so a given solar month and day land on a different lunar date every year. Typed without a year it converts through the current one and drops the year again. The leap marker survives the trip (`nr…`), which a test pins by converting a day inside 2025's leap month 6 and back. Verified in the running app: `20261001` → `n20260821` (八月廿一), and the button disappears afterwards, because a lunar date has nothing left to convert to.
+
+## 2026-10-01 - Every form screen wears the shared footer
+Decision:
+`AnniversaryCreate`, `EngineCreate` and `SnippetCreate` use `PanelFooter` instead of the hand-rolled row each of them carried. The form is the content column and the footer is its sibling, and the save button rides in the footer's `children` slot.
+Reason:
+Three screens had copied the same `mt-auto flex items-center justify-between px-1` row, and none of them drew the hairline the shared footer draws, so a form looked like a different kind of surface from the panel that opened it — including the anniversary list and its preview, one keystroke away, which do use it. The shared footer also brings the padding and message alignment that each copy re-derived by hand.
+Note:
+The button moved from `type="submit"` to `type="button"` with an explicit `onclick`, because it now sits outside the `<form>`. The form keeps its `onsubmit`, so Enter in a field still saves.
+
 ## 2026-10-01 - The theme preference and the painted theme are two things, and the default is `system`
 Decision:
 `ThemePref` (`system` / `dark` / `light`) is what the user picked and what `settings.json` stores; `ThemeId` (`dark` / `light`) is what is painted. `src/lib/commands/settings/theme.ts` owns the one function that turns the first into the second, and `+layout.svelte` is the only place that writes `data-theme`. The settings store keeps the OS answer live through a `matchMedia` listener, so a switch made while the palette is hidden is already in effect on the next show. The default, for a new install and for an unrecognised stored value, is `system`.

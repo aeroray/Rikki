@@ -329,6 +329,37 @@ export function lunarLeapMonth(lunarYear: number): number {
   return api.leapMonthOf(lunarYear);
 }
 
+/**
+ * The lunar text for a solar date, in the form the date field accepts.
+ *
+ * Returns `null` when there is nothing to convert: the text is not a valid solar
+ * date, or the tables have not loaded yet.
+ *
+ * A date without a year converts through the current one, because "the lunar date
+ * of Oct 1" is not a thing: the lunar calendar drifts about eleven days a year,
+ * so a given solar month and day land on a different lunar date every year. The
+ * year is what makes the conversion mean anything, which is why a typed year is
+ * carried into the result rather than dropped.
+ */
+export function toLunarText(dateText: string, now = new Date()): string | null {
+  const query = parseDateQuery(dateText);
+  if (query.kind !== "date" || query.calendar !== "solar") return null;
+  const api = lunarApi();
+  if (!api) return null;
+
+  const solarYear = query.year ?? now.getFullYear();
+  const lunar = api.solarToLunar({ year: solarYear, month: query.month, day: query.day });
+  if (!lunar) return null;
+
+  const mm = String(lunar.month).padStart(2, "0");
+  const dd = String(lunar.day).padStart(2, "0");
+  // The leap flag has to survive the trip: in a year that repeats month 5, "month
+  // 5" means two different months, and dropping the marker would silently move
+  // the anniversary by about a month.
+  const prefix = lunar.leap ? "nr" : "n";
+  return query.year === null ? `${prefix}${mm}${dd}` : `${prefix}${lunar.year}${mm}${dd}`;
+}
+
 /** Countdown for a date typed straight into the palette, without saving it. */
 export function queryOccurrence(query: DateQuery, now = new Date()): Occurrence | null {
   if (query.kind !== "date") return null;
