@@ -1,6 +1,8 @@
 <script lang="ts">
+  import KeyChip from "$lib/components/KeyChip.svelte";
   import { i18n } from "$lib/i18n";
   import { clipboard } from "$lib/stores/clipboard.svelte";
+  import { TriangleAlert } from "@lucide/svelte";
   import { fade, scale } from "svelte/transition";
 
   const confirm = $derived(clipboard.confirm);
@@ -52,14 +54,13 @@
 
 {#if confirm}
   <!-- The overlay layer is the window's shape, and the backdrop paints that
-       shape itself: `backdrop-filter` makes it a composited layer, so its
-       rounded edge has to travel with the layer rather than rely on the shell's
-       `overflow-hidden` above it. The wrapper carries the radius only so the
-       backdrop's `rounded-[inherit]` has something to inherit. -->
+       shape itself. The backdrop is a flat tint and not a `backdrop-blur`, for
+       the reason `ActionConfirm` records: at the rounded corner the blur layer is
+       clipped less than the tint under it and leaves a white sliver along the arc. -->
   <div class="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit]">
     <button
       type="button"
-      class="absolute inset-0 rounded-[inherit] bg-black/55 backdrop-blur-xl"
+      class="absolute inset-0 rounded-[inherit] bg-black/55"
       aria-label={i18n.t("clip.cleanupCancel")}
       onclick={cancel}
       in:fade={{ duration: reduceMotion ? 0 : 150 }}
@@ -74,44 +75,57 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="clip-confirm-title"
-      class="relative z-10 mx-3 w-[min(100%-24px,20rem)] rounded-lg bg-surface-1 p-4 outline outline-1 outline-hairline"
+      class="relative z-10 mx-3 w-[min(100%-24px,20rem)] rounded-lg bg-surface-1 p-4 outline outline-1 outline-hairline [box-shadow:var(--dialog-shadow)]"
       in:scale={{ duration: reduceMotion ? 0 : 150, start: 0.95 }}
       out:scale={{ duration: reduceMotion ? 0 : 100, start: 0.95 }}
       onkeydown={onKeydown}
     >
-      {#if confirm.kind === "expire"}
+      <!-- Both screens this dialog shows delete history the user cannot get
+           back, so it wears the same destructive dress as `ActionConfirm`: a
+           warning glyph beside the title and the confirm button in `danger`. -->
+      <div class="flex items-start gap-2">
+        <TriangleAlert
+          class="mt-0.5 size-4 shrink-0 text-danger"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
         <h2 id="clip-confirm-title" class="text-balance text-[14px] font-medium leading-5 text-ink">
-          {i18n.t("clip.cleanupTitle")}
+          {confirm.kind === "expire" ? i18n.t("clip.cleanupTitle") : i18n.t("clip.clearTitle")}
         </h2>
-        <p class="mt-3 text-pretty text-[13px] leading-5 text-ink-muted">{i18n.t("clip.cleanupIntro")}</p>
+      </div>
+      {#if confirm.kind === "expire"}
+        <p class="mt-2 text-pretty text-[13px] leading-5 text-ink-muted">{i18n.t("clip.cleanupIntro")}</p>
         <ul class="mt-2 flex flex-col gap-1 text-[13px] leading-5 text-ink tabular-nums">
           <li>{i18n.t("clip.cleanupTexts", { count: confirm.texts, days: confirm.days })}</li>
           <li>{i18n.t("clip.cleanupImages", { count: confirm.images })}</li>
         </ul>
         <p class="mt-2 text-pretty text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("clip.cleanupPinned")}</p>
       {:else}
-        <h2 id="clip-confirm-title" class="text-balance text-[14px] font-medium leading-5 text-ink">
-          {i18n.t("clip.clearTitle")}
-        </h2>
-        <p class="mt-3 text-pretty text-[13px] leading-5 text-ink-muted">
+        <p class="mt-2 text-pretty text-[13px] leading-5 text-ink-muted">
           {i18n.t("clip.clearBody", { count: confirm.count })}
         </p>
       {/if}
-      <div class="mt-4 flex justify-end gap-2">
+      <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
-          class="pressable flex h-10 items-center rounded-sm px-3 text-[13px] leading-5 text-ink-subtle hover:text-ink active:scale-[0.96]"
+          class="pressable flex h-8 items-center rounded-sm px-2.5 hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-focus active:scale-[0.96]"
           onclick={cancel}
         >
-          {i18n.t("clip.cleanupCancel")}
+          <KeyChip keys="Esc" label={i18n.t("clip.cleanupCancel")} />
         </button>
         <button
           type="button"
-          class="pressable flex h-10 items-center rounded-sm bg-surface-2 px-3 text-[13px] leading-5 text-ink outline outline-1 outline-hairline enabled:hover:bg-surface-1 enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+          class="pressable flex h-8 items-center rounded-sm bg-danger/15 px-2.5 outline outline-1 outline-danger/30 enabled:hover:bg-danger/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-focus enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!canConfirm}
           onclick={ok}
         >
-          {confirm.kind === "expire" ? i18n.t("clip.cleanupConfirm") : i18n.t("clip.clearConfirm")}
+          <KeyChip
+            keys="Enter"
+            label={confirm.kind === "expire"
+              ? i18n.t("clip.cleanupConfirm")
+              : i18n.t("clip.clearConfirm")}
+            tone="danger"
+          />
         </button>
       </div>
     </div>

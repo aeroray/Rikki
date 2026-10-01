@@ -22,9 +22,12 @@ Product design spec for the Spotlight-style launcher. This file is the in-app sy
 | ink-subtle | `#8a8f98` | `#6b7078` | Hints, icons |
 | ink-tertiary | `#62666d` | `#8a8f98` | Meta |
 | primary | `#5e6ad2` | same | Brand, completed check |
+| danger | `#ff6369` | `#c2262b` | Irreversible confirm |
 | hairline | `rgb(255 255 255 / 0.06)` | `rgb(0 0 0 / 0.06)` | Structure |
 
 Lavender is only for focus, glow, the wordmark, and completed checks. Selected row text stays ink, not primary.
+
+Danger is a semantic signal, not a second accent. It appears on the confirm button of a dialog whose action cannot be undone — and on the warning glyph beside that dialog's title — and nowhere else: never on a row, a section, a label, or a normal button.
 
 ## Type
 
@@ -41,8 +44,9 @@ Stack: `Inter Variable`, Inter, SF Pro Display, Segoe UI, system-ui. `font-featu
 - Window: 12px radius, 600×400, 8px transparent gutter, dual `box-shadow` ring.
 - Search field: 12px radius, padding 12×16, icon gap 8px.
 - List rows: 8px radius, padding 12×16, 8px row gap, 8px icon-to-text.
-- Buttons: 6px radius. Icon tiles: 6px. Icon-only hit target: 40px.
-- Icon stroke: 1.5px at 16px. Press scale `0.96`.
+- Buttons: 6px radius. A text button is 32px tall; 40px is the icon-only hit target, not a button height.
+- Icon tiles: 6px. Icon stroke: 1.5px at 16px. Press scale `0.96`.
+- Focus is a 2px lavender outline, offset 0, on every keyboard-reachable control.
 
 ## Motion
 
@@ -65,11 +69,14 @@ Show/hide uses CSS transitions so a second hotkey can reverse mid-flight. Do not
 
 **Todo row** — 40px toggle and delete. Completed text uses ink-tertiary + strikethrough. Counts are tabular.
 
+**Confirm dialog** — 320px card on a 55% tint over the palette, 12px radius, hairline ring plus the elevation shadow, 16px padding. Two 32px buttons at the bottom right, each carrying its own key chip; cancel is quiet, and the action a second Enter runs is the one with weight. A dialog whose action cannot be undone adds a 16px danger warning glyph beside its title and paints its confirm button in danger; the glyph and the colour are never the only signal, because the title and the body already say what will happen.
+
 ## Do not
 
 - True `#000000` canvas.
 - Solid `#333` hairlines.
 - Lavender as a section fill or selected-row text.
+- Danger anywhere but a confirm button that cannot be undone.
 - Pill-shaped primary controls.
 - `transition: all`.
 - Stagger on every keystroke.

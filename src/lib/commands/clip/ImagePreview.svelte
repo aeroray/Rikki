@@ -24,10 +24,11 @@
 
 {#if src}
   <!-- The overlay layer is the window's shape, and the backdrop paints that
-       shape itself: `backdrop-filter` makes it a composited layer, so its
-       rounded edge has to travel with the layer rather than rely on the shell's
-       `overflow-hidden` above it. The wrapper carries the radius only so the
-       backdrop's `rounded-[inherit]` has something to inherit. -->
+       shape itself. The backdrop is a flat tint and not a `backdrop-blur`, for
+       the reason `ActionConfirm` records: at the rounded corner the blur layer is
+       clipped less than the tint under it and leaves a white sliver along the arc.
+       The wrapper carries the radius only so the backdrop's `rounded-[inherit]`
+       has something to inherit. -->
   <div
     class="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit]"
     role="dialog"
@@ -36,7 +37,7 @@
   >
     <button
       type="button"
-      class="absolute inset-0 rounded-[inherit] bg-black/55 backdrop-blur-xl"
+      class="absolute inset-0 rounded-[inherit] bg-black/55"
       aria-label={i18n.t("clip.closePreview")}
       onclick={onclose}
       in:fade={{ duration: reduceMotion ? 0 : 150 }}

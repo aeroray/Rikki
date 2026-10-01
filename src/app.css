@@ -6,6 +6,12 @@
   --color-primary: #5e6ad2;
   --color-primary-hover: #828fff;
   --color-primary-focus: #5e69d1;
+  /*
+   * A semantic signal, not a second accent: it marks the confirm button of a
+   * dialog whose action cannot be undone, and nothing else. Dark is Radix's
+   * red-11 so it clears AA as text on `surface-1`; light is red-11 for white.
+   */
+  --color-danger: #ff6369;
   --color-ink: #f7f8f8;
   --color-ink-muted: #d0d6e0;
   --color-ink-subtle: #8a8f98;
@@ -27,6 +33,9 @@ html {
   --app-shell-shadow:
     rgb(0 0 0 / 0.4) 0 1.5px 0.5px 2.5px,
     rgb(27 28 30) 0 0 0 1px;
+  /* A confirm dialog floats above the dimmed palette, so it carries the one
+     real elevation shadow in the app; the hairline ring stays for its edge. */
+  --dialog-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
   --row-hover: rgb(255 255 255 / 0.03);
   --row-selected: rgb(255 255 255 / 0.06);
   --image-outline: oklch(1 0 0 / 0.1);
@@ -42,10 +51,12 @@ html[data-theme="light"] {
   --color-surface-2: #eceeef;
   --color-hairline: rgb(0 0 0 / 0.06);
   --color-hairline-strong: rgb(0 0 0 / 0.1);
+  --color-danger: #c2262b;
   --app-shell-bg: rgb(244 245 246 / 0.94);
   --app-shell-shadow:
     rgb(0 0 0 / 0.12) 0 1.5px 0.5px 2.5px,
     rgb(0 0 0 / 0.08) 0 0 0 1px;
+  --dialog-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
   --row-hover: rgb(0 0 0 / 0.03);
   --row-selected: rgb(0 0 0 / 0.06);
   --image-outline: oklch(0 0 0 / 0.1);

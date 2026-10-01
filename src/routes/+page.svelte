@@ -210,10 +210,6 @@
     {/if}
   </div>
 
-  <ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
-  <ClipConfirm />
-  <ActionConfirm />
-
   <!-- The live region stays in the DOM whether or not it has anything to say:
        assistive tech has to be observing the node before its text changes, so a
        container created together with the message is announced unreliably, if at
@@ -228,5 +224,20 @@
     {ui.notice}
   </div>
 </div>
+
+<!-- The three modals are siblings of the clipped column rather than children of
+     it, and that placement is the fix for a bright 1px arc at the window's four
+     rounded corners.
+
+     Their backdrop is a `backdrop-filter` layer. Chromium clips such a layer to
+     its own `border-radius` but not to a rounded ancestor's `overflow-hidden`,
+     so inside the column above the tint was clipped twice — once by the column,
+     once by the backdrop's own radius — while the blur was clipped once. At the
+     corner the tint therefore covered about half of what the blur did, and the
+     undimmed shell showed through as a white sliver along the arc. Out here the
+     only rounded clip on the path is the backdrop's own, so the two agree. -->
+<ImagePreview src={ui.imagePreviewSrc} onclose={() => (ui.imagePreviewSrc = null)} />
+<ClipConfirm />
+<ActionConfirm />
 </div>
 </div>
