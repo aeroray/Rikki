@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The tray uses the mark, not the app icon
+Decision:
+`tray.rs` loads `icons/tray.png` — `design/brand/mark.png` cropped to its content and scaled to 32px — instead of `app.default_window_icon()`. `tauri` gains the `image-png` feature, because `Image::from_bytes` does not exist without it. The file is made by hand; `scripts/generate-icons.mjs` and the brand README both say so.
+Reason:
+The tray showed a small purple face floating in the bar while every icon beside it filled its box, and the obvious guess — that the icon was smaller — was wrong. Measured against its neighbours, all of them were exactly 16px tall, and every frame of `icon.ico` is 100% opaque to its edges. It was the tile: the app icon is the raccoon on a near-black one, and a black tile on a dark taskbar is invisible, so only the face inside it showed and the icon read as small. The mark has no tile, so it reads in either theme. It cannot be generated in `generate-icons.mjs` because cropping needs an image library Node does not have.
+Note:
+Verified in the running app: the tray's raccoon now carries the same visual weight as WeChat's icon beside it. macOS is unverified and probably wants a monochrome template image for the menu bar, which is a different asset from this one.
+
+## 2026-10-01 - A footer puts the keyboard on the left and the mouse on the right
+Decision:
+The update line is `⬆ 有新版本 1.0.1` then the `Ctrl+U` chip, both on the left, with the 安装 button pushed right by `ml-auto`.
+Reason:
+Every other footer in the app puts what the keyboard can do on the left and what the mouse can do on the right; this one had the chip beside the button on the right, for no reason other than how it was first written. The glyph is there so the line reads as a notice rather than a stray sentence — and because the footer is the one place the app speaks up on its own, it should look like it belongs there.
+Note:
+Verified in the running app.
+
 ## 2026-10-01 - Updates are checked on the palette opening, throttled, and offered in the footer
 Decision:
 `update.checkQuietly()` runs when the palette is shown and returns early unless `CHECK_INTERVAL` (six hours) has passed since the last attempt. A release it finds puts a line in `PanelFooter` — the version, a `Ctrl+U` chip, and a button for the mouse — which replaces the panel's own shortcuts while it is there. Installing from there is a plain press; the settings row keeps its confirmation dialog.

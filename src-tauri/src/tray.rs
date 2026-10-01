@@ -51,9 +51,18 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
             }
         });
 
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
+    // The transparent mark, not the app icon.
+    //
+    // The app icon is the raccoon on a near-black tile, and a black tile on a dark
+    // taskbar is invisible: the tray showed a small purple face floating in the bar
+    // while every icon beside it filled its box. Measured against the neighbours,
+    // both were exactly 16px tall — it was never the size, it was the tile
+    // disappearing into the background. The mark has no tile, so it reads in both
+    // themes. `icons/tray.png` is derived from `design/brand/mark.png`; the brand
+    // README says how.
+    builder = builder.icon(tauri::image::Image::from_bytes(include_bytes!(
+        "../icons/tray.png"
+    ))?);
 
     builder.build(app)?;
     Ok(())

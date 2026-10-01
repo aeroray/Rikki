@@ -2,6 +2,7 @@
   import KeyChip from "$lib/components/KeyChip.svelte";
   import { i18n } from "$lib/i18n";
   import { update } from "$lib/stores/update.svelte";
+  import { ArrowUpCircle } from "@lucide/svelte";
   import type { Snippet } from "svelte";
 
   /**
@@ -64,11 +65,16 @@
      sharing a 32px row would leave room for neither. -->
 {#if update.available}
   <div class="flex min-h-8 shrink-0 items-center gap-3 border-t border-hairline px-3">
-    <p class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
-      {i18n.t("update.available", { version: update.available })}
-    </p>
-    <ul class="ml-auto flex shrink-0 items-center gap-x-3">
-      <li>
+    <!-- Same shape as every other footer: what the keyboard can do on the left,
+         what the mouse can do on the right. -->
+    <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
+      <li class="flex min-w-0 items-center gap-1.5">
+        <ArrowUpCircle class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
+        <span class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
+          {i18n.t("update.available", { version: update.available })}
+        </span>
+      </li>
+      <li class="shrink-0">
         <KeyChip keys="Ctrl+U" label={i18n.t("update.install")} />
       </li>
     </ul>
@@ -76,7 +82,7 @@
          either the shortcut or this button is already the answer. -->
     <button
       type="button"
-      class="pressable shrink-0 rounded px-1 text-[11px] leading-4 text-primary hover:text-primary-hover active:scale-[0.96]"
+      class="pressable ml-auto shrink-0 rounded px-1 text-[11px] leading-4 text-primary hover:text-primary-hover active:scale-[0.96]"
       onclick={() => void update.installAvailable()}
     >
       {i18n.t("update.install")}

@@ -15,6 +15,12 @@
  * is removed again, because this app is a desktop launcher and the brand README
  * promises the repository holds desktop assets only.
  *
+ * `icons/tray.png` is deliberately not generated here. The tray wants the
+ * transparent mark rather than the backed icon — a black tile on a dark taskbar
+ * is invisible — and producing it means cropping `design/brand/mark.png` to its
+ * content, which Node cannot do without an image library. The brand README says
+ * how it was made.
+ *
  * Run with `pnpm icons` after changing the master.
  */
 import { execFileSync } from "node:child_process";
