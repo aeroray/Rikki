@@ -41,16 +41,13 @@
     const ghz = frequency > 0 ? `${(frequency / 1000).toFixed(1)} GHz` : "";
     return [shortBrand(brand), i18n.t("sysmon.cores", { count: cores }), ghz]
       .filter(Boolean)
-      .join(" 路 ");
+      .join(" · ");
   });
 
   const footerShortcuts = $derived<FooterShortcut[]>([
-    { keys: "鈫戔啌", label: i18n.t("sysmon.scroll") },
+    { keys: "↑↓", label: i18n.t("sysmon.scroll") },
     { keys: "Esc", label: i18n.t("key.back") },
   ]);
-
-  /** How many placeholder bars the loading state draws. */
-  const SKELETON_CORES = 12;
 
   /**
    * What kind of adapter a GPU is, in words.
@@ -109,8 +106,8 @@
         {label}
       </h3>
       <!-- The subject sits beside its own section label rather than on a line of
-           its own: "鏄惧崱  NVIDIA GEFORCE RTX 4060" is one thought, and splitting it
-           cost a row and left the name looking like a stray caption. -->
+           its own: "独立显卡  NVIDIA GeForce RTX 4060" is one thought, and splitting
+           it cost a row and left the name looking like a stray caption. -->
       {#if subject}
         <span class="min-w-0 flex-1 truncate pt-px text-[11px] leading-none text-ink-tertiary">
           {subject}
@@ -122,8 +119,21 @@
         {value}
       </span>
     </div>
+    <!-- The chart is the only part that has nothing to draw at first: a sparkline
+         needs two readings, so it is empty for the first second while every number
+         beside it is already correct. The loading effect belongs here rather than
+         over the whole panel — the figures are real from the first frame, and a
+         page of grey boxes hid them for no reason.
+         The box is `h-8` either way, so nothing moves when the line appears. -->
     <div class="h-8 w-full">
-      <Sparkline {values} />
+      {#if values.length < 2}
+        <span
+          class="block h-full w-full animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"
+          aria-hidden="true"
+        ></span>
+      {:else}
+        <Sparkline {values} />
+      {/if}
     </div>
     <!-- One line, and it truncates rather than wraps: a detail that grew to two
          lines would move the section below it on every repaint. Omitted entirely
@@ -132,21 +142,6 @@
     {#if detail}
       <p class="truncate text-[11px] leading-4 text-ink-tertiary">{detail}</p>
     {/if}
-  </section>
-{/snippet}
-
-{#snippet skeleton(grow = false)}
-  <!-- The same box as `figure`, with the same three heights, so the panel does not
-       move when the first reading lands. A spinner or a line of text would both
-       leave the layout to jump the moment the numbers arrived, which is the jitter
-       this avoids. -->
-  <section class="flex min-w-0 flex-col gap-1 {grow ? 'flex-1' : ''}" aria-hidden="true">
-    <div class="flex items-start gap-2">
-      <span class="h-5 w-12 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
-      <span class="ml-auto h-5 w-14 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
-    </div>
-    <div class="h-8 w-full animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></div>
-    <span class="h-4 w-28 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
   </section>
 {/snippet}
 
@@ -163,26 +158,12 @@
       viewportClass="flex flex-col gap-4 pb-2"
     >
       {#if !stats}
-        <!-- The whole panel in skeleton, not a "reading…" line: the shapes are the
-             ones about to be filled, so the first paint already has its final
-             layout. -->
-        <div class="flex gap-4">
-          {@render skeleton(true)}
-          {@render skeleton(true)}
-        </div>
-        <div class="flex gap-2" aria-hidden="true">
-          <div class="flex flex-1 gap-0.5" style="height: 18px">
-            {#each Array.from({ length: SKELETON_CORES }) as _, index (index)}
-              <span
-                class="flex-1 self-end animate-pulse rounded-[2px] bg-surface-2 motion-reduce:animate-none"
-                style="height: 18px"
-              ></span>
-            {/each}
-          </div>
-        </div>
-        <div class="flex gap-2" aria-hidden="true">
-          <span class="h-4 w-20 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
-        </div>
+        <!-- Nothing, not a skeleton. `sysmon.stats` lives on the store and outlives
+             the panel, so this is only ever true for the very first open of a
+             process, for as long as one IPC round trip takes — a few milliseconds.
+             A page of grey boxes for that long reads as a flash, and the numbers
+             that follow are correct from the first frame; the only thing genuinely
+             empty at that point is each chart, which handles itself in `figure`. -->
       {:else}
         <!-- CPU and memory side by side: they are the two figures read together,
              and a full-width chart each wasted half of every row. -->

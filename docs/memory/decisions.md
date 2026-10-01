@@ -2,6 +2,20 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The loading effect belongs on the chart, not on the page
+Decision:
+`figure` draws a pulsing placeholder in the chart's own `h-8` box while `values.length < 2`, and the panel renders nothing at all before the first reading. The page-level skeleton is gone.
+Reason:
+`sysmon.stats` lives on the store and outlives the panel, so `!stats` is only ever true for the very first open of a process, for about one IPC round trip — a page of grey boxes for a few milliseconds reads as a flash. What is genuinely empty for longer is each chart, because a sparkline needs two readings and shows nothing until the second one arrives; that is where a loading state earns its place. The box is `h-8` either way, so the line appears without moving anything.
+Note:
+This also fixed a `路` that had shipped in the CPU detail line: the separator was written as `" · "` and a PowerShell round-trip turned the middle dot into `路`. See the entry below for why that kept happening.
+
+## 2026-10-01 - Do not rewrite UTF-8 sources through PowerShell
+Decision:
+Source files in this repository are only ever edited with the `edit` tool. `Set-Content`/`Get-Content -Raw` round-trips are forbidden for anything containing non-ASCII.
+Reason:
+PowerShell on this machine reads UTF-8 files as ANSI, which breaks in both directions. Writing corrupts the file — a middle dot became `路`, an em-dash became `鈥?`, `显卡` became `鏄惧崱`, and `↑↓` became `鈫戔啌`; several of those shipped in a commit. And *reading* corrupts the check: `Select-String` for mojibake patterns reported corruption in files that were clean, so "fixes" were applied to text that had nothing wrong with it, each pass adding more damage. `read` and `grep` decode UTF-8 correctly and are the only reliable way to inspect these files. A `grep` for the mojibake patterns is the right verification; a PowerShell one is worse than no check at all.
+
 ## 2026-10-01 - The panel groups GPUs by kind, and loads as a skeleton
 Decision:
 One section per GPU kind — 独立显卡 first, then 核心显卡 — each carrying its adapter's name beside the heading and its number on the same line. The kind is the heading, so a machine with one card reads "独立显卡  NVIDIA GeForce RTX 4060  7%" rather than a generic 显卡 over an anonymous row. A machine with no reading yet shows skeleton boxes in the shapes the content will take.
