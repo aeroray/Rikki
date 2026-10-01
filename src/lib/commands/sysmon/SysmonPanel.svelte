@@ -1,6 +1,6 @@
 <script lang="ts">
   import Sparkline from "$lib/commands/sysmon/Sparkline.svelte";
-  import { bytes, duration, fill, percent } from "$lib/commands/sysmon/format";
+  import { bytes, duration, fill, percent, shortBrand } from "$lib/commands/sysmon/format";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
@@ -28,50 +28,97 @@
   const stats = $derived(sysmon.stats);
 
   /**
-   * The CPU's own description, short enough to sit beside its label.
+   * The CPU in a few characters: model, cores, clock.
    *
-   * It used to be a line under the chart, which cost a row of height to say
-   * something that never changes. In the heading it costs nothing, and the brand is
-   * the part worth keeping — the core count and clock are already visible in the
-   * equalizer below.
+   * The full brand is vendor boilerplate around one model number and does not fit
+   * half a row, which is why it used to have a full-width line of its own below the
+   * chart. `shortBrand` drops the marketing words so it fits where the memory's
+   * figure sits, and the two columns then carry the same kind of line.
    */
   const cpuDetail = $derived.by(() => {
     if (!stats) return "";
     const { brand, cores, frequency } = stats.cpu;
     const ghz = frequency > 0 ? `${(frequency / 1000).toFixed(1)} GHz` : "";
-    return [brand, i18n.t("sysmon.cores", { count: cores }), ghz].filter(Boolean).join(" · ");
+    return [shortBrand(brand), i18n.t("sysmon.cores", { count: cores }), ghz]
+      .filter(Boolean)
+      .join(" 路 ");
   });
 
   const footerShortcuts = $derived<FooterShortcut[]>([
-    { keys: "↑↓", label: i18n.t("sysmon.scroll") },
+    { keys: "鈫戔啌", label: i18n.t("sysmon.scroll") },
     { keys: "Esc", label: i18n.t("key.back") },
   ]);
+
+  /** How many placeholder bars the loading state draws. */
+  const SKELETON_CORES = 12;
 
   /**
    * What kind of adapter a GPU is, in words.
    *
    * The counters only ever gave a LUID, which is why the panel used to say "GPU 0"
    * and "GPU 1" — labels that tell nobody which one they are looking at. The name
-   * comes from DXGI now, and this says whether it is the one in the CPU or a card
-   * of its own, which is the distinction that matters on a laptop.
+   * comes from DXGI now, and the kind is what the section is *called*: a machine
+   * with one card and no integrated graphics should say 独立显卡 and name it, not
+   * print a generic 显卡 heading above an anonymous row.
+   *
+   * `unknown` covers a Mac, where there is one SoC with one GPU in it and nothing
+   * to tell apart, so it keeps the plain heading.
    */
-  function gpuKind(kind: "discrete" | "integrated" | "unknown"): string {
+  function gpuKindLabel(kind: "discrete" | "integrated" | "unknown"): string {
     if (kind === "discrete") return i18n.t("sysmon.gpuDiscrete");
     if (kind === "integrated") return i18n.t("sysmon.gpuIntegrated");
-    return "";
+    return i18n.t("sysmon.gpu");
   }
+
+  /**
+   * The GPUs split by kind, discrete first.
+   *
+   * One section per kind rather than one list of everything: a laptop with both
+   * shows two, and the reader wants to know which is which before reading either
+   * number. An empty kind is dropped, so a desktop with one card shows one section.
+   */
+  const gpuGroups = $derived.by(() => {
+    if (!stats) return [];
+    const order = ["discrete", "integrated", "unknown"] as const;
+    return order
+      .map((kind) => ({
+        kind,
+        label: gpuKindLabel(kind),
+        gpus: stats.gpus.filter((gpu) => gpu.kind === kind),
+      }))
+      .filter((group) => group.gpus.length > 0);
+  });
 </script>
 
-{#snippet figure(label: string, value: string, detail: string, values: number[], grow = false)}
-  <!-- A number over its own recent shape. The chart is a fixed height so the box
-       cannot resize as it fills, and the value is set in tabular figures so a
-       changing number does not shift the ones beside it. -->
+{#snippet figure(
+  label: string,
+  value: string,
+  detail: string,
+  values: number[],
+  grow = false,
+  subject = "",
+)}
+  <!-- A number over its own recent shape.
+       `items-start` aligns the boxes, and `leading-none` on the small text aligns
+       the *glyphs*: the label carried a 20px line-height against an 11px font, so
+       its half-leading pushed its capital letters 4px below the top of the 20px
+       number beside it. Measured, not guessed — the caps now start on one line. -->
   <section class="flex min-w-0 flex-col gap-1 {grow ? 'flex-1' : ''}">
-    <div class="flex items-baseline gap-2">
-      <h3 class="min-w-0 truncate text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+    <div class="flex items-start gap-2">
+      <h3 class="min-w-0 truncate text-[11px] font-medium uppercase leading-none tracking-wider text-ink-subtle">
         {label}
       </h3>
-      <span class="ml-auto shrink-0 text-[20px] font-semibold leading-7 text-ink tabular-nums">
+      <!-- The subject sits beside its own section label rather than on a line of
+           its own: "鏄惧崱  NVIDIA GEFORCE RTX 4060" is one thought, and splitting it
+           cost a row and left the name looking like a stray caption. -->
+      {#if subject}
+        <span class="min-w-0 flex-1 truncate pt-px text-[11px] leading-none text-ink-tertiary">
+          {subject}
+        </span>
+      {/if}
+      <!-- `ml-auto` on the value, not on the label: with a subject in between, the
+           label must not push the number to the right. -->
+      <span class="ml-auto shrink-0 text-[20px] font-semibold leading-none text-ink tabular-nums">
         {value}
       </span>
     </div>
@@ -79,8 +126,27 @@
       <Sparkline {values} />
     </div>
     <!-- One line, and it truncates rather than wraps: a detail that grew to two
-         lines would move the section below it on every repaint. -->
-    <p class="truncate text-[11px] leading-4 text-ink-tertiary">{detail}</p>
+         lines would move the section below it on every repaint. Omitted entirely
+         when there is nothing to say, so a GPU row that carries its name beside the
+         label does not leave a blank line under its chart. -->
+    {#if detail}
+      <p class="truncate text-[11px] leading-4 text-ink-tertiary">{detail}</p>
+    {/if}
+  </section>
+{/snippet}
+
+{#snippet skeleton(grow = false)}
+  <!-- The same box as `figure`, with the same three heights, so the panel does not
+       move when the first reading lands. A spinner or a line of text would both
+       leave the layout to jump the moment the numbers arrived, which is the jitter
+       this avoids. -->
+  <section class="flex min-w-0 flex-col gap-1 {grow ? 'flex-1' : ''}" aria-hidden="true">
+    <div class="flex items-start gap-2">
+      <span class="h-5 w-12 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
+      <span class="ml-auto h-5 w-14 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
+    </div>
+    <div class="h-8 w-full animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></div>
+    <span class="h-4 w-28 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
   </section>
 {/snippet}
 
@@ -97,7 +163,26 @@
       viewportClass="flex flex-col gap-4 pb-2"
     >
       {#if !stats}
-        <p class="text-[13px] leading-5 text-ink-tertiary">{i18n.t("sysmon.reading")}</p>
+        <!-- The whole panel in skeleton, not a "reading…" line: the shapes are the
+             ones about to be filled, so the first paint already has its final
+             layout. -->
+        <div class="flex gap-4">
+          {@render skeleton(true)}
+          {@render skeleton(true)}
+        </div>
+        <div class="flex gap-2" aria-hidden="true">
+          <div class="flex flex-1 gap-0.5" style="height: 18px">
+            {#each Array.from({ length: SKELETON_CORES }) as _, index (index)}
+              <span
+                class="flex-1 self-end animate-pulse rounded-[2px] bg-surface-2 motion-reduce:animate-none"
+                style="height: 18px"
+              ></span>
+            {/each}
+          </div>
+        </div>
+        <div class="flex gap-2" aria-hidden="true">
+          <span class="h-4 w-20 animate-pulse rounded-sm bg-surface-2 motion-reduce:animate-none"></span>
+        </div>
       {:else}
         <!-- CPU and memory side by side: they are the two figures read together,
              and a full-width chart each wasted half of every row. -->
@@ -105,7 +190,7 @@
           {@render figure(
             i18n.t("sysmon.cpu"),
             percent(stats.cpu.usage),
-            "",
+            cpuDetail,
             sysmon.cpuHistory,
             true,
           )}
@@ -117,12 +202,6 @@
             true,
           )}
         </div>
-
-        <!-- The CPU's own description on its own line. In the heading it was
-             truncated to "12th Gen Intel(R) Core(TM) i5-12400F · 12 核 · 2.5 …" —
-             the columns are half-width now, and a name that long does not fit in
-             one. Here it has the whole row. -->
-        <p class="-mt-2 truncate text-[11px] leading-4 text-ink-tertiary">{cpuDetail}</p>
 
         <!-- One bar per core. Fixed height cells with the bar drawn from the
              bottom, so a core going from 3% to 90% changes the bar and nothing
@@ -145,7 +224,7 @@
         </div>
 
         {#if stats.memory.swapTotal > 0}
-          <div class="flex items-baseline gap-2">
+          <div class="flex items-start gap-2">
             <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.swap")}</span>
             <span class="ml-auto text-[11px] leading-4 text-ink-tertiary tabular-nums">
               {bytes(stats.memory.swapUsed)} / {bytes(stats.memory.swapTotal)}
@@ -153,46 +232,43 @@
           </div>
         {/if}
 
-        {#if stats.gpus.length > 0}
+        {#each gpuGroups as group (group.kind)}
           <section class="flex flex-col gap-2 border-t border-hairline pt-3">
-            <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
-              {i18n.t("sysmon.gpu")}
-            </h3>
-            <!-- Side by side, the way CPU and memory are: two adapters on one
-                 machine are usually the integrated one and the discrete one, and
-                 comparing them is the reason to look. -->
+            <!-- Side by side when a kind has more than one adapter, which is rare
+                 but real: two cards in one machine. -->
             <div class="flex gap-4">
-              {#each stats.gpus as gpu (gpu.name)}
+              {#each group.gpus as gpu (gpu.name)}
                 {@render figure(
-                  gpu.name,
+                  group.label,
                   gpu.usage === null ? "—" : percent(gpu.usage),
-                  gpuKind(gpu.kind),
+                  group.gpus.length > 1 ? gpu.name : "",
                   sysmon.gpuHistory[gpu.name] ?? [],
                   true,
+                  group.gpus.length === 1 ? gpu.name : "",
                 )}
               {/each}
             </div>
           </section>
-        {/if}
+        {/each}
 
         <section class="flex flex-col gap-1.5 border-t border-hairline pt-3">
-          <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+          <h3 class="text-[11px] font-medium uppercase leading-none tracking-wider text-ink-subtle">
             {i18n.t("sysmon.system")}
           </h3>
           <div class="flex flex-col gap-1">
-            <div class="flex items-baseline gap-3">
+            <div class="flex items-start gap-3">
               <span class="text-[12px] leading-[1.45] text-ink">{stats.system.name}</span>
               <span class="ml-auto text-[12px] leading-[1.45] text-ink-tertiary">
                 {stats.system.osVersion}
               </span>
             </div>
-            <div class="flex items-baseline gap-3">
+            <div class="flex items-start gap-3">
               <span class="text-[12px] leading-[1.45] text-ink-subtle">{i18n.t("sysmon.host")}</span>
               <span class="ml-auto text-[12px] leading-[1.45] text-ink-tertiary">
                 {stats.system.hostname}
               </span>
             </div>
-            <div class="flex items-baseline gap-3">
+            <div class="flex items-start gap-3">
               <span class="text-[12px] leading-[1.45] text-ink-subtle">{i18n.t("sysmon.uptime")}</span>
               <span class="ml-auto text-[12px] leading-[1.45] text-ink-tertiary tabular-nums">
                 {duration(stats.system.uptime)}
@@ -202,12 +278,12 @@
         </section>
 
         <section class="flex flex-col gap-1.5 border-t border-hairline pt-3">
-          <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+          <h3 class="text-[11px] font-medium uppercase leading-none tracking-wider text-ink-subtle">
             {i18n.t("sysmon.processes")}
           </h3>
           <div class="flex flex-col">
             {#each stats.processes as process (process.pid)}
-              <div class="flex items-baseline gap-3 py-0.5">
+              <div class="flex items-start gap-3 py-0.5">
                 <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
                   {process.name}
                 </span>

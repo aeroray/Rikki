@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The panel groups GPUs by kind, and loads as a skeleton
+Decision:
+One section per GPU kind — 独立显卡 first, then 核心显卡 — each carrying its adapter's name beside the heading and its number on the same line. The kind is the heading, so a machine with one card reads "独立显卡  NVIDIA GeForce RTX 4060  7%" rather than a generic 显卡 over an anonymous row. A machine with no reading yet shows skeleton boxes in the shapes the content will take.
+Reason:
+The two kinds are different hardware answering different questions, and a laptop with both wants to know which is which before reading either number; an empty kind is dropped so a desktop shows one section. The skeleton replaces the old "正在读取…" line, which occupied one row and then let the layout jump to a dozen when the first reading landed — the boxes reserve the real heights, so nothing moves.
+Note:
+The heading alignment is `items-start` plus `leading-none`, and both halves matter. `items-baseline` lined the 11px label's baseline up with the 20px number's, which read as the label floating mid-row; `items-start` alone still left the caps 4px low, because the label carried a 20px line-height against an 11px font and its half-leading pushed it down. Measured after: 1px apart. `shortBrand` also has a case worth keeping — stripping the bare word "Core" before the count left "Ryzen 7 5800X 8-", so `\d+\s*-\s*cores?` is removed first. Seven tests cover it.
+
 ## 2026-10-01 - Review fixes: the sampler is lazy, and the panel stops when hidden
 Decision:
 `Monitor` holds a `OnceLock<Mutex<Inner>>` and builds its sampler on the first snapshot; `Inner::new` uses `System::new()` rather than `new_all()`. `SysmonPanel` starts and stops sampling from an `$effect` on `ui.shellOpen`, not from `onMount`. The PDH buffer is `Vec<u64>` rather than `Vec<u8>`. `update.close()` is now called when a held update is discarded, and `ui.requestConfirm` takes an optional `oncancel`.

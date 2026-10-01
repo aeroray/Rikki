@@ -45,3 +45,27 @@ export function fill(used: number, total: number): number {
   if (total <= 0) return 0;
   return Math.max(0, Math.min(100, (used / total) * 100));
 }
+
+/**
+ * A CPU brand cut down to the part that identifies it.
+ *
+ * The full string is vendor boilerplate wrapped around one model number —
+ * "12th Gen Intel(R) Core(TM) i5-12400F @ 2.50GHz" — and the panel has half a row
+ * to say it in. The marketing words and the clock go, because the clock is already
+ * shown beside it; the model stays.
+ */
+export function shortBrand(brand: string): string {
+  const trimmed = brand
+    .replace(/\((?:R|TM|C)\)/gi, " ")
+    // `8-Core` and `12 Core` as a whole, before the bare word goes: stripping
+    // "Core" first left "Ryzen 7 5800X 8-" with the count dangling off the end.
+    .replace(/\b\d+\s*-\s*cores?\b/gi, " ")
+    .replace(/\b(?:CPU|Processor|Core|Intel|AMD|Gen)\b/gi, " ")
+    .replace(/\b\d+(?:st|nd|rd|th)\b/gi, " ")
+    .replace(/@\s*[\d.]+ ?GHz/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[\s-]+$/, "")
+    .trim();
+  // An unrecognised brand is better whole than emptied.
+  return trimmed || brand;
+}
