@@ -22,32 +22,40 @@ export function isToday(days: number): boolean {
 }
 
 /**
- * Row meta: the date it lands on, its lunar reading, and the year count.
+ * Row meta: the date it lands on, its reading in the other calendar, and the
+ * year count.
  *
- * Order is deliberate — the solar date leads because that is what the user
- * checks against a calendar, and the lunar echo follows as a cross-check.
+ * Whichever calendar the anniversary is *kept* in leads, and the other is the
+ * cross-check. A solar anniversary shows its solar date because that is what the
+ * user checks against a calendar; a lunar one shows its lunar date, because that
+ * is the date they saved and recognise.
+ *
+ * Leading with the solar date on a lunar anniversary is what made a saved 十月初三
+ * read as "11月11日 · 十月初三" and look like a mistake: the eleventh is where that
+ * lunar date falls *this year*, and it moves every year, so a reader comparing it
+ * against the date they typed sees a discrepancy that is not there.
  */
 export function occurrenceMeta(item: Anniversary, occurrence: Occurrence | null): string {
   if (!occurrence) return i18n.t("anniversary.awaitingLunar");
 
   const solar = formatMonthDay(occurrence.date.getMonth() + 1, occurrence.date.getDate(), i18n.locale);
-  const parts: string[] = [solar];
 
   if (item.calendar === "lunar") {
     const lunar = lunarMonthDayLabel(item.month, item.day, item.leapMonth, i18n.locale);
-    parts.push(occurrence.leapFallback ? i18n.t("anniversary.leapFallbackShort", { lunar }) : lunar);
-  } else {
-    // A solar anniversary gets a lunar echo, which is how people cross-check a
-    // birthday against the lunar calendar.
-    const lunar = lunarLabelFor(occurrence.date, i18n.locale);
-    if (lunar) parts.push(lunar);
+    const label = occurrence.leapFallback
+      ? i18n.t("anniversary.leapFallbackShort", { lunar })
+      : lunar;
+    return [label, solar].join(" · ");
   }
 
+  // A solar anniversary gets a lunar echo, which is how people cross-check a
+  // birthday against the lunar calendar.
+  //
   // The anniversary number is deliberately NOT part of this line: the row shows
   // it beside the countdown, where it clearly belongs to the upcoming date
   // rather than reading as the current age.
-
-  return parts.join(" · ");
+  const echo = lunarLabelFor(occurrence.date, i18n.locale);
+  return echo ? [solar, echo].join(" · ") : solar;
 }
 
 export function weekdayLabel(date: Date): string {

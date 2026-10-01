@@ -60,7 +60,13 @@
      hairline plus padding would just be a stray divider in the most cramped
      states (an empty or invalid panel). -->
 {#if shortcuts.length > 0 || message || children}
-  <div class="flex shrink-0 items-center gap-3 border-t border-hairline px-3 py-2">
+  <!-- A fixed 32px, not padding around whatever is inside.
+       A key chip is 16px tall and a form's save button is 32px, so padding-based
+       height made the footer of a form half again as tall as the footer of the
+       panel that opened it — the same chrome at two different sizes, one
+       keystroke apart. `min-h` rather than `h` so a caller that puts something
+       taller in the `children` slot is not clipped by the bar. -->
+  <div class="flex min-h-8 shrink-0 items-center gap-3 border-t border-hairline px-3">
     {#if shortcuts.length > 0}
       <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
         {#each shortcuts as shortcut (shortcut.keys + shortcut.label)}

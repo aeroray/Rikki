@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The footer is one height, and a row leads with the calendar its date is kept in
+Decision:
+`PanelFooter` is `min-h-8` with no vertical padding, so the bar is 32px whether it holds key chips, translate's target picker or a form's save button. And `occurrenceMeta` puts the saved calendar first: a lunar anniversary reads 十月初三 · 11月11日, a solar one 07月10日 · 六月初七.
+Reason:
+Padding-based height made the bar as tall as its tallest child, and a save button is twice the height of a key chip — so the footer of a form was half again as tall as the footer of the panel that opened it, the same chrome at two sizes one keystroke apart. `min-h` rather than `h` so a caller with something taller in the `children` slot is not clipped. For the row, the solar date of a lunar anniversary moves every year: a date typed as 11月22日 read as "11月11日 · 十月初三" and looked like a mistyped save, when the eleventh is simply where 十月初三 falls this year.
+Note:
+Verified from the build rather than the running app: the stylesheet carries `.min-h-8{min-height:calc(var(--spacing) * 8)}` and `--spacing:.25rem`. The running check was abandoned because the palette hides the moment it loses focus, a process that is not already in the foreground cannot take it back with `SetForegroundWindow`, and Alt+Space is the window menu whenever some other window has it — so driving the UI while another app is in use is not reliable. The ordering has unit tests instead, which need `ensureLunar()` first or the lunar label falls back to numbers.
+
 ## 2026-10-01 - The anniversary form converts a solar date to lunar, and stops claiming to repeat
 Decision:
 `toLunarText` in `dates.ts` turns a solar date into the `n…` / `nr…` text the date field already accepts, offered as a 转为农历 button beside the field and as `Ctrl+L`. The `· repeats every year` half of `anniversary.previewSolar` / `previewLunar` is gone; those labels now read 公历日期 / 农历日期.
