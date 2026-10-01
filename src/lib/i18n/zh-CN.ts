@@ -65,6 +65,7 @@ export const zhCN = {
   "settings.import": "导入配置",
   "settings.import.value": "从 JSON 文件恢复",
   "settings.keyImport": "导入",
+  "settings.keyCheck": "检查",
   "settings.import.confirm": "导入配置",
   "settings.import.body": "「{name}」会替换当前的 {current}，且无法撤销。",
   "settings.import.restored": "已从「{name}」导入",
@@ -75,8 +76,21 @@ export const zhCN = {
   "settings.transfer.settings": "设置",
   "settings.transfer.join": "、",
 
+  // 更新：手动检查一行，确认后下载，进度显示在面板的提示里。
+  "settings.update": "检查更新",
+  "settings.update.value": "当前版本 {version}",
+  "settings.update.checking": "正在检查更新…",
+  "settings.update.latest": "已是最新版本（{version}）",
+  "settings.update.failed": "更新失败，请稍后再试",
+  "settings.update.action": "更新到 {version}",
+  "settings.update.body": "将下载并安装 {version}，然后重启 Rikki。",
+  "settings.update.downloading": "正在下载 {percent}%",
+  "settings.update.installing": "正在安装…",
+
+  "theme.system": "跟随系统",
   "theme.dark": "暗色",
   "theme.light": "亮色",
+  "theme.systemNow": "跟随系统（{name}）",
   "theme.switched": "已切换到{name}",
 
   "engines.bing": "必应",

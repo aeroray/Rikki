@@ -54,7 +54,7 @@ fn default_engine() -> String {
 }
 
 fn default_theme() -> String {
-    "dark".into()
+    "system".into()
 }
 
 fn default_locale() -> String {
@@ -249,7 +249,7 @@ fn normalize(mut settings: Settings) -> Settings {
             // single delete removes.
             && seen_ids.insert(engine.id.clone())
     });
-    if settings.theme != "light" && settings.theme != "dark" {
+    if settings.theme != "light" && settings.theme != "dark" && settings.theme != "system" {
         settings.theme = default_theme();
     }
     if settings.locale != "system" && settings.locale != "zh-CN" && settings.locale != "en" {
@@ -323,7 +323,7 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
             settings.default_search_engine = id.to_string();
         }
         "theme" => {
-            if value != "dark" && value != "light" {
+            if value != "dark" && value != "light" && value != "system" {
                 return Err(format!("unknown theme: {value}"));
             }
             settings.theme = value.to_string();
@@ -456,7 +456,7 @@ mod tests {
     fn missing_engine_defaults_to_bing() {
         let parsed: Settings = serde_json::from_str(r#"{"version":1}"#).expect("deserialize");
         assert_eq!(parsed.default_search_engine, DEFAULT_ENGINE);
-        assert_eq!(parsed.theme, "dark");
+        assert_eq!(parsed.theme, "system");
         assert!(parsed.custom_search_engines.is_empty());
     }
 
@@ -468,7 +468,17 @@ mod tests {
             ..default_settings()
         });
         assert_eq!(settings.default_search_engine, DEFAULT_ENGINE);
-        assert_eq!(settings.theme, "dark");
+        assert_eq!(settings.theme, "system");
+    }
+
+    /// Following the OS is a preference in its own right, not a missing one.
+    #[test]
+    fn following_the_system_is_a_theme() {
+        let settings = normalize(Settings {
+            theme: "system".into(),
+            ..default_settings()
+        });
+        assert_eq!(settings.theme, "system");
     }
 
     #[test]

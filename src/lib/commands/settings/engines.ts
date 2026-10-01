@@ -1,8 +1,5 @@
-import type { ThemeId } from "$lib/commands/types";
 import { i18n } from "$lib/i18n";
 import type { MessageKey } from "$lib/i18n/zh-CN";
-
-export type { ThemeId };
 
 export type SearchEngine = {
   id: string;
@@ -77,9 +74,4 @@ export function isMac(): boolean {
 
 export function defaultHotkey(): string {
   return isMac() ? "Command+K" : "Alt+Space";
-}
-
-export function applyTheme(theme: ThemeId) {
-  if (typeof document === "undefined") return;
-  document.documentElement.dataset.theme = theme;
 }

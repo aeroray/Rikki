@@ -4,6 +4,7 @@ import { i18n } from "$lib/i18n";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { settings, type SettingItem } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
+import { update } from "$lib/stores/update.svelte";
 
 type SettingItemId = SettingItem["id"];
 
@@ -105,13 +106,17 @@ export function runSettingItem(id: SettingItemId): void {
   if (id === "language") return openLanguageSettings();
   if (id === "retention") return openRetentionSettings();
   if (id === "cleanup") return startClipCleanup();
-  // The two transfer rows act on the list rather than opening a screen of their
-  // own: there is nothing between the keystroke and the system dialog.
+  // These three act on the list rather than opening a screen of their own:
+  // there is nothing between the keystroke and the dialog or the check.
   if (id === "export") {
     void settings.exportSettings();
     return;
   }
-  void settings.importSettings();
+  if (id === "import") {
+    void settings.importSettings();
+    return;
+  }
+  void update.checkNow();
 }
 
 export async function handleSettingsEnter(): Promise<void> {

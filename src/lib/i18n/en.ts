@@ -67,6 +67,7 @@ export const en: Record<MessageKey, string> = {
   "settings.import": "Import settings",
   "settings.import.value": "Restore from a JSON file",
   "settings.keyImport": "Import",
+  "settings.keyCheck": "Check",
   "settings.import.confirm": "Import settings",
   "settings.import.body": "“{name}” will replace your current {current}. This cannot be undone.",
   "settings.import.restored": "Imported from “{name}”",
@@ -77,8 +78,22 @@ export const en: Record<MessageKey, string> = {
   "settings.transfer.settings": "settings",
   "settings.transfer.join": ", ",
 
+  // The updater: a row that checks on purpose, a confirmation, then a download
+  // that reports through the palette's notice.
+  "settings.update": "Check for updates",
+  "settings.update.value": "Version {version}",
+  "settings.update.checking": "Checking for updates…",
+  "settings.update.latest": "Up to date ({version})",
+  "settings.update.failed": "Couldn’t update — try again later",
+  "settings.update.action": "update to {version}",
+  "settings.update.body": "Rikki will download and install {version}, then restart.",
+  "settings.update.downloading": "Downloading {percent}%",
+  "settings.update.installing": "Installing…",
+
+  "theme.system": "System",
   "theme.dark": "Dark",
   "theme.light": "Light",
+  "theme.systemNow": "System ({name})",
   "theme.switched": "Switched to {name}",
 
   "engines.bing": "Bing",

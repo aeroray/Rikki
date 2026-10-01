@@ -1,7 +1,8 @@
 <script lang="ts">
+  import type { ThemePref } from "$lib/commands/types";
   import type { ThemeOption } from "$lib/stores/settings.svelte";
   import { i18n } from "$lib/i18n";
-  import { Check, Moon, Sun } from "@lucide/svelte";
+  import { Check, Monitor, Moon, Sun } from "@lucide/svelte";
 
   let {
     option,
@@ -15,8 +16,10 @@
     onselect: () => void;
   } = $props();
 
+  const ICONS: Record<ThemePref, typeof Sun> = { system: Monitor, dark: Moon, light: Sun };
+
   let row: HTMLButtonElement | undefined = $state();
-  const Icon = $derived(option.id === "light" ? Sun : Moon);
+  const Icon = $derived(ICONS[option.id]);
 
   $effect(() => {
     if (selected) row?.scrollIntoView({ block: "nearest", inline: "nearest" });

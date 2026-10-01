@@ -146,6 +146,9 @@
     if (selectedItemId === "import") {
       return [{ keys: "Enter", label: i18n.t("settings.keyImport") }];
     }
+    if (selectedItemId === "update") {
+      return [{ keys: "Enter", label: i18n.t("settings.keyCheck") }];
+    }
     return [{ keys: "Enter", label: i18n.t("key.open") }];
   });
 

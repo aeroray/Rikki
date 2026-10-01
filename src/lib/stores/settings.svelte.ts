@@ -1,14 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
-  applyTheme,
   defaultHotkey,
   getSearchEngine,
   engineDisplayName,
   SEARCH_ENGINES,
   type SearchEngine,
-  type ThemeId,
 } from "$lib/commands/settings/engines";
+import { parseThemePref, resolveTheme, systemPrefersDark } from "$lib/commands/settings/theme";
 import { exportStamp, transferCounts } from "$lib/commands/settings/transfer";
 import { eventToHotkey, formatHotkey } from "$lib/commands/settings/hotkey";
 import { browserDisplayName, browserOptionList } from "$lib/commands/settings/browsers";
@@ -16,10 +15,11 @@ import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
 import { parseSettingsScreen, type SettingsScreen } from "$lib/commands/settings/parse";
-import type { AppSettings, InstalledBrowser, PickedFile } from "$lib/commands/types";
+import type { AppSettings, InstalledBrowser, PickedFile, ThemePref } from "$lib/commands/types";
 import { snippets } from "$lib/stores/snippets.svelte";
 import { todos } from "$lib/stores/todos.svelte";
 import { ui } from "$lib/stores/ui.svelte";
+import { update } from "$lib/stores/update.svelte";
 
 export type SettingItem = {
   id:
@@ -31,7 +31,8 @@ export type SettingItem = {
     | "retention"
     | "cleanup"
     | "export"
-    | "import";
+    | "import"
+    | "update";
   title: string;
   value: string;
   icon:
@@ -43,12 +44,13 @@ export type SettingItem = {
     | "Timer"
     | "Eraser"
     | "Download"
-    | "Upload";
+    | "Upload"
+    | "RefreshCw";
   current?: boolean;
 };
 
 export type ThemeOption = {
-  id: ThemeId;
+  id: ThemePref;
   name: string;
 };
 
@@ -67,7 +69,13 @@ export type RetentionOption = {
 
 class SettingsStore {
   engineId = $state("bing");
-  theme = $state<ThemeId>("dark");
+  theme = $state<ThemePref>("system");
+  /**
+   * What the OS is asking for, kept live so `system` can follow a change made
+   * while the palette is running — a scheduled light/dark switch, or the user
+   * flipping it in the OS settings.
+   */
+  private prefersDark = $state(systemPrefersDark());
   hotkey = $state("");
   localePref = $state<LocalePref>("system");
   translateTarget = $state("");
@@ -92,6 +100,14 @@ class SettingsStore {
 
   constructor() {
     this.ready = this.hydrate();
+    // `system` has to keep following the OS after boot rather than only at it:
+    // the switch can arrive while the palette is hidden, and the next show
+    // should already be in the right theme.
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+        this.prefersDark = event.matches;
+      });
+    }
     // The settings row shows the chosen browser by name, so the list is needed
     // before the picker is ever opened. Detection is a registry read, not an
     // app scan, so this is cheap enough to start with the rest of the boot.
@@ -111,7 +127,11 @@ class SettingsStore {
     }).catch(() => {});
   }
 
+  /** The theme actually painted, which is what the layout and the labels use. */
+  readonly resolvedTheme = $derived(resolveTheme(this.theme, this.prefersDark));
+
   readonly themes = $derived<ThemeOption[]>([
+    { id: "system", name: i18n.t("theme.system") },
     { id: "dark", name: i18n.t("theme.dark") },
     { id: "light", name: i18n.t("theme.light") },
   ]);
@@ -133,7 +153,23 @@ class SettingsStore {
 
   readonly hotkeyLabel = $derived(formatHotkey(this.hotkey || defaultHotkey()));
 
-  readonly themeLabel = $derived(this.theme === "light" ? i18n.t("theme.light") : i18n.t("theme.dark"));
+  /**
+   * What the settings row shows.
+   *
+   * Following the system names the theme it currently resolves to, because
+   * "System" on its own does not tell the user what they are looking at.
+   */
+  readonly themeLabel = $derived.by(() => {
+    if (this.theme !== "system") return this.themeName(this.theme);
+    const painted = i18n.t(this.resolvedTheme === "light" ? "theme.light" : "theme.dark");
+    return i18n.t("theme.systemNow", { name: painted });
+  });
+
+  private themeName(pref: ThemePref): string {
+    if (pref === "light") return i18n.t("theme.light");
+    if (pref === "dark") return i18n.t("theme.dark");
+    return i18n.t("theme.system");
+  }
 
   readonly localeLabel = $derived(this.prefLabel(this.localePref));
 
@@ -198,6 +234,17 @@ class SettingsStore {
       title: i18n.t("settings.import"),
       value: i18n.t("settings.import.value"),
       icon: "Upload",
+      current: false,
+    },
+    {
+      id: "update",
+      title: i18n.t("settings.update"),
+      // The version is read from the running binary, so an empty one means the
+      // read has not answered yet rather than that there is no version.
+      value: update.version
+        ? i18n.t("settings.update.value", { version: update.version })
+        : "",
+      icon: "RefreshCw",
       current: false,
     },
   ]);
@@ -294,10 +341,8 @@ class SettingsStore {
     );
   }
 
-  async setTheme(id: ThemeId): Promise<boolean> {
-    const ok = await this.patch("theme", id, i18n.t("theme.switched", { name: id === "light" ? i18n.t("theme.light") : i18n.t("theme.dark") }));
-    if (ok) applyTheme(id);
-    return ok;
+  async setTheme(id: ThemePref): Promise<boolean> {
+    return this.patch("theme", id, i18n.t("theme.switched", { name: this.themeName(id) }));
   }
 
   /**
@@ -555,7 +600,7 @@ class SettingsStore {
 
   private apply(next: AppSettings) {
     this.engineId = next.defaultSearchEngine || "bing";
-    this.theme = next.theme === "light" ? "light" : "dark";
+    this.theme = parseThemePref(next.theme);
     this.hotkey = next.hotkey?.trim() ?? "";
     this.localePref = parseLocalePref(next.locale);
     // Rust normalizes this against the codes it accepts, so anything left here
@@ -571,11 +616,9 @@ class SettingsStore {
       url: engine.url,
       custom: true,
     }));
-    applyTheme(this.theme);
     this.syncLocale();
     this.clipTextRetentionDays = parseClipRetentionDays(next.clipTextRetentionDays);
   }
-
   private syncLocale() {
     i18n.locale = resolveLocale(this.localePref);
     if (typeof document !== "undefined") {
@@ -592,14 +635,13 @@ class SettingsStore {
       this.apply(await invoke<AppSettings>("get_settings"));
     } catch {
       this.engineId = "bing";
-      this.theme = "dark";
+      this.theme = "system";
       this.hotkey = "";
       this.localePref = "system";
       this.translateTarget = "";
       this.browserPath = "";
       this.customEngines = [];
       this.clipTextRetentionDays = 7;
-      applyTheme("dark");
       this.syncLocale();
     }
   }

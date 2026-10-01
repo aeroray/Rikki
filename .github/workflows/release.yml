@@ -1,0 +1,81 @@
+# Builds the two packages the launcher ships as, and publishes them as a draft
+# release with the updater manifest beside them.
+#
+# Push a tag (`git tag v0.1.0 && git push origin v0.1.0`) and this runs. The
+# release is a draft on purpose: a tag is not the same decision as "this is
+# public", and the updater only sees a release once it is published.
+#
+# Nothing here is code signed — Windows will show SmartScreen's "unknown
+# publisher" and macOS will refuse the unsigned app until the user clears it with
+# `xattr -cr /Applications/Rikki.app`. What *is* signed is the update payload,
+# with the key in `TAURI_SIGNING_PRIVATE_KEY`; the updater verifies it against the
+# public key in `tauri.conf.json` and would refuse an unsigned or tampered
+# download.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # Lets a release be built from a branch without tagging first.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      # One platform failing should not cancel the other: a Windows-only release
+      # is still worth having while the macOS runner is retried.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            bundles: dmg
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # Pinned here rather than in `packageManager`, so a local pnpm of a
+          # different version is not dragged around by corepack.
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The update signing key. Losing it means no further updates can be
+          # published for this app, because every install verifies against the
+          # public key already baked into `tauri.conf.json`.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Rikki ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+          # Writes `latest.json` next to the packages and merges it with whatever
+          # the other matrix job already uploaded, which is what the app polls.
+          includeUpdaterJson: true
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}

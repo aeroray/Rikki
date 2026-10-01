@@ -33,6 +33,10 @@ export interface CalcHistoryEntry {
   createdAt: number;
 }
 
+/** What the user picked for the theme. `system` follows the OS and is the default. */
+export type ThemePref = "system" | "dark" | "light";
+
+/** What is actually painted, once a preference has been resolved. */
 export type ThemeId = "dark" | "light";
 
 export type CustomSearchEngine = {
@@ -43,7 +47,7 @@ export type CustomSearchEngine = {
 
 export interface AppSettings {
   defaultSearchEngine: string;
-  theme: ThemeId;
+  theme: ThemePref;
   hotkey: string;
   locale: string;
   /** The language code the user last translated into; empty means unchosen. */

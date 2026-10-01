@@ -9,6 +9,7 @@
     Keyboard,
     Languages,
     Palette,
+    RefreshCw,
     Timer,
     Upload,
   } from "@lucide/svelte";
@@ -44,6 +45,7 @@
     Upload,
     Timer,
     Eraser,
+    RefreshCw,
   };
   const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();

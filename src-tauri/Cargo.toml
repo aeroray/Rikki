@@ -25,6 +25,8 @@ reqwest = { version = "0.12", features = ["json"] }
 md5 = "0.7"
 rand = "0.8"
 tauri-plugin-dialog = "2.7.2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 plist = "1"
@@ -34,8 +36,9 @@ icns = "0.3"
 image = { version = "0.25", default-features = false, features = ["png"] }
 # Pinned to the version `tauri` itself resolves, because `PlatformWebview` hands
 # back a `webview2_com` type and the two have to be the same type, not two
-# identical-looking ones.
-webview2-com = "0.38"
+# identical-looking ones. Bump this whenever `tauri` moves: two versions in the
+# graph fail to compile with a message about 2368 `CanInto` impls.
+webview2-com = "0.39"
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
