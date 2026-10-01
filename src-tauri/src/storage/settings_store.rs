@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -79,12 +79,13 @@ fn valid_translate_target(code: &str) -> bool {
 /// has to be a file we could launch: `settings.json` is editable by hand, and a
 /// browser that has since been uninstalled must not stay selected and leave
 /// every search unable to open a link.
+/// Trims the stored browser path. It deliberately does not check that the file is
+/// still there: `normalize` runs on every load and its result is written back, so
+/// a browser on a drive that is not mounted right now would lose the user's choice
+/// the next time any unrelated setting changed. The one place that launches it
+/// does check, and falls back to the system default.
 fn normalize_browser(value: &str) -> String {
-    let path = value.trim();
-    if path.is_empty() || !Path::new(path).is_file() {
-        return String::new();
-    }
-    path.to_string()
+    value.trim().to_string()
 }
 
 fn default_clip_text_retention_days() -> Option<u32> {
@@ -573,18 +574,25 @@ mod tests {
         assert_eq!(settings.browser, exe);
     }
 
+    /// A path that cannot be launched *right now* is still the user's choice.
+    ///
+    /// Clearing it would lose that choice the next time any setting was written,
+    /// and a browser on a drive that is not mounted is the ordinary case rather
+    /// than the odd one. `launch_command` already refuses a path that is not a
+    /// file and falls back to the system default, so deciding it here as well
+    /// protects nothing.
     #[test]
-    fn an_unlaunchable_browser_path_normalizes_to_the_system_default() {
+    fn an_unlaunchable_browser_path_is_still_remembered() {
         for browser in [
             r"C:\nope\gone\browser.exe".to_string(),
             // A directory exists but cannot be launched as a browser.
             std::env::temp_dir().to_string_lossy().into_owned(),
         ] {
             let settings = normalize(Settings {
-                browser,
+                browser: browser.clone(),
                 ..default_settings()
             });
-            assert!(settings.browser.is_empty());
+            assert_eq!(settings.browser, browser);
         }
     }
 
