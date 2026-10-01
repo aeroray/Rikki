@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" width="96" height="96" alt="Rikki">
+  <img src="static/logo.png" width="96" height="96" alt="Rikki raccoon logo">
 </p>
 
 <h1 align="center">Rikki</h1>
@@ -32,6 +32,8 @@ pnpm tauri build    # package
 ```
 
 `pnpm check` type-checks the frontend, `pnpm test` runs the unit tests.
+
+`pnpm icons` regenerates the desktop icons, favicon and README logo from the approved [brand assets](design/brand/README.md).
 
 > [!TIP]
 > On Windows, if `pnpm tauri dev` fails with a cargo lock error, quit the running `rikki.exe` and try again.

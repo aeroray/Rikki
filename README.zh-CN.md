@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" width="96" height="96" alt="Rikki">
+  <img src="static/logo.png" width="96" height="96" alt="Rikki 浣熊图标">
 </p>
 
 <h1 align="center">Rikki</h1>
@@ -32,6 +32,8 @@ pnpm tauri build    # 打包
 ```
 
 `pnpm check` 做前端类型检查，`pnpm test` 跑单元测试。
+
+`pnpm icons` 从已定稿的[品牌资源](design/brand/README.md)重新生成桌面图标、favicon 与 README Logo。
 
 > [!TIP]
 > Windows 上如果 `pnpm tauri dev` 报 cargo 锁文件错误，先退出正在运行的 `rikki.exe` 再试。

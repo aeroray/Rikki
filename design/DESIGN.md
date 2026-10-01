@@ -8,6 +8,10 @@ Product design spec for the Spotlight-style launcher. This file is the in-app sy
 - 4px spacing grid. Hairlines are translucent, not solid gray.
 - Motion is short, spatial, and interruptible. `prefers-reduced-motion` disables enter/exit and glow.
 
+## Brand
+
+The application logo is the rounded lavender raccoon, refined concept A. Its default backing is a rounded near-black tile (`#07080a`) with transparent outer corners, also in the light theme. The approved masters live in `design/brand/`; `pnpm icons` exports the desktop, tray, favicon and README assets. Search-engine and command glyphs retain their functional meaning.
+
 ## Color
 
 | Token | Dark | Light | Use |
