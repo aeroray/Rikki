@@ -2,37 +2,12 @@
   import type { Command } from "$lib/commands/types";
   import { commandDescription, commandTitle } from "$lib/i18n/command";
   import { i18n } from "$lib/i18n";
-  import { Binary, Braces, Calculator, CalendarDays, CalendarHeart, Clipboard, Clock, Droplet, FileText, Globe, Languages, ListTodo, Lock, LogOut, Moon, Power, QrCode, RotateCw, ScanQrCode, Search, Settings, Smile } from "@lucide/svelte";
+  import { commandIcon } from "$lib/components/icons";
 
   let { command, selected, onselect, optionId, staggerIndex }: { command: Command; selected: boolean; onselect: () => void; optionId?: string; staggerIndex?: number } =
     $props();
 
-  const icons = {
-    Binary,
-    Braces,
-    Calculator,
-    CalendarDays,
-    CalendarHeart,
-    Clipboard,
-    Clock,
-    Droplet,
-    FileText,
-    Globe,
-    Languages,
-    ListTodo,
-    Lock,
-    LogOut,
-    Moon,
-    Power,
-    QrCode,
-    RotateCw,
-    ScanQrCode,
-    Search,
-    Settings,
-    Smile,
-  };
-
-  const Icon = $derived(icons[command.icon as keyof typeof icons] ?? Search);
+  const Icon = $derived(commandIcon(command.icon));
   let row: HTMLButtonElement | undefined = $state();
 
   $effect(() => {

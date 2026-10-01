@@ -91,6 +91,11 @@ export const en: Record<MessageKey, string> = {
   "settings.update.downloading": "Downloading {percent}%",
   "settings.update.installing": "Installing…",
 
+  // The footer's update line: the one place this app speaks up on its own while
+  // it sits in the tray.
+  "update.available": "Version {version} is available",
+  "update.install": "Install",
+
   "theme.system": "System",
   "theme.dark": "Dark",
   "theme.light": "Light",

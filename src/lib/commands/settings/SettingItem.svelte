@@ -1,18 +1,7 @@
 <script lang="ts">
   import { i18n } from "$lib/i18n";
   import type { SettingItem as SettingItemModel } from "$lib/stores/settings.svelte";
-  import {
-    Compass,
-    Download,
-    Eraser,
-    Globe,
-    Keyboard,
-    Languages,
-    Palette,
-    RefreshCw,
-    Timer,
-    Upload,
-  } from "@lucide/svelte";
+  import { commandIcon } from "$lib/components/icons";
 
   let {
     id,
@@ -35,19 +24,7 @@
     current?: boolean;
   } = $props();
 
-  const icons = {
-    Globe,
-    Compass,
-    Palette,
-    Keyboard,
-    Languages,
-    Download,
-    Upload,
-    Timer,
-    Eraser,
-    RefreshCw,
-  };
-  const Icon = $derived(icons[icon]);
+  const Icon = $derived(commandIcon(icon));
   let row: HTMLButtonElement | undefined = $state();
 
   $effect(() => {

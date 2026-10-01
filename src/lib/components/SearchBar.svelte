@@ -6,8 +6,9 @@
   import { emojis } from "$lib/stores/emojis.svelte";
   import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { update } from "$lib/stores/update.svelte";
   import { i18n } from "$lib/i18n";
-  import EngineMark from "$lib/components/EngineMark.svelte";
+  import FieldMark from "$lib/components/FieldMark.svelte";
   import { activateCommand } from "$lib/commands/activate";
   import { canFallbackSearch, runFallbackSearch } from "$lib/commands/fallback";
   import { engineIdForCommand } from "$lib/commands/web";
@@ -173,6 +174,19 @@
     return null;
   });
 
+  /**
+   * The current command's own glyph, for the field to draw when it is not showing
+   * an engine's mark.
+   *
+   * The field said nothing about where a keystroke was going: typing `settings`
+   * left the same magnifier as an empty field, and the panel that opened was the
+   * only thing that said otherwise. A gear for 设置 and a calendar for 万年历 make
+   * the field itself say where it leads.
+   */
+  const commandIconName = $derived(
+    searchEngineId ? undefined : (ui.matchedCommand?.icon ?? undefined),
+  );
+
   $effect(() => {
     ui.showNonce;
     ui.preview;
@@ -267,6 +281,14 @@
       }
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+
+    // An update waiting in the footer takes this key from wherever the user is:
+    // it is the one action that is not about the panel that happens to be open.
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "u" && update.available) {
+      event.preventDefault();
+      void update.installAvailable();
       return;
     }
 
@@ -676,7 +698,7 @@
 <label
   class="m-3 flex items-center gap-2 rounded-lg bg-surface-1 px-4 py-3 transition-shadow duration-150 ease-out focus-within:animate-[glowPulse_1.2s_ease-in-out_infinite] motion-reduce:focus-within:animate-none motion-reduce:focus-within:outline motion-reduce:focus-within:outline-1 motion-reduce:focus-within:outline-primary-focus/55"
 >
-  <EngineMark engineId={searchEngineId} />
+  <FieldMark engineId={searchEngineId} {commandIconName} />
   <span class="sr-only">{i18n.t("search.placeholder")}</span>
   <input
     bind:this={inputEl}

@@ -88,6 +88,10 @@ export const zhCN = {
   "settings.update.downloading": "正在下载 {percent}%",
   "settings.update.installing": "正在安装…",
 
+  // 底栏的更新提示：常驻后台时唯一会主动说话的地方。
+  "update.available": "有新版本 {version}",
+  "update.install": "安装",
+
   "theme.system": "跟随系统",
   "theme.dark": "暗色",
   "theme.light": "亮色",

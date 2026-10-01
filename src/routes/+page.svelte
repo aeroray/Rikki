@@ -47,6 +47,7 @@
   import { json } from "$lib/stores/json.svelte";
   import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { update } from "$lib/stores/update.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
 
@@ -64,6 +65,10 @@
 
     void listen("palette-shown", () => {
       ui.beginShow();
+      // Opening the palette is the app's only regular moment, and the only one
+      // where an answer can be acted on. `checkQuietly` throttles itself, so this
+      // is cheap to call every time.
+      void update.checkQuietly();
     })
       .then((stop) => stops.push(stop))
       .catch(() => {});

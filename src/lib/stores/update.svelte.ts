@@ -5,23 +5,46 @@ import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 
 /**
- * Checking for a release, and installing it in place.
+ * How long an answer is trusted before asking again.
  *
- * The confirmation is the app's existing destructive-action dialog, which is the
- * right shape for this: installing an update replaces the binary that is running
- * and cannot be taken back. The download reports through the palette's notice,
- * because a release is tens of megabytes and a toast that fades after two
- * seconds would leave the user with no idea whether anything is happening.
+ * This app lives in the tray, which is what makes the schedule worth thinking
+ * about. "Check on startup" would mean once a week for someone who never quits it,
+ * and a timer would mean waking an idle machine to ask a question nobody is
+ * waiting for. Instead the check is driven by the palette opening, throttled to
+ * this interval: the moment the user is actually here is the only moment the
+ * answer can be acted on, and opening the palette twenty times in a day still asks
+ * once. Nothing runs while the app sits idle.
+ */
+const CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+
+/**
+ * Checking for a release, installing it in place, and offering it in the footer.
  *
- * Nothing here runs on its own. A launcher that interrupts a keystroke with an
- * "update available" card is the behaviour this app exists to avoid, so the
- * check is a settings row the user opens on purpose.
+ * The background check is a change from the first version of this, which ran only
+ * when the user asked. A launcher that interrupts a keystroke with a card is still
+ * the wrong shape; a footer that quietly gains a line is not an interruption, and
+ * the footer is already where the app says things without taking the keyboard.
+ *
+ * Installing is the app's existing destructive-action dialog when it is asked for
+ * from the settings row, and a plain press when it comes from the footer: reaching
+ * for the shortcut or the button is already an answer to "do you want this?".
  */
 class UpdateStore {
   /** The running version, shown on the settings row. */
   version = $state("");
-  /** True while a check or an install is in flight, so the row cannot fire twice. */
+  /** True while a check or an install is in flight, so nothing fires twice. */
   busy = $state(false);
+  /** The version waiting to be installed, or null when there is nothing to say. */
+  available = $state<string | null>(null);
+
+  private lastCheck = 0;
+  /**
+   * The `check()` result, held rather than closed.
+   *
+   * `check` hands back a resource that has to be closed or installed, and this is
+   * the only handle to the update the footer is about to offer.
+   */
+  private pending: Update | null = null;
 
   constructor() {
     void getVersion()
@@ -34,13 +57,59 @@ class UpdateStore {
       });
   }
 
+  /**
+   * Looks for a release, if it is worth looking.
+   *
+   * Called when the palette opens, and silent by design: no notice, no dialog, and
+   * nothing at all when the answer is "no" or the request fails.
+   */
+  async checkQuietly(): Promise<void> {
+    if (this.pending) return;
+    const now = Date.now();
+    if (now - this.lastCheck < CHECK_INTERVAL) return;
+    // Stamped before the request, so a slow or failing one cannot make every open
+    // try again.
+    this.lastCheck = now;
+    try {
+      const found = await check();
+      if (!found) return;
+      this.pending = found;
+      this.available = found.version;
+    } catch {
+      // Offline, or no release published yet. Nothing to say.
+    }
+  }
+
+  /** Installs what the footer is offering. */
+  async installAvailable(): Promise<void> {
+    const found = this.pending;
+    if (!found) return;
+    this.pending = null;
+    this.available = null;
+    await this.install(found);
+  }
+
+  /** The settings row: asks, then confirms through the dialog. */
   async checkNow(): Promise<void> {
     if (this.busy) return;
+
+    // Already holding an answer from the background check — the dialog is the only
+    // thing left to do.
+    if (this.pending) {
+      const found = this.pending;
+      ui.requestConfirm(
+        i18n.t("settings.update.action", { version: found.version }),
+        () => void this.installHeld(found),
+        i18n.t("settings.update.body", { version: found.version }),
+      );
+      return;
+    }
+
     this.busy = true;
     ui.flash(i18n.t("settings.update.checking"));
     try {
-      const update = await check();
-      if (!update) {
+      const found = await check();
+      if (!found) {
         ui.flash(i18n.t("settings.update.latest", { version: this.version }));
         this.busy = false;
         return;
@@ -49,14 +118,20 @@ class UpdateStore {
       // `install` — and `install` sets it again for as long as it runs.
       this.busy = false;
       ui.requestConfirm(
-        i18n.t("settings.update.action", { version: update.version }),
-        () => void this.install(update),
-        i18n.t("settings.update.body", { version: update.version }),
+        i18n.t("settings.update.action", { version: found.version }),
+        () => void this.installHeld(found),
+        i18n.t("settings.update.body", { version: found.version }),
       );
     } catch {
       ui.flash(i18n.t("settings.update.failed"));
       this.busy = false;
     }
+  }
+
+  private async installHeld(update: Update): Promise<void> {
+    this.pending = null;
+    this.available = null;
+    await this.install(update);
   }
 
   private async install(update: Update): Promise<void> {

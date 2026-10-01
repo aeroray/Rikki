@@ -1,5 +1,7 @@
 <script lang="ts">
   import KeyChip from "$lib/components/KeyChip.svelte";
+  import { i18n } from "$lib/i18n";
+  import { update } from "$lib/stores/update.svelte";
   import type { Snippet } from "svelte";
 
   /**
@@ -56,10 +58,34 @@
   const messageAlign = $derived(shortcuts.length > 0 ? "ml-auto" : "mx-auto");
 </script>
 
-<!-- With neither shortcuts nor a message there is nothing to say, and a bare
-     hairline plus padding would just be a stray divider in the most cramped
-     states (an empty or invalid panel). -->
-{#if shortcuts.length > 0 || message || children}
+<!-- An available update replaces the bar rather than joining it. It is the one
+     thing here the user cannot do later — a release is missed by not acting, while
+     every panel shortcut still works once this is gone — and the two of them
+     sharing a 32px row would leave room for neither. -->
+{#if update.available}
+  <div class="flex min-h-8 shrink-0 items-center gap-3 border-t border-hairline px-3">
+    <p class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
+      {i18n.t("update.available", { version: update.available })}
+    </p>
+    <ul class="ml-auto flex shrink-0 items-center gap-x-3">
+      <li>
+        <KeyChip keys="Ctrl+U" label={i18n.t("update.install")} />
+      </li>
+    </ul>
+    <!-- The mouse's way in. A plain press, with no confirmation: reaching for
+         either the shortcut or this button is already the answer. -->
+    <button
+      type="button"
+      class="pressable shrink-0 rounded px-1 text-[11px] leading-4 text-primary hover:text-primary-hover active:scale-[0.96]"
+      onclick={() => void update.installAvailable()}
+    >
+      {i18n.t("update.install")}
+    </button>
+  </div>
+{:else if shortcuts.length > 0 || message || children}
+  <!-- With neither shortcuts nor a message there is nothing to say, and a bare
+       hairline plus padding would just be a stray divider in the most cramped
+       states (an empty or invalid panel). -->
   <!-- A fixed 32px, not padding around whatever is inside.
        A key chip is 16px tall and a form's save button is 32px, so padding-based
        height made the footer of a form half again as tall as the footer of the

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import EngineMark from "$lib/components/EngineMark.svelte";
+  import FieldMark from "$lib/components/FieldMark.svelte";
   import { engineDisplayName, type SearchEngine } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
   import { Check, Trash2 } from "@lucide/svelte";
@@ -40,9 +40,9 @@
   >
     <!-- The same mark the search field shows for this engine, so the picker and
          the field cannot disagree about which engine a row means. A custom
-         engine has no mark, and `EngineMark` falls back to the magnifier. -->
+         engine has no mark, and `FieldMark` falls back to the magnifier. -->
     <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-ink-muted">
-      <EngineMark engineId={engine.id} />
+      <FieldMark engineId={engine.id} />
     </span>
     <span class="min-w-0 flex-1 truncate text-[14px] font-medium leading-[1.45] text-ink">
       {engineDisplayName(engine)}

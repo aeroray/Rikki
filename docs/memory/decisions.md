@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - Updates are checked on the palette opening, throttled, and offered in the footer
+Decision:
+`update.checkQuietly()` runs when the palette is shown and returns early unless `CHECK_INTERVAL` (six hours) has passed since the last attempt. A release it finds puts a line in `PanelFooter` — the version, a `Ctrl+U` chip, and a button for the mouse — which replaces the panel's own shortcuts while it is there. Installing from there is a plain press; the settings row keeps its confirmation dialog.
+Reason:
+The app lives in the tray, which is what makes the schedule the interesting part. "Check on startup" would mean once a week for someone who never quits it, and a timer would mean waking an idle machine to ask a question nobody is waiting for. Driving it from the palette opening means the check happens exactly when the user is present to act on it, and nothing runs while the app sits idle. The footer replaces rather than shares the row: an update is the one thing there that cannot be done later, and two sets of chips in a 32px bar would leave room for neither. The confirmation is dropped for the footer because reaching for the shortcut or the button is already the answer, while the settings row is a question ("is there anything new?") rather than an instruction.
+Note:
+The check is stamped before the request, so a slow or failing one cannot make every subsequent open try again. A found update is held rather than closed, because `check()` hands back a resource that installing needs. Verified in the running app with a version staged in the store: the footer reads 有新版本 1.0.1 with the chip and the button.
+
+## 2026-10-01 - The search field draws the current command's glyph
+Decision:
+`FieldMark` shows the engine's mark for a web-search command, the command's own glyph otherwise, and the magnifier when neither applies. `components/icons.ts` holds the one icon table, used by `CommandItem`, `SettingItem` and the field.
+Reason:
+The field said nothing about where a keystroke was going: typing `settings` left the same magnifier as an empty field, and only the panel that opened said otherwise. Commands and settings rows each carried their own copy of the icon table and the field needed a third; three tables for one vocabulary is three places for a name to be missing, and a missing name silently becomes the fallback magnifier, which looks deliberate.
+Note:
+The engine mark wins over the command's glyph because it says more: `gg` is not "a web search", it is Google. Verified in the running app: `settings ` draws the gear, `cal ` the calendar, `gg ` Google's mark.
+
 ## 2026-10-01 - The overlays blur what is behind them
 Decision:
 All three overlay backdrops — `ActionConfirm`, `ClipConfirm`, `ClipPreview` — carry `backdrop-blur-md` on the same element as the tint.
