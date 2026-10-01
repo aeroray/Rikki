@@ -52,12 +52,16 @@
 </script>
 
 {#if preview}
-  <!-- The overlay layer is the window's shape, and the backdrop paints that
-       shape itself. The backdrop is a flat tint and not a `backdrop-blur`, for
-       the reason `ActionConfirm` records: at the rounded corner the blur layer is
-       clipped less than the tint under it and leaves a white sliver along the arc.
-       The wrapper carries the radius only so the backdrop's `rounded-[inherit]`
-       has something to inherit. -->
+  <!-- The overlay layer is the window's shape, and the backdrop paints that shape
+       itself. The tint carries a `backdrop-blur` so a page of text behind the
+       preview cannot compete with it — which is the whole reason to preview.
+
+       These overlays are siblings of the clipped content column rather than
+       children of it, which is what makes the blur safe: inside that column a
+       `backdrop-filter` is clipped to its own radius but not to the ancestor's
+       `overflow-hidden`, and the blur then smears the pale shell into a white
+       sliver along the arc. Out here the only rounded clip on the path is the
+       backdrop's own, so the tint and the blur agree. -->
   <div
     class="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit]"
     role="dialog"
@@ -66,7 +70,7 @@
   >
     <button
       type="button"
-      class="absolute inset-0 rounded-[inherit] bg-black/55"
+      class="absolute inset-0 rounded-[inherit] bg-black/55 backdrop-blur-md"
       aria-label={i18n.t("clip.closePreview")}
       onclick={onclose}
       in:fade={{ duration: reduceMotion ? 0 : 150 }}

@@ -53,14 +53,15 @@
 </script>
 
 {#if confirm}
-  <!-- The overlay layer is the window's shape, and the backdrop paints that
-       shape itself. The backdrop is a flat tint and not a `backdrop-blur`, for
-       the reason `ActionConfirm` records: at the rounded corner the blur layer is
-       clipped less than the tint under it and leaves a white sliver along the arc. -->
+  <!-- The overlay layer is the window's shape, and the backdrop paints that shape
+       itself. The tint carries a `backdrop-blur`, for the reason `ActionConfirm`
+       records: it is a sibling of the clipped content column, so the only rounded
+       clip on the path is the backdrop's own and the blur cannot smear the shell
+       into the corner. -->
   <div class="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit]">
     <button
       type="button"
-      class="absolute inset-0 rounded-[inherit] bg-black/55"
+      class="absolute inset-0 rounded-[inherit] bg-black/55 backdrop-blur-md"
       aria-label={i18n.t("clip.cleanupCancel")}
       onclick={cancel}
       in:fade={{ duration: reduceMotion ? 0 : 150 }}

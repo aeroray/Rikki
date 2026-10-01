@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The overlays blur what is behind them, and the field says what the keyboard will do
+Decision:
+All three overlay backdrops — `ActionConfirm`, `ClipConfirm`, `ClipPreview` — carry `backdrop-blur-md` on the same element as the tint. The search field shows a badge for Caps Lock and for the input method's mode, and the palette asks the IME for English as it opens (`src-tauri/src/ime.rs`).
+Reason:
+The blur was left off deliberately at first, and the reason no longer holds: inside the clipped content column a `backdrop-filter` is clipped to its own radius but not to the ancestor's `overflow-hidden`, so it reached further into the corner than the tint and smeared the pale shell into a white sliver. The overlays are siblings of that column now — the fix for that sliver — and the tint and the blur are on one element with one radius. For the field: a launcher wants Latin text, and a Chinese IME left in native mode turns the first keystroke into pinyin and the text into a candidate list. Neither Caps Lock nor the IME mode is visible in the field itself, so a badge is the only place to say so before the user types.
+Note:
+Two of the three facts are Win32's and have no web API at all — `getModifierState` knows Caps Lock but nothing about the IME, whose mode is per-thread state owned by the foreground window. So they come from Rust, and the page only renders them. `tauri::WebviewWindow::hwnd` returns the `HWND` of whatever `windows` version tauri resolved, which is not the one these calls compile against; a handle is a pointer in both, so the value is carried across by hand in `ime.rs` and that is the only place the two meet. Verified in the running app: the field shows 英文 on open — the IME was in Chinese and was switched — and 开启大写 appears beside it when Caps Lock is on.
+
 ## 2026-10-01 - Tab previews every clipboard kind, and WebView2's autofill is off
 Decision:
 `ui.preview` replaces `ui.imagePreviewSrc` and carries one of three shapes — image, text, colour — rendered by `ClipPreview`. A long body opens in a focusable scrollable card, so the arrow keys page through it; a colour opens a swatch with all five notations; a copied file list opens its paths. WebView2's general autofill and password autosave are switched off in `src-tauri/src/autofill.rs`.

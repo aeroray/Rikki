@@ -1,5 +1,8 @@
 export const zhCN = {
   "search.placeholder": "搜索应用或输入命令…",
+  "search.capsLock": "开启大写",
+  "search.imeChinese": "中文",
+  "search.imeEnglish": "英文",
   "search.query": "搜索「{query}」",
   "search.list": "应用和命令",
   "search.openFailed": "无法打开浏览器",

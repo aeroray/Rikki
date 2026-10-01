@@ -223,7 +223,46 @@
     }
   }
 
+  /**
+   * What the field says about the keyboard.
+   *
+   * Caps Lock and a Chinese input method both change what the next keystroke
+   * produces, and neither is visible in the field itself: the first turns a letter
+   * into its capital, the second turns it into pinyin and the text into a
+   * candidate list. A badge is the only place to say so before the user types.
+   *
+   * With no input method there is nothing to report beyond Caps Lock — a plain
+   * keyboard has no second mode to be in.
+   */
+  const inputBadges = $derived.by((): string[] => {
+    const badges: string[] = [];
+    if (ui.inputState.caps) badges.push(i18n.t("search.capsLock"));
+    if (ui.inputState.ime) {
+      badges.push(i18n.t(ui.inputState.native ? "search.imeChinese" : "search.imeEnglish"));
+    }
+    return badges;
+  });
+
+  /**
+   * The input method's mode is Win32's, and switching 中/英 is itself a keystroke —
+   * so it is re-read after typing, throttled because each read is an IPC round
+   * trip and a burst of keystrokes would otherwise ask a dozen times for an answer
+   * that changes at most once.
+   */
+  let imeProbe: ReturnType<typeof setTimeout> | null = null;
+  function scheduleInputProbe() {
+    if (imeProbe) return;
+    imeProbe = setTimeout(() => {
+      imeProbe = null;
+      void ui.refreshInputState();
+    }, 150);
+  }
+
   function onKeydown(event: KeyboardEvent) {
+    // Caps Lock is the page's own to read, and it changes on the keystroke itself.
+    ui.inputState = { ...ui.inputState, caps: event.getModifierState("CapsLock") };
+    scheduleInputProbe();
+
     // IME composition owns Escape: while a candidate list is open it means
     // "cancel the candidate", not "clear the search and leave the command".
     if (event.isComposing || composing) return;
@@ -683,4 +722,11 @@
     oncompositionend={() => (composing = false)}
     onfocus={() => (ui.focusField = "search")}
   />
+  <!-- The same chip the footer's key hints use, because it is the same kind of
+       thing: a short fact about the keyboard, not a label for the field. -->
+  {#each inputBadges as badge, index (index)}
+    <span class="shrink-0 rounded bg-surface-2 px-1.5 py-[3px] text-[10px] leading-none text-ink-muted">
+      {badge}
+    </span>
+  {/each}
 </label>

@@ -55,16 +55,22 @@
 </script>
 
 {#if confirm}
-  <!-- The overlay layer is the window's shape, and the backdrop paints that
-       shape itself. The backdrop is a flat tint and not a `backdrop-blur`: the
-       blur is a `backdrop-filter` layer, and at the rounded corner that layer is
-       clipped less than the tint it sits under, so it smears the pale shell into
-       the corner and leaves a white sliver along the arc. The wrapper carries the
-       radius only so the backdrop's `rounded-[inherit]` has something to inherit. -->
+  <!-- The overlay layer is the window's shape, and the backdrop paints that shape
+       itself. The tint carries a `backdrop-blur` so the panel behind it cannot
+       compete with the dialog's text.
+
+       That blur used to be left off deliberately: inside the clipped content
+       column a `backdrop-filter` is clipped to its own radius but not to the
+       ancestor's `overflow-hidden`, so the blur reached further into the corner
+       than the tint under it and smeared the pale shell into a white sliver along
+       the arc. These overlays are siblings of that column now — the fix for that
+       sliver — so the only rounded clip on the path is the backdrop's own and the
+       two agree. The wrapper carries the radius only so the backdrop's
+       `rounded-[inherit]` has something to inherit. -->
   <div class="absolute inset-0 z-40 flex items-center justify-center rounded-[inherit]">
     <button
       type="button"
-      class="absolute inset-0 rounded-[inherit] bg-black/55"
+      class="absolute inset-0 rounded-[inherit] bg-black/55 backdrop-blur-md"
       aria-label={i18n.t("key.cancel")}
       onclick={() => ui.cancelConfirm()}
       in:fade={{ duration: reduceMotion ? 0 : 150 }}
