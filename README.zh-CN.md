@@ -83,3 +83,7 @@ Windows 是 `Alt+Space`，macOS 是 `⌘K`，可在 `settings` 里改。
 ## 技术栈
 
 Tauri 2（Rust）+ SvelteKit 2 / Svelte 5 + Tailwind CSS 4。数据都存在系统应用数据目录——`todos.json`、`snippets.json`、`settings.json`、`clipboard/` 等，不使用 `localStorage`。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。

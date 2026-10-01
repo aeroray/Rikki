@@ -1,0 +1,5 @@
+# LF in the repository and in the working tree, so a Windows checkout and a
+# macOS one hold the same bytes and a file that is edited on either produces no
+# whole-file diff. `auto` leaves anything git detects as binary alone, which is
+# what the icons under src-tauri/icons/ are.
+* text=auto eol=lf

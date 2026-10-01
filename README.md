@@ -83,3 +83,7 @@ Export writes todos, snippets and settings to a JSON file wherever you point it;
 ## Stack
 
 Tauri 2 (Rust) + SvelteKit 2 / Svelte 5 + Tailwind CSS 4. Everything persists in the OS app-data directory — `todos.json`, `snippets.json`, `settings.json`, `clipboard/` and so on. No `localStorage`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
