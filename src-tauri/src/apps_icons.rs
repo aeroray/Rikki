@@ -198,9 +198,8 @@ fn windows_icon(app_path: &str, dest: &Path) -> Result<(), String> {
 /// `SHDefExtractIcon` is the extractor that accepts a negative index;
 /// `ExtractIconEx` does not, which is why `imageres.dll,-27` needs this one.
 ///
-/// `None` when anything along the way fails, so the caller can fall back to the
-/// shell's own answer. A shortcut with no `IconLocation` is normal — it means
-/// "use the target's icon" — and the fallback is right for those.
+/// `None` when neither source has an icon, so the caller can fall back to the
+/// shell's answer — arrow and all, but better than nothing.
 #[cfg(target_os = "windows")]
 fn shortcut_icon(lnk: &str) -> Option<Vec<u8>> {
     use windows::core::{HSTRING, Interface};
@@ -211,8 +210,21 @@ fn shortcut_icon(lnk: &str) -> Option<Vec<u8>> {
     use windows::Win32::UI::Shell::{SHDefExtractIconW, ShellLink, IShellLinkW};
     use windows::Win32::UI::WindowsAndMessaging::DestroyIcon;
 
-    /// Plenty for an icon path; `GetIconLocation` truncates rather than fails.
+    /// Plenty for a path; `GetIconLocation` truncates rather than fails.
     const ICON_PATH: usize = 260;
+
+    /// One icon out of one file, as straight RGBA.
+    unsafe fn extract(file: &str, index: i32) -> Option<Vec<u8>> {
+        let mut large = Default::default();
+        // `SHDefExtractIcon` takes the two sizes packed into one `u32`.
+        let size = (ICON_SIZE & 0xFFFF) | (ICON_SIZE << 16);
+        if SHDefExtractIconW(&HSTRING::from(file), index, 0, Some(&mut large), None, size).is_err() {
+            return None;
+        }
+        let rgba = visible_rgba(large);
+        let _ = DestroyIcon(large);
+        rgba
+    }
 
     unsafe {
         // The apartment may already be set up, and this runs on whichever thread
@@ -221,46 +233,51 @@ fn shortcut_icon(lnk: &str) -> Option<Vec<u8>> {
         // matching `CoUninitialize` is not ours to call.
         let initialised = CoInitializeEx(None, COINIT_APARTMENTTHREADED).is_ok();
 
-        let path = (|| -> Option<(String, i32)> {
+        // Both answers in one trip: the icon the shortcut names, and the file it
+        // points at. Which one has an icon is not known until they are read.
+        let sources = (|| -> Option<(Option<(String, i32)>, Option<String>)> {
             let link: IShellLinkW =
                 CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER).ok()?;
             let file: IPersistFile = link.cast().ok()?;
             file.Load(&HSTRING::from(lnk), STGM_READ).ok()?;
 
-            let mut buffer = [0u16; ICON_PATH];
-            let mut index = 0i32;
-            link.GetIconLocation(&mut buffer, &mut index).ok()?;
+            let icon = {
+                let mut buffer = [0u16; ICON_PATH];
+                let mut index = 0i32;
+                let named = link.GetIconLocation(&mut buffer, &mut index).is_ok();
+                let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(0);
+                // An empty path is what `,0` means, and it is not "no icon" — it
+                // is "the target's". Only a real path is worth expanding.
+                if named && end > 0 {
+                    expand_environment(&String::from_utf16_lossy(&buffer[..end]))
+                        .map(|path| (path, index))
+                } else {
+                    None
+                }
+            };
 
-            let end = buffer.iter().position(|unit| *unit == 0)?;
-            if end == 0 {
-                return None;
-            }
-            // `%windir%` and friends are common in these, and the extractor wants
-            // a real path.
-            let raw = String::from_utf16_lossy(&buffer[..end]);
-            let expanded = expand_environment(&raw)?;
-            Some((expanded, index))
+            let target = {
+                let mut buffer = [0u16; ICON_PATH];
+                let named = link.GetPath(&mut buffer, std::ptr::null_mut(), 0).is_ok();
+                let end = buffer.iter().position(|unit| *unit == 0).unwrap_or(0);
+                if named && end > 0 {
+                    expand_environment(&String::from_utf16_lossy(&buffer[..end]))
+                } else {
+                    None
+                }
+            };
+
+            Some((icon, target))
         })();
 
-        let pixels = path.and_then(|(file, index)| -> Option<Vec<u8>> {
-            let mut large = Default::default();
-            // `SHDefExtractIcon` takes the two sizes packed into one `u32`.
-            let size = (ICON_SIZE & 0xFFFF) | (ICON_SIZE << 16);
-            if SHDefExtractIconW(
-                &HSTRING::from(file.as_str()),
-                index,
-                0,
-                Some(&mut large),
-                None,
-                size,
-            )
-            .is_err()
-            {
-                return None;
-            }
-            let rgba = visible_rgba(large);
-            let _ = DestroyIcon(large);
-            rgba
+        let pixels = sources.and_then(|(icon, target)| {
+            // The named location first: it is the more specific answer, and it is
+            // where a DLL and a resource ID live — how Task Manager names an icon
+            // inside `Taskmgr.exe` rather than the executable's own.
+            icon.and_then(|(file, index)| extract(&file, index))
+                // Then the target, which is the only other clean source. The
+                // shell's own answer for a `.lnk` bakes in the arrow overlay.
+                .or_else(|| target.and_then(|file| extract(&file, 0)))
         });
 
         if initialised {

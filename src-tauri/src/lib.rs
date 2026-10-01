@@ -21,7 +21,9 @@ mod tray;
 use commands::anniversary::{
     create_anniversary, delete_anniversary, get_anniversaries, update_anniversary,
 };
-use commands::apps::{bump_usage, get_installed_apps, get_usage_counts, launch_app, AppIndex};
+use commands::apps::{
+    bump_usage, get_installed_apps, get_usage_counts, launch_app, reveal_app, AppIndex,
+};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::qr::save_png_file;
 use commands::settings::{
@@ -533,6 +535,7 @@ pub fn run() {
             get_foreground_app,
             get_installed_apps,
             launch_app,
+            reveal_app,
             get_usage_counts,
             bump_usage,
             lock_screen,

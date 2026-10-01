@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - An empty icon location means the target's icon, not none
+Decision:
+`shortcut_icon` reads both `IShellLink::GetIconLocation` and `IShellLink::GetPath`, and tries the icon location first, then the target, before the caller falls back to the shell.
+Reason:
+Rows still wore the shortcut arrow after the first fix. Those shortcuts store an empty icon location — `,0` — which means "use the target's icon", not "there is none", and the code read it as the latter and fell back to `SHGetFileInfo`, whose answer for a `.lnk` has the arrow baked in. Markra and VLC are the two that showed it: neither names an icon, and both have an executable behind them with a clean one.
+Note:
+The named location still wins when it exists, because it is the more specific answer — it is where a DLL and a resource ID live, which is how Task Manager names an icon inside `Taskmgr.exe` rather than the executable's own. Verified in the running app after clearing the icon cache: `maa` and `vlc` list clean icons with no arrows.
+
+## 2026-10-01 - A selected app offers its folder
+Decision:
+`reveal_app` opens the folder with the file selected — `explorer /select,<path>` on Windows, `open -R` on macOS — and `AppItem` shows a folder button on the right of the highlighted row only. No shortcut.
+Reason:
+Finding where an installed app lives is an occasional errand, not a frequent action, so it does not belong in the footer with the keys people press all the time. Showing it only on the selected row keeps a column of buttons from competing with the icons down the left. `AppItem` had to become a `div` wrapping two buttons rather than one button, because a button cannot hold another one; that is the shape the clipboard rows already use.
+Note:
+Selecting the file is the point — opening the folder alone leaves the user to find it again, which is the part they asked for. The path follows `/select,` with no space, which is what the switch expects; a space makes Explorer open Documents instead, silently. The palette stays open, and a path that has gone is the one case worth a notice.
+
 ## 2026-10-01 - A shortcut's icon comes from where it says, not from the shell
 Decision:
 `windows_icon` asks `IShellLink::GetIconLocation` for a `.lnk` and extracts from that with `SHDefExtractIcon` before falling back to `SHGetFileInfo`. `Win32_System_Com` and `Win32_System_Environment` join the windows features; `expand_environment` resolves the `%windir%`-style paths these store.

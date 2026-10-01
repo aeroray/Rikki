@@ -6,6 +6,8 @@ export const zhCN = {
   "search.openFailed": "无法打开浏览器",
   "sys.failed": "操作失败，请检查系统权限",
   "app.kind": "应用",
+  "app.reveal": "打开「{name}」所在的位置",
+  "app.revealFailed": "找不到这个应用的位置",
   "app.launchFailed": "无法打开这个应用",
   "copy.failed": "复制失败，请再试一次",
   "result.empty": "没有匹配的应用或命令",

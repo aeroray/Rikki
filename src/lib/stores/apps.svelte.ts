@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { InstalledApp } from "$lib/commands/types";
+import { i18n } from "$lib/i18n";
+import { ui } from "$lib/stores/ui.svelte";
 import { rankApp } from "$lib/fuzzy";
 
 class AppsStore {
@@ -36,6 +38,21 @@ class AppsStore {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Opens the app's folder with the file selected.
+   *
+   * The palette stays open: the point is to look at where the thing lives, not to
+   * leave. `reveal_app` refuses a path that has gone, which is the one case worth
+   * a notice — the row would otherwise do nothing at all.
+   */
+  async reveal(path: string): Promise<void> {
+    try {
+      await invoke("reveal_app", { path });
+    } catch {
+      ui.flash(i18n.t("app.revealFailed"));
     }
   }
 

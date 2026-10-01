@@ -8,6 +8,8 @@ export const en: Record<MessageKey, string> = {
   "search.openFailed": "Couldn’t open the browser",
   "sys.failed": "Action failed — check system permissions",
   "app.kind": "App",
+  "app.reveal": "Show “{name}” in its folder",
+  "app.revealFailed": "Couldn’t find that app’s folder",
   "app.launchFailed": "Couldn’t open that app",
   "copy.failed": "Couldn’t copy. Try again",
   "result.empty": "No matching apps or commands",

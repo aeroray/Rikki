@@ -104,6 +104,33 @@ pub fn get_usage_counts(app: AppHandle) -> Result<HashMap<String, u32>, String> 
     crate::storage::usage_store::load_usage(&app)
 }
 
+/// Opens the folder an app lives in, with the file selected.
+///
+/// Selecting it is the point: opening the folder alone leaves the user to find the
+/// file again, which is the part they were asking for. On Windows the path follows
+/// `/select,` with no space, which is what the switch expects — `explorer
+/// "/select, C:\…"` opens Documents instead, silently.
+#[tauri::command(async)]
+pub fn reveal_app(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).exists() {
+        return Err(format!("{path} is not there any more"));
+    }
+    reveal(&path).map(|_| ()).map_err(|err| format!("could not open the folder: {err}"))
+}
+
+#[cfg(target_os = "windows")]
+fn reveal(path: &str) -> std::io::Result<std::process::Child> {
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{path}"))
+        .spawn()
+}
+
+/// `open -R` is the same idea: reveal the file rather than launch it.
+#[cfg(target_os = "macos")]
+fn reveal(path: &str) -> std::io::Result<std::process::Child> {
+    std::process::Command::new("open").arg("-R").arg(path).spawn()
+}
+
 // Called once per panel entry, and does a read-modify-write of usage.json.
 #[tauri::command(async)]
 pub fn bump_usage(app: AppHandle, key: String) -> Result<u32, String> {
