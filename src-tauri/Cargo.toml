@@ -32,6 +32,10 @@ icns = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
+# Pinned to the version `tauri` itself resolves, because `PlatformWebview` hands
+# back a `webview2_com` type and the two have to be the same type, not two
+# identical-looking ones.
+webview2-com = "0.38"
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",

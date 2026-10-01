@@ -9,6 +9,8 @@ mod apps_icons;
 mod commands;
 mod cursor;
 mod input;
+#[cfg(windows)]
+mod permissions;
 mod storage;
 #[cfg(desktop)]
 mod tray;
@@ -482,6 +484,11 @@ pub fn run() {
 
             if let Some(window) = palette_window(app.handle()) {
                 apply_platform_window(&window);
+                // Before the first page load can ask for anything. A launcher
+                // must not answer a keystroke with a permission dialog, and the
+                // page has no use for one: see `permissions`.
+                #[cfg(windows)]
+                permissions::mute_prompts(&window);
                 let handle = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::Focused(false) = event {

@@ -3821,6 +3821,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-power-manager",
+ "webview2-com",
  "windows 0.58.0",
 ]
 
