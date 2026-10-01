@@ -38,6 +38,29 @@ class SysmonStore {
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
+  /**
+   * The panel's scroll container, while it is open.
+   *
+   * Held here rather than handled by the panel's own `onkeydown`, because the
+   * search field always has focus and key events bubble from it, never through the
+   * panel. The palette's key handler is the only thing that sees them, so the
+   * scrolling has to be reachable from there.
+   */
+  viewport: HTMLDivElement | null = null;
+
+  /** Moves the panel by a distance, or a screenful when `page` is set. */
+  scroll(direction: 1 | -1, page = false): void {
+    const el = this.viewport;
+    if (!el) return;
+    const distance = page ? el.clientHeight * 0.9 : 48;
+    el.scrollBy({ top: direction * distance, behavior: "smooth" });
+  }
+
+  scrollTo(edge: "start" | "end"): void {
+    const el = this.viewport;
+    if (!el) return;
+    el.scrollTo({ top: edge === "start" ? 0 : el.scrollHeight, behavior: "smooth" });
+  }
 
   /** Called when the panel mounts. */
   start(): void {

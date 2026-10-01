@@ -7,6 +7,7 @@
   import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { update } from "$lib/stores/update.svelte";
+  import { sysmon } from "$lib/stores/sysmon.svelte";
   import { i18n } from "$lib/i18n";
   import FieldMark from "$lib/components/FieldMark.svelte";
   import { activateCommand } from "$lib/commands/activate";
@@ -462,6 +463,42 @@
       if (event.key === "Enter") {
         event.preventDefault();
         void copyCalendarDate();
+        return;
+      }
+    }
+
+    if (ui.view === "sysmon") {
+      // The panel is a reading, not a list: the arrows scroll it, and there is no
+      // selection to move. Page Up/Down and Home/End come along because a long
+      // list is what they are for.
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        sysmon.scroll(1);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        sysmon.scroll(-1);
+        return;
+      }
+      if (event.key === "PageDown") {
+        event.preventDefault();
+        sysmon.scroll(1, true);
+        return;
+      }
+      if (event.key === "PageUp") {
+        event.preventDefault();
+        sysmon.scroll(-1, true);
+        return;
+      }
+      if (event.key === "Home") {
+        event.preventDefault();
+        sysmon.scrollTo("start");
+        return;
+      }
+      if (event.key === "End") {
+        event.preventDefault();
+        sysmon.scrollTo("end");
         return;
       }
     }

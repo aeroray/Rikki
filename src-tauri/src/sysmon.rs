@@ -67,8 +67,21 @@ struct Memory {
 #[serde(rename_all = "camelCase")]
 struct Gpu {
     name: String,
+    /// What kind of adapter this is — `Discrete` or `Integrated` — so the panel can
+    /// say which is which. `GPU 0` and `GPU 1` mean nothing to anyone.
+    kind: GpuKind,
     /// Percent, 0..100, or `None` when the platform cannot say.
     usage: Option<f32>,
+}
+
+#[derive(Serialize, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+enum GpuKind {
+    Discrete,
+    Integrated,
+    /// A machine that does not distinguish, which is most Macs: one SoC with one
+    /// GPU in it.
+    Unknown,
 }
 
 #[derive(Serialize)]
@@ -212,16 +225,19 @@ impl Monitor {
 /// library per brand.
 #[cfg(target_os = "windows")]
 mod gpu {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap};
     use std::sync::{Mutex, OnceLock};
 
     use windows::core::PCWSTR;
+    use windows::Win32::Graphics::Dxgi::{
+        CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE,
+    };
     use windows::Win32::System::Performance::{
         PdhAddEnglishCounterW, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW,
         PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_MORE_DATA,
     };
 
-    use super::Gpu;
+    use super::{Gpu, GpuKind};
 
     /// The path every vendor's driver publishes its engines under, one instance per
     /// engine: `pid_…_luid_0x…_0x…_phys_0_eng_0_engtype_3D`.
@@ -267,16 +283,41 @@ mod gpu {
         };
 
         let per_gpu = unsafe { collect(query, counter) };
-        // Named by position: the counter reports a LUID, not a product name, and
-        // mapping one to the other means DXGI enumeration for a label.
-        per_gpu
-            .into_iter()
-            .enumerate()
-            .map(|(index, (_, percent))| Gpu {
-                name: format!("GPU {index}"),
-                usage: Some(percent as f32),
+        let names = adapters();
+
+        // Only the adapters DXGI knows about.
+        //
+        // The GPU Engine counters also exist for virtual display adapters — MuMu
+        // and GameViewer both install one — and those appeared as a second row
+        // called "GPU 1" that is not a GPU at all: a machine with an `F`-suffix CPU
+        // and one graphics card showed two. Matching against DXGI is what tells a
+        // real adapter from a driver that only reports engine counters.
+        let mut found: Vec<Gpu> = per_gpu
+            .iter()
+            .filter_map(|(luid, percent)| {
+                let (name, kind) = names.get(luid)?;
+                Some(Gpu {
+                    name: name.clone(),
+                    kind: *kind,
+                    usage: Some(*percent as f32),
+                })
             })
-            .collect()
+            .collect();
+
+        // If nothing matched at all — counters and adapters disagreeing on every
+        // LUID — fall back to what the counters said rather than showing no GPU.
+        if found.is_empty() {
+            found = per_gpu
+                .into_iter()
+                .enumerate()
+                .map(|(index, (_, percent))| Gpu {
+                    name: format!("GPU {}", index + 1),
+                    kind: GpuKind::Unknown,
+                    usage: Some(percent as f32),
+                })
+                .collect();
+        }
+        found
     }
 
     unsafe fn collect(query: Query, counter: Query) -> BTreeMap<String, f64> {
@@ -320,18 +361,84 @@ mod gpu {
             if !value.is_finite() {
                 continue;
             }
-            let entry = busiest.entry(luid.to_string()).or_insert(0.0);
+            let entry = busiest.entry(luid).or_insert(0.0);
             *entry = entry.max(value.clamp(0.0, 100.0));
         }
         busiest
     }
 
     /// The adapter a counter instance belongs to, out of its name.
-    fn luid_of(instance: &str) -> Option<&str> {
+    ///
+    /// Lowercased, because that is how the counters spell it and how the adapter
+    /// map is keyed — comparing the raw slice against a `{:X}` key silently matched
+    /// nothing.
+    fn luid_of(instance: &str) -> Option<String> {
         let start = instance.find("luid_")?;
         let rest = &instance[start..];
         let end = rest.find("_phys_")?;
-        Some(&rest[..end])
+        Some(rest[..end].to_ascii_lowercase())
+    }
+
+    /// Adapter descriptions and kinds, keyed by the LUID the counters report.
+    ///
+    /// The counter names carry a LUID and nothing a person would recognise, so the
+    /// panel showed "GPU 0" and "GPU 1" with no way to tell which was which. DXGI
+    /// is the only thing that maps one to a product name, and it is already part of
+    /// Windows.
+    ///
+    /// Enumerated once and cached: the set of adapters does not change while the
+    /// app runs, and this walks the hardware.
+    fn adapters() -> &'static HashMap<String, (String, GpuKind)> {
+        static ADAPTERS: OnceLock<HashMap<String, (String, GpuKind)>> = OnceLock::new();
+        ADAPTERS.get_or_init(|| unsafe {
+            let mut map = HashMap::new();
+            // Generic and argument-free: the type parameter is what it returns.
+            let Ok(factory) = CreateDXGIFactory1::<IDXGIFactory1>() else {
+                return map;
+            };
+
+            let mut index = 0u32;
+            while let Ok(adapter) = factory.EnumAdapters1(index) {
+                index += 1;
+                let Ok(desc) = adapter.GetDesc1() else {
+                    continue;
+                };
+                // A fixed-size wide buffer, not necessarily terminated.
+                let end = desc
+                    .Description
+                    .iter()
+                    .position(|unit| *unit == 0)
+                    .unwrap_or(desc.Description.len());
+                let name = String::from_utf16_lossy(&desc.Description[..end]);
+                if name.is_empty() {
+                    continue;
+                }
+                // The counter spells the LUID as two little-endian halves, in
+                // lowercase: `luid_0x00000000_0x0000d09f`. `AdapterLuid` is the
+                // same 64 bits, and the case has to match — `{:08X}` here produced
+                // keys that never matched a counter and left every card unnamed.
+                let luid = desc.AdapterLuid;
+                let high = (luid.HighPart as u32) as u64;
+                let low = luid.LowPart as u64;
+                let key = format!("luid_0x{high:08x}_0x{low:08x}");
+
+                // Software adapters — the WARP rasterizer, the Basic Render Driver
+                // — report no dedicated memory and are not a GPU anyone chose.
+                if desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 != 0 {
+                    continue;
+                }
+                // A dedicated-memory figure is what separates the two in practice:
+                // integrated adapters share system memory and report little or
+                // none of their own, discrete ones report their VRAM.
+                let kind = if desc.DedicatedVideoMemory > 0 {
+                    GpuKind::Discrete
+                } else {
+                    GpuKind::Integrated
+                };
+                map.insert(key, (name, kind));
+            }
+            map
+        })
     }
 }
 
@@ -344,7 +451,7 @@ mod gpu {
     use core_foundation::number::CFNumber;
     use core_foundation::string::{CFString, CFStringRef};
 
-    use super::Gpu;
+    use super::{Gpu, GpuKind};
 
     type IoObject = u32;
     type KernReturn = i32;
@@ -403,8 +510,13 @@ mod gpu {
                     break;
                 }
                 if let Some(percent) = utilization(entry) {
+                    // Named by position here, and that is honest: the registry
+                    // entry carries an accelerator, not a product name, and a Mac
+                    // has one SoC with one GPU in it, so there is nothing to tell
+                    // apart. `Unknown` keeps the panel from claiming otherwise.
                     found.push(Gpu {
-                        name: format!("GPU {}", found.len()),
+                        name: format!("GPU {}", found.len() + 1),
+                        kind: GpuKind::Unknown,
                         usage: Some(percent),
                     });
                 }

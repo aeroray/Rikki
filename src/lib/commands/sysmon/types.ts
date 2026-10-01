@@ -25,6 +25,8 @@ export type SysStats = {
   };
   gpus: Array<{
     name: string;
+    /** What kind of adapter it is, so the panel can say which is which. */
+    kind: "discrete" | "integrated" | "unknown";
     /** Percent, 0..100, or null when the platform cannot say. */
     usage: number | null;
   }>;

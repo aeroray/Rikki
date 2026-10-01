@@ -10,19 +10,28 @@
     children: Snippet;
     class?: string;
     viewportClass?: string;
+    /**
+     * The scroll container, for a panel that has to move it itself.
+     *
+     * A panel whose content does not fit has to be scrollable by keyboard as well
+     * as by wheel, and the palette's key handler is the only thing that sees those
+     * keys — the search field always has focus. So a panel that scrolls binds this
+     * and moves it from there.
+     */
+    viewport?: HTMLDivElement | null;
   };
 
   let {
     children,
     class: className = "",
     viewportClass = "",
+    viewport = $bindable(null),
     ...rest
   }: Props = $props();
 
   const MIN_THUMB = 24;
   const viewportId = `rikki-scroll-${++idSeq}`;
 
-  let viewport: HTMLDivElement | undefined = $state();
   let track: HTMLDivElement | undefined = $state();
   let overflow = $state(false);
   let thumbHeight = $state(MIN_THUMB);

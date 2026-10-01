@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-01 - GPUs are named from DXGI, and virtual adapters are dropped
+Decision:
+`gpu::usage` matches each PDH counter LUID against DXGI's adapter list and keeps only the ones it finds, taking the description and a discrete/integrated kind from there. A LUID the counters report but DXGI does not is dropped.
+Reason:
+The panel said "GPU 0" and "GPU 1", which tell nobody which is which, and then said "交换" above them because the swap row sat between memory and the GPUs and read as their heading. Two separate faults. For the naming, the counters carry a LUID and nothing else, so DXGI is the only source of a product name. For the count, the GPU Engine counters also exist for virtual display adapters: MuMu and GameViewer each install one, and on a machine with an `F`-suffix CPU and a single graphics card the panel showed two GPUs. Verified: PDH reported `d09f` and `103fb`, DXGI reported `d09f` plus two others, and only `d09f` was the RTX 4060 — so the filter is what removed the phantom.
+Note:
+The LUID is spelled in lowercase hex by the counters (`luid_0x00000000_0x0000d09f`) and `{:08X}` produced keys that never matched, which left every card unnamed through two rounds of "it still says GPU 1". Compare the strings case-insensitively or lowercase both. If nothing matches at all the code falls back to positional names rather than showing no GPU, so a machine whose counters and adapters disagree still gets something.
+
+## 2026-10-01 - The panel's arrows scroll it, from the palette's key handler
+Decision:
+`ScrollArea` takes a bindable `viewport`, the store holds it, and `SearchBar`'s key handler moves it for `sysmon` — arrows by 48px, Page Up/Down by a screen, Home/End to the ends. `Cargo.toml` gains `Win32_Graphics_Dxgi`.
+Reason:
+The panel could not be scrolled by keyboard at all. The obvious fix — an `onkeydown` on the panel — cannot work: the search field always has focus, so keys bubble from it and never pass through the panel. The palette's handler is the only thing that sees them, and it was consuming the arrows for a list this panel does not have.
+Note:
+CPU and memory now sit side by side, as do the GPUs, because two figures read together should not each take a full row. The per-core bars are inline pixel heights and the cells are fixed, so a core moving from 3% to 90% changes a bar and nothing else — a layout that reflowed on every sample is what made it shake.
+
 ## 2026-10-01 - The system panel leads with charts, and samples on two clocks
 Decision:
 Each figure is a large number over a one-minute sparkline of its own history, with a per-core equalizer under the CPU. The charts are hand-drawn SVG — no charting library. On the Rust side the CPU and memory are read every second, but the process list is rebuilt every third second, on its own clock.
