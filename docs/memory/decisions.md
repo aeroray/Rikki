@@ -2,13 +2,21 @@
 
 Entries are newest first.
 
-## 2026-10-01 - The overlays blur what is behind them, and the field says what the keyboard will do
+## 2026-10-01 - The overlays blur what is behind them
 Decision:
-All three overlay backdrops — `ActionConfirm`, `ClipConfirm`, `ClipPreview` — carry `backdrop-blur-md` on the same element as the tint. The search field shows a badge for Caps Lock and for the input method's mode, and the palette asks the IME for English as it opens (`src-tauri/src/ime.rs`).
+All three overlay backdrops — `ActionConfirm`, `ClipConfirm`, `ClipPreview` — carry `backdrop-blur-md` on the same element as the tint.
 Reason:
-The blur was left off deliberately at first, and the reason no longer holds: inside the clipped content column a `backdrop-filter` is clipped to its own radius but not to the ancestor's `overflow-hidden`, so it reached further into the corner than the tint and smeared the pale shell into a white sliver. The overlays are siblings of that column now — the fix for that sliver — and the tint and the blur are on one element with one radius. For the field: a launcher wants Latin text, and a Chinese IME left in native mode turns the first keystroke into pinyin and the text into a candidate list. Neither Caps Lock nor the IME mode is visible in the field itself, so a badge is the only place to say so before the user types.
+The blur was left off deliberately at first, and the reason no longer holds: inside the clipped content column a `backdrop-filter` is clipped to its own radius but not to the ancestor's `overflow-hidden`, so it reached further into the corner than the tint under it and smeared the pale shell into a white sliver. The overlays are siblings of that column now — the sliver is what moved them out — so the only rounded clip on the path is the backdrop's own, and the tint and the blur sit on one element with one radius. A preview of a paragraph is the case that made it matter: text behind it competed with the text inside it.
 Note:
-Two of the three facts are Win32's and have no web API at all — `getModifierState` knows Caps Lock but nothing about the IME, whose mode is per-thread state owned by the foreground window. So they come from Rust, and the page only renders them. `tauri::WebviewWindow::hwnd` returns the `HWND` of whatever `windows` version tauri resolved, which is not the one these calls compile against; a handle is a pointer in both, so the value is carried across by hand in `ime.rs` and that is the only place the two meet. Verified in the running app: the field shows 英文 on open — the IME was in Chinese and was switched — and 开启大写 appears beside it when Caps Lock is on.
+The corner could not be re-measured on the run that added this, because the palette hides on blur and the machine had another window in the foreground. The argument is structural rather than measured: the sliver came from two layers being clipped differently, and there is one layer now.
+
+## 2026-10-01 - Caps Lock gets a badge; the input method's mode does not
+Decision:
+The search field shows `开启大写` while Caps Lock is on. Reading and setting an input method's 中/英 mode was implemented, measured, and removed — `src-tauri/src/keyboard.rs` is all that is left, and it only asks about Caps Lock.
+Reason:
+A launcher wants Latin text, and a Chinese IME left in native mode turns the first keystroke into pinyin. There is no supported way to ask for that from outside the input method, and the measurement is what settled it: after the palette called `ImmSetConversionStatus(IME_CMODE_ALPHANUMERIC)`, typing `nihao` in Notepad still opened the WeChat IME's candidate window. A GitHub code search for `ImmSetConversionStatus` returns 24 hits and every one is a header, a Wine compatibility stub or an SDK sysroot — no application calls it. The TSF alternative, `GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION`, is read and written only by input methods themselves (rime/weasel, google/mozc, corvusskk); nothing outside one drives it. The mode is the input method's own state with no public API, deliberately: an application that could flip a user's 中/英 would be a menace.
+Note:
+Reading is no better than writing — the badge said 英文 while the IME was in Chinese, because a TSF input method does not answer the IMM32 query either. So the whole feature is gone rather than half-kept. Caps Lock survives because the page reads that itself with `getModifierState`, and the Rust command is only for the moment before the first keystroke; verified in the running app, where `开启大写` appears with Caps Lock on.
 
 ## 2026-10-01 - Tab previews every clipboard kind, and WebView2's autofill is off
 Decision:

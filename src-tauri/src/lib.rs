@@ -10,8 +10,8 @@ mod apps_icons;
 mod autofill;
 mod commands;
 mod cursor;
-mod ime;
 mod input;
+mod keyboard;
 #[cfg(windows)]
 mod permissions;
 mod storage;
@@ -558,8 +558,7 @@ pub fn run() {
             import_settings,
             list_browsers,
             open_web_url,
-            ime::input_state,
-            ime::ime_use_english
+            keyboard::caps_lock_state
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

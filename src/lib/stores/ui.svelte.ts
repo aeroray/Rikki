@@ -24,20 +24,6 @@ export type ClipPreview =
   | { kind: "text"; body: string }
   | { kind: "color"; content: string };
 
-/**
- * What the search field reports about the keyboard.
- *
- * Caps Lock comes from the page's own `getModifierState`; the input method's mode
- * is Win32's, because no web API exposes it — see `src-tauri/src/ime.rs`.
- */
-export type InputState = {
-  caps: boolean;
-  /** An input method is active for this window at all. */
-  ime: boolean;
-  /** That input method is in its native mode — Chinese for a Chinese IME. */
-  native: boolean;
-};
-
 class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
@@ -47,7 +33,13 @@ class UiStore {
   shellOpen = $state(false);
   shellExiting = $state(false);
   preview = $state<ClipPreview | null>(null);
-  inputState = $state<InputState>({ caps: false, ime: false, native: false });
+  /**
+   * Caps Lock, shown as a badge on the search field.
+   *
+   * The page reads this itself on every keystroke. The command is only for the
+   * moment before the first one, when the badge would otherwise be guessing.
+   */
+  capsLock = $state(false);
   notice = $state<string | null>(null);
   /**
    * A destructive action waiting for a second Enter. Held as state rather than
@@ -204,12 +196,9 @@ class UiStore {
   }
 
   beginShow() {
-    // The palette is about to take the keyboard, so this is the moment to ask the
-    // input method for English: a Chinese IME left in its native mode turns the
-    // first keystroke into pinyin and the field into a candidate list. Read the
-    // state back afterwards, so the badge describes the mode the user will
-    // actually type in rather than the one they had.
-    void this.useEnglishInput().then(() => this.refreshInputState());
+    // Before the first keystroke, so the badge is right while the user is about to
+    // type rather than after they have.
+    void this.refreshCapsLock();
     const reversing = this.shellExiting;
     this.shellExiting = false;
     if (this.pendingReset) {
@@ -246,29 +235,12 @@ class UiStore {
     void requestHidePalette();
   }
 
-  /** Re-reads Caps Lock and the input method's mode. */
-  async refreshInputState(): Promise<void> {
+  /** Re-reads Caps Lock. */
+  async refreshCapsLock(): Promise<void> {
     try {
-      this.inputState = await invoke<InputState>("input_state");
+      this.capsLock = await invoke<boolean>("caps_lock_state");
     } catch {
-      // No answer means no badge, which is how the field behaved before any of
-      // this existed.
-    }
-  }
-
-  /**
-   * Asks the input method for English as the palette opens.
-   *
-   * A launcher's field wants Latin text — an app name, a prefix, a URL — so the
-   * mode a Chinese IME was left in for some other application is the wrong one
-   * here. This is a request, not a lock: switching back still works, and the badge
-   * says which mode won.
-   */
-  async useEnglishInput(): Promise<void> {
-    try {
-      await invoke("ime_use_english");
-    } catch {
-      // An IME that cannot be switched keeps its mode, which the badge reports.
+      // No answer means no badge, which is how the field behaved before.
     }
   }
 

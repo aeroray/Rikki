@@ -3,8 +3,6 @@ import type { MessageKey } from "$lib/i18n/zh-CN";
 export const en: Record<MessageKey, string> = {
   "search.placeholder": "Search apps or type a command…",
   "search.capsLock": "Caps Lock",
-  "search.imeChinese": "ZH",
-  "search.imeEnglish": "EN",
   "search.query": "Search “{query}”",
   "search.list": "Apps and commands",
   "search.openFailed": "Couldn’t open the browser",
