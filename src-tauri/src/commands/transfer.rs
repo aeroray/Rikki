@@ -301,8 +301,12 @@ mod tests {
         // Anything else a name cannot hold is dropped rather than escaped, so
         // the stamp cannot carry a separator or a traversal into the name.
         assert_eq!(file_stamp("2026/10/01 14:32:05"), "20261001143205");
-        assert_eq!(file_stamp("../../etc/passwd"), utc_stamp());
-        assert_eq!(file_stamp(""), utc_stamp());
+        // Compared by shape rather than against a second `utc_stamp()` call:
+        // the two readings can straddle a second boundary, which made this a
+        // test that failed once in a while for no reason.
+        let fallback = file_stamp("../../etc/passwd");
+        assert_eq!(fallback.len(), 17, "{fallback}");
+        assert!(fallback.chars().all(|c| c.is_ascii_digit() || c == '-'));
     }
 
     #[test]

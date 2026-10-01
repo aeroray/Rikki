@@ -9,14 +9,9 @@
   import LanguageSelector from "$lib/commands/settings/LanguageSelector.svelte";
   import ClipRetentionSelector from "$lib/commands/settings/ClipRetentionSelector.svelte";
   import {
-    openBrowserSettings,
-    openEngineSettings,
-    openHotkeySettings,
-    openLanguageSettings,
-    openRetentionSettings,
-    openThemeSettings,
+    confirmRemoveEngine,
+    runSettingItem,
     startEngineCreate,
-    startClipCleanup,
   } from "$lib/commands/settings/actions";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
@@ -84,20 +79,47 @@
     return () => untrack(() => void settings.stopRecording());
   });
 
+  // A hide cancels the capture on the Rust side, and the palette restores the
+  // query when it comes back — so the recorder is on screen again with nothing
+  // listening, while it still says to press a key. Arming it again on every show
+  // is what keeps the screen honest; the effect above cannot do it, because its
+  // dependencies (the view and the query) are exactly what a hide preserves.
+  $effect(() => {
+    ui.showNonce;
+    if (ui.view === "settings" && parseSettingsScreen(ui.commandRest) === "hotkey") {
+      untrack(() => void settings.startRecording());
+    }
+  });
+
   // Key glyphs are not translated: they name physical keys, which read the same
   // in every locale.
   const selectedItemId = $derived(settings.listItems[settings.selectedIndex]?.id);
+
+  const screenTitle = $derived.by((): string => {
+    if (screen === "engine") return i18n.t("settings.engine");
+    if (screen === "browser") return i18n.t("settings.browser");
+    if (screen === "theme") return i18n.t("settings.theme");
+    if (screen === "language") return i18n.t("settings.language");
+    if (screen === "retention") return i18n.t("settings.clipRetention");
+    return i18n.t("settings.title");
+  });
 
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
     // A notice replaces the actions with a single remark, so it carries no chips.
     if (settings.notice) return [];
     if (screen === "engine") {
-      return [
+      const shortcuts: FooterShortcut[] = [
         { keys: "Enter", label: i18n.t("settings.keySetDefault") },
         { keys: "Ctrl+N", label: i18n.t("key.add") },
-        { keys: "Delete", label: i18n.t("settings.keyDeleteCustom") },
-        { keys: "Esc", label: i18n.t("key.back") },
       ];
+      // Delete only reaches a custom engine, and the row the highlight is on is
+      // what the chip would act on: offering it over a built-in is a key that
+      // does nothing, which is the same reason the cleanup row withholds Enter.
+      if (settings.engines[settings.selectedIndex]?.custom) {
+        shortcuts.push({ keys: "Delete", label: i18n.t("settings.keyDeleteCustom") });
+      }
+      shortcuts.push({ keys: "Esc", label: i18n.t("key.back") });
+      return shortcuts;
     }
     if (
       screen === "browser" ||
@@ -160,19 +182,7 @@
       <div class="mb-1 flex items-center justify-between px-1">
         <div class="min-w-0">
           <p class="text-[12px] leading-[1.4] text-ink-subtle">
-            {#if screen === "engine"}
-              {i18n.t("settings.engine")}
-            {:else if screen === "browser"}
-              {i18n.t("settings.browser")}
-            {:else if screen === "theme"}
-              {i18n.t("settings.theme")}
-            {:else if screen === "language"}
-              {i18n.t("settings.language")}
-            {:else if screen === "retention"}
-              {i18n.t("settings.clipRetention")}
-            {:else}
-              {i18n.t("settings.title")}
-            {/if}
+            {screenTitle}
           </p>
         </div>
         {#if screen === "engine"}
@@ -191,7 +201,7 @@
         viewportClass="flex flex-col gap-2"
         role="listbox"
         tabindex={-1}
-        aria-label={i18n.t("settings.title")}
+        aria-label={screenTitle}
       >
         {#if screen === "engine"}
           {#each settings.engines as engine, index (engine.id)}
@@ -203,7 +213,7 @@
                 settings.selectedIndex = index;
                 void settings.setEngine(engine.id);
               }}
-              onremove={engine.custom ? () => void settings.removeEngine(engine.id) : undefined}
+              onremove={engine.custom ? () => confirmRemoveEngine(engine) : undefined}
             />
           {/each}
         {:else if screen === "browser"}
@@ -266,15 +276,7 @@
               selected={index === settings.selectedIndex}
               onselect={() => {
                 settings.selectedIndex = index;
-                if (item.id === "engine") openEngineSettings();
-                if (item.id === "browser") openBrowserSettings();
-                if (item.id === "theme") openThemeSettings();
-                if (item.id === "hotkey") openHotkeySettings();
-                if (item.id === "language") openLanguageSettings();
-                if (item.id === "retention") openRetentionSettings();
-                if (item.id === "cleanup") startClipCleanup();
-                if (item.id === "export") void settings.exportSettings();
-                if (item.id === "import") void settings.importSettings();
+                runSettingItem(item.id);
               }}
             />
           {/each}

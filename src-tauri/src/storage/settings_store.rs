@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -158,6 +159,25 @@ pub fn resolved_hotkey(settings: &Settings) -> String {
     }
 }
 
+/// A shortcut the app is willing to register: a modifier and a key.
+///
+/// The global-shortcut plugin accepts a bare key, and a bare key registered
+/// globally is taken away from every other application — so `F5` in
+/// `settings.json` must not become a system-wide grab. `settings.json` is
+/// editable by hand, which is why this is shared with the IPC path rather than
+/// checked only there: the two have to agree on what "a hotkey" is.
+pub fn valid_hotkey(hotkey: &str) -> bool {
+    let lower = hotkey.to_ascii_lowercase();
+    lower.contains("control")
+        || lower.contains("ctrl")
+        || lower.contains("alt")
+        || lower.contains("option")
+        || lower.contains("command")
+        || lower.contains("cmd")
+        || lower.contains("super")
+        || lower.contains("meta")
+}
+
 pub fn valid_custom_url(url: &str) -> bool {
     let url = url.trim();
     if url.len() > 500 {
@@ -167,10 +187,40 @@ pub fn valid_custom_url(url: &str) -> bool {
     if lower.contains("javascript:") || lower.contains("data:") {
         return false;
     }
-    if !(url.starts_with("https://") || url.starts_with("http://")) {
+    // Compared through `lower` so `HTTPS://…`, which is a perfectly ordinary
+    // thing to paste, is not refused for its spelling while the opener in
+    // `commands::web` accepts it case-insensitively.
+    if !(lower.starts_with("https://") || lower.starts_with("http://")) {
         return false;
     }
     url.contains("%s")
+}
+
+/// Counted in characters, not bytes. `str::len` would reject a 14-character
+/// Chinese engine name for exceeding a limit the message calls 40 characters.
+fn valid_engine_name(name: &str) -> bool {
+    (1..=40).contains(&name.trim().chars().count())
+}
+
+/// A free id for a new custom engine.
+///
+/// `custom_{ms}` cannot normally collide — the create form takes seconds to
+/// fill in — but an id that is already taken is the worst of the options:
+/// `normalize` keeps only the first engine with an id, so the engine just added
+/// would disappear on the next load, and deleting either row would remove both.
+fn unique_engine_id(existing: &[CustomSearchEngine], stamp: i64) -> String {
+    let base = format!("custom_{stamp}");
+    if !existing.iter().any(|engine| engine.id == base) {
+        return base;
+    }
+    let mut suffix = 2;
+    loop {
+        let candidate = format!("{base}-{suffix}");
+        if !existing.iter().any(|engine| engine.id == candidate) {
+            return candidate;
+        }
+        suffix += 1;
+    }
 }
 
 fn normalize_custom_url(url: &str) -> String {
@@ -181,11 +231,22 @@ fn normalize_custom_url(url: &str) -> String {
 }
 
 fn normalize(mut settings: Settings) -> Settings {
-    settings.custom_search_engines.retain(|engine| {
+    // Trimmed first, so the checks below and the values the frontend renders
+    // see the same string. `update_setting` trims as well; a hand-edited file
+    // is the other way in, and a padded value must not be read as a different
+    // engine or a different shortcut.
+    let mut seen_ids = HashSet::new();
+    settings.custom_search_engines.retain_mut(|engine| {
+        engine.name = engine.name.trim().to_string();
+        engine.url = engine.url.trim().to_string();
         !engine.id.is_empty()
-            && !engine.name.trim().is_empty()
+            && !engine.name.is_empty()
             && valid_custom_url(&engine.url)
             && !is_builtin_engine(&engine.id)
+            // Ids are how an engine is deleted and how the picker keys its
+            // rows, so a file that repeats one would offer two rows that a
+            // single delete removes.
+            && seen_ids.insert(engine.id.clone())
     });
     if settings.theme != "light" && settings.theme != "dark" {
         settings.theme = default_theme();
@@ -198,8 +259,13 @@ fn normalize(mut settings: Settings) -> Settings {
         settings.translate_target.clear();
     }
     settings.browser = normalize_browser(&settings.browser);
+    settings.default_search_engine = settings.default_search_engine.trim().to_string();
     if !is_known_engine(&settings, &settings.default_search_engine) {
         settings.default_search_engine = default_engine();
+    }
+    settings.hotkey = settings.hotkey.trim().to_string();
+    if !settings.hotkey.is_empty() && !valid_hotkey(&settings.hotkey) {
+        settings.hotkey.clear();
     }
     settings.clip_text_retention_days = match settings.clip_text_retention_days {
         None => None,
@@ -249,10 +315,11 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
     let mut settings = load_settings(app)?;
     match key {
         "defaultSearchEngine" | "default_search_engine" => {
-            if !is_known_engine(&settings, value) {
+            let id = value.trim();
+            if !is_known_engine(&settings, id) {
                 return Err(format!("unknown search engine: {value}"));
             }
-            settings.default_search_engine = value.to_string();
+            settings.default_search_engine = id.to_string();
         }
         "theme" => {
             if value != "dark" && value != "light" {
@@ -310,7 +377,7 @@ pub fn add_custom_engine(
     url: String,
 ) -> Result<Settings, String> {
     let name = name.trim().to_string();
-    if name.is_empty() || name.len() > 40 {
+    if !valid_engine_name(&name) {
         return Err("engine name must be 1-40 characters".into());
     }
     let url = normalize_custom_url(&url);
@@ -318,7 +385,7 @@ pub fn add_custom_engine(
         return Err("engine URL must be http(s) and contain %s".into());
     }
     let mut settings = load_settings(app)?;
-    let id = format!("custom_{}", now_ms());
+    let id = unique_engine_id(&settings.custom_search_engines, now_ms());
     settings.custom_search_engines.push(CustomSearchEngine { id, name, url });
     save_settings(app, &settings)?;
     Ok(settings)
@@ -346,9 +413,17 @@ pub fn delete_custom_engine(app: &AppHandle, id: &str) -> Result<Settings, Strin
 #[cfg(test)]
 mod tests {
     use super::{
-        default_settings, normalize, valid_custom_url, CustomSearchEngine, Settings, DEFAULT_ENGINE,
-        TRANSLATE_TARGET_LANGS,
+        default_settings, normalize, unique_engine_id, valid_custom_url, valid_engine_name,
+        valid_hotkey, CustomSearchEngine, Settings, DEFAULT_ENGINE, TRANSLATE_TARGET_LANGS,
     };
+
+    fn engine(id: &str, name: &str, url: &str) -> CustomSearchEngine {
+        CustomSearchEngine {
+            id: id.into(),
+            name: name.into(),
+            url: url.into(),
+        }
+    }
 
     fn sample() -> Settings {
         Settings {
@@ -511,5 +586,101 @@ mod tests {
             });
             assert!(settings.browser.is_empty());
         }
+    }
+
+    /// The global-shortcut plugin registers a bare key happily, and a key
+    /// registered globally is gone from every other application. Only a
+    /// hand-edited file can hold one, which is exactly why `normalize` has to
+    /// reject it and not just the IPC path.
+    #[test]
+    fn a_hotkey_without_a_modifier_is_dropped() {
+        for hotkey in ["F5", "A", "Shift+K", "Space"] {
+            let settings = normalize(Settings {
+                hotkey: hotkey.into(),
+                ..default_settings()
+            });
+            assert!(
+                settings.hotkey.is_empty(),
+                "{hotkey} must not stay in the file"
+            );
+        }
+    }
+
+    #[test]
+    fn a_hotkey_with_a_modifier_is_kept_and_trimmed() {
+        for hotkey in ["Alt+Space", "Control+Shift+A", "Command+K", "Super+K"] {
+            let settings = normalize(Settings {
+                hotkey: format!("  {hotkey}  "),
+                ..default_settings()
+            });
+            assert_eq!(settings.hotkey, hotkey);
+        }
+    }
+
+    #[test]
+    fn the_modifier_check_matches_what_the_recorder_produces() {
+        assert!(valid_hotkey("Control+Alt+P"));
+        assert!(valid_hotkey("Option+K"));
+        assert!(!valid_hotkey(""));
+        assert!(!valid_hotkey("Shift+F1"));
+    }
+
+    /// `str::len` counts bytes, so the byte-length check this replaces rejected
+    /// a 14-character Chinese engine name against a limit of 40.
+    #[test]
+    fn an_engine_name_is_measured_in_characters() {
+        assert!(valid_engine_name("浏览器"));
+        assert!(valid_engine_name(&"搜".repeat(40)));
+        assert!(!valid_engine_name(&"搜".repeat(41)));
+        assert!(!valid_engine_name("   "));
+    }
+
+    #[test]
+    fn an_uppercase_scheme_is_still_http() {
+        assert!(valid_custom_url("HTTPS://github.com/search?q=%s"));
+        assert!(valid_custom_url("Http://example.com/?q=%s"));
+        assert!(!valid_custom_url("ftp://example.com/%s"));
+        // Still refused whatever its case.
+        assert!(!valid_custom_url("JavaScript:alert(%s)"));
+    }
+
+    #[test]
+    fn a_padded_default_engine_is_still_that_engine() {
+        let settings = normalize(Settings {
+            default_search_engine: "  google  ".into(),
+            ..default_settings()
+        });
+        assert_eq!(settings.default_search_engine, "google");
+    }
+
+    #[test]
+    fn engines_are_trimmed_and_deduplicated() {
+        let settings = normalize(Settings {
+            default_search_engine: "custom_1".into(),
+            custom_search_engines: vec![
+                engine("custom_1", "  GitHub  ", " https://github.com/search?q=%s "),
+                // The same id again: one delete would have removed both rows.
+                engine("custom_1", "GitHub again", "https://example.com/?q=%s"),
+                engine("custom_2", "Example", "https://example.com/?q=%s"),
+            ],
+            ..default_settings()
+        });
+        assert_eq!(settings.custom_search_engines.len(), 2);
+        assert_eq!(settings.custom_search_engines[0].name, "GitHub");
+        assert_eq!(
+            settings.custom_search_engines[0].url,
+            "https://github.com/search?q=%s"
+        );
+        assert_eq!(settings.default_search_engine, "custom_1");
+    }
+
+    #[test]
+    fn a_new_engine_never_reuses_an_id_that_is_taken() {
+        assert_eq!(unique_engine_id(&[], 5), "custom_5");
+        let taken = vec![
+            engine("custom_5", "a", "https://a.test/?q=%s"),
+            engine("custom_5-2", "b", "https://b.test/?q=%s"),
+        ];
+        assert_eq!(unique_engine_id(&taken, 5), "custom_5-3");
     }
 }

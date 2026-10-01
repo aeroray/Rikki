@@ -88,7 +88,7 @@ export const en: Record<MessageKey, string> = {
   "engines.sogou": "Sogou",
   "engine.switched": "Switched to {name}",
   "engine.added": "Added “{name}”",
-  "engine.addFail": "Couldn’t add. URL must be http(s) and include %s",
+  "engine.addFail": "Couldn’t add it: the name must be 1–40 characters and the URL http(s) with %s",
   "engine.removed": "Removed “{name}”",
   "engine.addTitle": "Add search engine",
   "engine.name": "Name",

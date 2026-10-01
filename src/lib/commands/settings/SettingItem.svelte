@@ -1,12 +1,12 @@
 <script lang="ts">
   import { i18n } from "$lib/i18n";
+  import type { SettingItem as SettingItemModel } from "$lib/stores/settings.svelte";
   import {
     Compass,
     Download,
     Eraser,
     Globe,
     Keyboard,
-    KeyRound,
     Languages,
     Palette,
     Timer,
@@ -26,17 +26,9 @@
     id: string;
     title: string;
     value: string;
-    icon:
-      | "Globe"
-      | "Compass"
-      | "Palette"
-      | "Keyboard"
-      | "Languages"
-      | "KeyRound"
-      | "Timer"
-      | "Eraser"
-      | "Download"
-      | "Upload";
+    /** The list's own union rather than a second copy of it: the two had already
+     * drifted apart once, which is how an icon nothing could reach stayed here. */
+    icon: SettingItemModel["icon"];
     selected: boolean;
     onselect: () => void;
     current?: boolean;
@@ -48,7 +40,6 @@
     Palette,
     Keyboard,
     Languages,
-    KeyRound,
     Download,
     Upload,
     Timer,

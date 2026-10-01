@@ -19,6 +19,7 @@
   } from "$lib/commands/snippet/actions";
   import { parseSnippetAction } from "$lib/commands/snippet/parse";
   import {
+    confirmRemoveEngine,
     handleSettingsEnter,
     startEngineCreate,
   } from "$lib/commands/settings/actions";
@@ -563,12 +564,7 @@
       const screen = parseSettingsScreen(ui.commandRest);
       if (event.key === "Delete" && screen === "engine") {
         event.preventDefault();
-        const engine = settings.engines[settings.selectedIndex];
-        // Removing a custom engine throws away the name and URL that were typed
-        // in, so it asks first like the system commands do.
-        if (engine?.custom) {
-          ui.requestConfirm(engine.name, () => void settings.removeEngine(engine.id), i18n.t("settings.engineDeleteBody"));
-        }
+        confirmRemoveEngine(settings.engines[settings.selectedIndex]);
         return;
       }
       const count = settings.countFor(screen);

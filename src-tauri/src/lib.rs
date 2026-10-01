@@ -244,18 +244,6 @@ fn request_hide_window(app: tauri::AppHandle) {
     request_hide(&app);
 }
 
-fn has_hotkey_modifier(shortcut: &str) -> bool {
-    let lower = shortcut.to_ascii_lowercase();
-    lower.contains("control")
-        || lower.contains("ctrl")
-        || lower.contains("alt")
-        || lower.contains("option")
-        || lower.contains("command")
-        || lower.contains("cmd")
-        || lower.contains("super")
-        || lower.contains("meta")
-}
-
 pub(crate) fn start_hotkey_capture(app: &tauri::AppHandle) -> Result<(), String> {
     let Some(state) = app.try_state::<PaletteState>() else {
         return Ok(());
@@ -317,7 +305,13 @@ fn restore_hotkey_capture_now(app: &tauri::AppHandle) {
     }
     let hotkey = lock(&state.hotkey).clone();
     if !hotkey.is_empty() {
-        let _ = app.global_shortcut().register(hotkey.as_str());
+        // The key was released for the capture, so another application can take
+        // it in the meantime. That leaves the app with no hotkey while the
+        // settings file and the settings screen still name this one, which is
+        // worth saying out loud even though nothing here can fix it.
+        if let Err(err) = app.global_shortcut().register(hotkey.as_str()) {
+            eprintln!("rikki: could not restore the hotkey after capture ({hotkey}): {err}");
+        }
     }
     // The recorder may still be on screen. It was stopped by the same blur that
     // got us here, but the frontend has no way to observe that, so it would keep
@@ -332,7 +326,7 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
     if next.is_empty() {
         return Err("hotkey is empty".into());
     }
-    if !has_hotkey_modifier(next) {
+    if !settings_store::valid_hotkey(next) {
         return Err("hotkey needs Control, Alt, or Command".into());
     }
 
@@ -361,6 +355,11 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
             }
         }
         *lock(&state.capturing_hotkey) = false;
+        // The recorder is still armed on screen while the old shortcut is live
+        // again, which is the same trap `restore_hotkey_capture` announces: the
+        // panel keeps saying "press the new shortcut" and pressing the old one
+        // is swallowed by the global hotkey instead of being recorded.
+        let _ = app.emit("hotkey-capture-cancelled", ());
         return Err(format!("register hotkey: {err}"));
     }
 
@@ -371,11 +370,18 @@ pub(crate) fn apply_hotkey(app: &tauri::AppHandle, next: &str) -> Result<setting
     match settings_store::update_setting(app, "hotkey", next) {
         Ok(settings) => Ok(settings),
         Err(err) => {
+            // Both halves are undone, and both are undone for the empty `old`
+            // too. `old` is empty when startup found no free hotkey at all, and
+            // leaving `next` in the state would then claim a key that has just
+            // been unregistered: the next attempt to set that same key takes
+            // the "already registered" path above and never registers it, so
+            // the settings screen would advertise a shortcut that does nothing.
             let _ = gs.unregister(next);
             if !old.is_empty() {
                 let _ = gs.register(old.as_str());
-                *lock(&state.hotkey) = old;
             }
+            *lock(&state.hotkey) = old.clone();
+            let _ = tray::set_tooltip(app, &old);
             Err(err)
         }
     }
@@ -438,8 +444,15 @@ pub fn run() {
                     if app.global_shortcut().register(fallback).is_ok() {
                         // Persist it. The stored value still names the key that
                         // failed, so the settings screen would otherwise show a
-                        // shortcut that is not the one actually in effect.
-                        let _ = settings_store::update_setting(app.handle(), "hotkey", fallback);
+                        // shortcut that is not the one actually in effect. A
+                        // failure to write that is worth a line in the log: the
+                        // registration above is what the user has, and the file
+                        // is now the only place that disagrees.
+                        if let Err(err) =
+                            settings_store::update_setting(app.handle(), "hotkey", fallback)
+                        {
+                            eprintln!("rikki: could not persist the fallback hotkey: {err}");
+                        }
                         fallback.to_string()
                     } else {
                         eprintln!("rikki: no global hotkey available; use the tray icon");
@@ -455,10 +468,12 @@ pub fn run() {
             #[cfg(desktop)]
             tray::install(app.handle())?;
 
+            // Unconditional, empty included: `tray::install` seeds the tooltip
+            // with the platform default, so on a machine where neither the
+            // configured key nor the default could be registered the tray would
+            // go on advertising a shortcut that does nothing.
             #[cfg(desktop)]
-            if !registered_hotkey.is_empty() {
-                let _ = tray::set_tooltip(app.handle(), &registered_hotkey);
-            }
+            let _ = tray::set_tooltip(app.handle(), &registered_hotkey);
 
             let handle = app.handle().clone();
             std::thread::spawn(move || {

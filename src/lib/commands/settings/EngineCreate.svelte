@@ -72,7 +72,13 @@
         oncompositionend={() => (composing = false)}
       />
     </label>
-    <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary">{i18n.t("engine.urlHint")}</p>
+    <!-- This screen replaces the panel's list and its footer, so the store's
+         notice has nowhere else to land: a rejected name or URL used to leave
+         the form looking exactly as it did, with the save apparently ignored.
+         The hint gives way to the reason, the way the footer's key chips do. -->
+    <p class="px-1 text-[12px] leading-[1.4] text-ink-tertiary" aria-live="polite">
+      {settings.notice ?? i18n.t("engine.urlHint")}
+    </p>
     <div class="mt-auto flex items-center justify-between px-1">
       <span class="flex items-center gap-3">
         <KeyChip keys="Ctrl+Enter" label={i18n.t("key.save")} />

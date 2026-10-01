@@ -86,7 +86,7 @@ export const zhCN = {
   "engines.sogou": "搜狗",
   "engine.switched": "已切换到 {name}",
   "engine.added": "已添加「{name}」",
-  "engine.addFail": "无法添加，URL 需为 http(s) 且包含 %s",
+  "engine.addFail": "无法添加：名称需 1–40 个字符，地址需为 http(s) 且包含 %s",
   "engine.removed": "已删除「{name}」",
   "engine.addTitle": "添加搜索引擎",
   "engine.name": "名称",

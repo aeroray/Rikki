@@ -15,7 +15,7 @@ import { browserDisplayName, browserOptionList } from "$lib/commands/settings/br
 import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
-import type { SettingsScreen } from "$lib/commands/settings/parse";
+import { parseSettingsScreen, type SettingsScreen } from "$lib/commands/settings/parse";
 import type { AppSettings, InstalledBrowser, PickedFile } from "$lib/commands/types";
 import { snippets } from "$lib/stores/snippets.svelte";
 import { todos } from "$lib/stores/todos.svelte";
@@ -86,6 +86,9 @@ class SettingsStore {
   private browserLoad: Promise<void> | null = null;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private returnTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Bumped by every start and every stop, so a start that is still in flight
+   * can tell that the screen it was arming for has gone away. */
+  private captureToken = 0;
 
   constructor() {
     this.ready = this.hydrate();
@@ -361,16 +364,28 @@ class SettingsStore {
 
   async startRecording(): Promise<void> {
     if (this.recording) return;
+    const token = ++this.captureToken;
     await this.ready;
     try {
       await invoke("begin_hotkey_capture");
-      this.recording = true;
     } catch {
-      this.flash(i18n.t("hotkey.recordFail"));
+      if (token === this.captureToken) this.flash(i18n.t("hotkey.recordFail"));
+      return;
     }
+    // The screen can be left while the capture is still being armed, and the
+    // cleanup that ran on the way out saw `recording` false, so it could not
+    // cancel a capture that had not started. Undo it here instead: leaving it up
+    // would unregister the palette's own shortcut with nothing listening for a
+    // replacement.
+    if (token !== this.captureToken) {
+      void invoke("cancel_hotkey_capture").catch(() => {});
+      return;
+    }
+    this.recording = true;
   }
 
   async stopRecording(): Promise<void> {
+    this.captureToken += 1;
     if (!this.recording) return;
     this.recording = false;
     try {
@@ -496,13 +511,13 @@ class SettingsStore {
     }
   }
 
-  private async patch(key: string, value: string, message: string, stay = false): Promise<boolean> {
+  private async patch(key: string, value: string, message: string): Promise<boolean> {
     await this.ready;
     try {
       const next = await invoke<AppSettings>("update_setting", { key, value });
       this.apply(next);
       this.flash(message);
-      if (!stay) this.scheduleReturn();
+      this.scheduleReturn();
       return true;
     } catch {
       // The caller discards the boolean, so without this a failed write looked
@@ -514,9 +529,15 @@ class SettingsStore {
 
   private scheduleReturn() {
     this.cancelReturn();
+    // The screen the save happened on. The timer only takes the user back there
+    // if they are still on it: a save is followed by a second or so of reading
+    // the notice, and in that time Ctrl+N opens the engine form and the arrows
+    // can be walked somewhere else — dropping them on the settings list from
+    // there would overwrite a deliberate move.
+    const screen = parseSettingsScreen(ui.commandRest);
     this.returnTimer = setTimeout(() => {
       this.returnTimer = null;
-      if (ui.view === "settings") {
+      if (ui.view === "settings" && !this.engineDraft && parseSettingsScreen(ui.commandRest) === screen) {
         ui.searchText = "settings ";
         ui.focusField = "search";
       }

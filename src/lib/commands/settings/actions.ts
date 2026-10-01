@@ -1,8 +1,11 @@
 import { parseSettingsScreen } from "$lib/commands/settings/parse";
+import type { SearchEngine } from "$lib/commands/settings/engines";
 import { i18n } from "$lib/i18n";
 import { clipboard } from "$lib/stores/clipboard.svelte";
-import { settings } from "$lib/stores/settings.svelte";
+import { settings, type SettingItem } from "$lib/stores/settings.svelte";
 import { ui } from "$lib/stores/ui.svelte";
+
+type SettingItemId = SettingItem["id"];
 
 export function openEngineSettings(): void {
   ui.searchText = "settings engine";
@@ -43,6 +46,20 @@ export function startClipCleanup(): void {
   clipboard.openExpireConfirm(days);
 }
 
+/**
+ * Removing a custom engine throws away the name and URL that were typed in, so
+ * both ways in — the Delete key and the row's own button — ask first, like the
+ * system commands do.
+ */
+export function confirmRemoveEngine(engine: SearchEngine | undefined): void {
+  if (!engine?.custom) return;
+  ui.requestConfirm(
+    engine.name,
+    () => void settings.removeEngine(engine.id),
+    i18n.t("settings.engineDeleteBody"),
+  );
+}
+
 export function startEngineCreate(): void {
   if (parseSettingsScreen(ui.commandRest) !== "engine") {
     openEngineSettings();
@@ -52,6 +69,10 @@ export function startEngineCreate(): void {
 
 export function closeSettingsDrill(): boolean {
   if (ui.view !== "settings") return false;
+  // Leaving any settings screen cancels the pending "return to the list": it
+  // belongs to the screen the save happened on, not to whatever the user moved
+  // to next.
+  settings.cancelReturn();
   if (settings.engineDraft) {
     settings.closeEngineDraft();
     return true;
@@ -64,10 +85,33 @@ export function closeSettingsDrill(): boolean {
     return true;
   }
   if (parseSettingsScreen(ui.commandRest) === "list") return false;
-  settings.cancelReturn();
   ui.searchText = "settings ";
   ui.focusField = "search";
   return true;
+}
+
+/**
+ * What a settings row does, whether it was opened by Enter or by a click.
+ *
+ * One function rather than the same nine branches in the panel and in the
+ * key handler: two copies of "which row opens what" is how a row ends up
+ * meaning one thing to the mouse and another to the keyboard.
+ */
+export function runSettingItem(id: SettingItemId): void {
+  if (id === "engine") return openEngineSettings();
+  if (id === "browser") return openBrowserSettings();
+  if (id === "theme") return openThemeSettings();
+  if (id === "hotkey") return openHotkeySettings();
+  if (id === "language") return openLanguageSettings();
+  if (id === "retention") return openRetentionSettings();
+  if (id === "cleanup") return startClipCleanup();
+  // The two transfer rows act on the list rather than opening a screen of their
+  // own: there is nothing between the keystroke and the system dialog.
+  if (id === "export") {
+    void settings.exportSettings();
+    return;
+  }
+  void settings.importSettings();
 }
 
 export async function handleSettingsEnter(): Promise<void> {
@@ -105,23 +149,5 @@ export async function handleSettingsEnter(): Promise<void> {
   }
 
   const item = settings.listItems[settings.selectedIndex];
-  if (item?.id === "engine") openEngineSettings();
-  if (item?.id === "browser") openBrowserSettings();
-  if (item?.id === "theme") openThemeSettings();
-  if (item?.id === "hotkey") openHotkeySettings();
-  if (item?.id === "language") openLanguageSettings();
-  if (item?.id === "retention") openRetentionSettings();
-  if (item?.id === "cleanup") {
-    startClipCleanup();
-    return;
-  }
-  // The two transfer rows act on the list rather than opening a screen of their
-  // own: there is nothing between the keystroke and the system dialog.
-  if (item?.id === "export") {
-    await settings.exportSettings();
-    return;
-  }
-  if (item?.id === "import") {
-    await settings.importSettings();
-  }
+  if (item) runSettingItem(item.id);
 }

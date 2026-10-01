@@ -79,19 +79,24 @@ pub fn set_labels(app: &AppHandle, show_label: &str, quit_label: &str) -> Result
 /// Points the tooltip at the hotkey that is actually registered.
 ///
 /// It used to be hardcoded to the default at install time, so after the user
-/// changed the shortcut the tray kept advertising the old one.
+/// changed the shortcut the tray kept advertising the old one. An empty hotkey
+/// means there is none, and the tooltip then drops the shortcut rather than
+/// naming one that does nothing.
 pub fn set_tooltip(app: &AppHandle, hotkey: &str) -> Result<(), String> {
     let tray = app
         .tray_by_id("main")
         .ok_or_else(|| "tray icon missing".to_string())?;
+    tray.set_tooltip(Some(tooltip_text(hotkey)))
+        .map_err(|err| format!("set tray tooltip: {err}"))
+}
+
+fn tooltip_text(hotkey: &str) -> String {
     let label = hotkey_label(hotkey);
-    let text = if label.is_empty() {
+    if label.is_empty() {
         "Rikki".to_string()
     } else {
         format!("Rikki — {label}")
-    };
-    tray.set_tooltip(Some(text))
-        .map_err(|err| format!("set tray tooltip: {err}"))
+    }
 }
 
 fn hotkey_label(hotkey: &str) -> String {
@@ -123,5 +128,26 @@ fn tooltip() -> &'static str {
     #[cfg(not(target_os = "macos"))]
     {
         "Rikki — Alt+Space"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tooltip_text;
+
+    /// The tooltip has to name the key that is registered, and name none at all
+    /// when there is none: a shortcut that does nothing is the one thing it
+    /// must not advertise.
+    #[test]
+    fn the_tooltip_drops_a_shortcut_that_is_not_registered() {
+        assert_eq!(tooltip_text(""), "Rikki");
+        assert_eq!(tooltip_text("   "), "Rikki");
+    }
+
+    #[test]
+    fn the_tooltip_names_the_registered_shortcut() {
+        let text = tooltip_text("Alt+Space");
+        assert!(text.starts_with("Rikki — "), "{text}");
+        assert!(text.contains("Space"), "{text}");
     }
 }
