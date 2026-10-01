@@ -1,8 +1,13 @@
 # Builds the two packages the launcher ships as, and publishes them as a draft
 # release with the updater manifest beside them.
 #
-# Push a tag (`git tag v0.1.0 && git push origin v0.1.0`) and this runs. The
-# release is a draft on purpose: a tag is not the same decision as "this is
+# Push a tag (`git tag v1.0.0 && git push origin v1.0.0`) and this runs. The tag
+# has to match the version in `src-tauri/Cargo.toml`, which is the only place
+# that version is written; the check below fails the run when the two disagree,
+# because a release whose name and whose build disagree is a release the updater
+# will offer to the wrong people.
+#
+# The release is a draft on purpose: a tag is not the same decision as "this is
 # public", and the updater only sees a release once it is published.
 #
 # Nothing here is code signed — Windows will show SmartScreen's "unknown
@@ -16,8 +21,6 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  # Lets a release be built from a branch without tagging first.
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -40,6 +43,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # First, because it is the cheapest step and the one most likely to be
+      # wrong: a mistyped tag would otherwise be discovered after two full
+      # builds, and would already have published the wrong version.
+      - name: Check the tag matches the crate version
+        shell: bash
+        run: |
+          declared=$(node -p "require('fs').readFileSync('src-tauri/Cargo.toml','utf8').match(/^version = \"(.+?)\"/m)[1]")
+          tag="${GITHUB_REF_NAME#v}"
+          echo "tag: $tag   src-tauri/Cargo.toml: $declared"
+          if [ "$tag" != "$declared" ]; then
+            echo "::error::tag $tag does not match the version in src-tauri/Cargo.toml ($declared)"
+            exit 1
+          fi
 
       - uses: pnpm/action-setup@v4
         with:

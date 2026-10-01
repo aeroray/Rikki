@@ -1,6 +1,11 @@
 [package]
 name = "rikki"
-version = "0.1.0"
+# The one place the app version is written. `tauri.conf.json` leaves its
+# `version` out on purpose, so `tauri-codegen` falls back to `CARGO_PKG_VERSION`
+# and the window, the installer filename, the settings row and the updater all
+# read this number. `package.json` carries no version either: this crate is not
+# published and neither is the npm package, so a second copy could only drift.
+version = "1.0.0"
 description = "A Spotlight-style desktop launcher"
 authors = ["you"]
 edition = "2021"

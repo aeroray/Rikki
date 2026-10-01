@@ -1,6 +1,5 @@
 {
   "name": "rikki",
-  "version": "0.1.0",
   "description": "A Spotlight-style desktop launcher for Windows and macOS",
   "type": "module",
   "scripts": {
