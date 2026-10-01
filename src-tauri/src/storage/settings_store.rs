@@ -105,7 +105,9 @@ pub fn default_hotkey() -> &'static str {
     }
 }
 
-fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+/// Public within the crate so a backup can replace this file in the same commit
+/// as the others it holds.
+pub(crate) fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()

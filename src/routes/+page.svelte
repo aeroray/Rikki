@@ -222,7 +222,7 @@
     role="status"
     aria-live="polite"
     class="pointer-events-none absolute inset-x-3 bottom-3 z-20 {ui.notice
-      ? 'rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty text-ink outline outline-1 outline-hairline'
+      ? 'rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty break-words text-ink outline outline-1 outline-hairline'
       : ''}"
   >
     {ui.notice}

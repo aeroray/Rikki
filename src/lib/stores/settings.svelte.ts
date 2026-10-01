@@ -9,13 +9,14 @@ import {
   type SearchEngine,
   type ThemeId,
 } from "$lib/commands/settings/engines";
+import { backupCounts, backupLabel, backupStamp, buildBackupRows } from "$lib/commands/settings/backup";
 import { eventToHotkey, formatHotkey } from "$lib/commands/settings/hotkey";
 import { browserDisplayName, browserOptionList } from "$lib/commands/settings/browsers";
 import { i18n } from "$lib/i18n";
 import { parseLocalePref, resolveLocale, type LocalePref } from "$lib/i18n/locale";
 import { parseClipRetentionDays, type ClipRetentionDays } from "$lib/commands/clip/cleanup";
 import type { SettingsScreen } from "$lib/commands/settings/parse";
-import type { AppSettings, InstalledBrowser } from "$lib/commands/types";
+import type { AppSettings, BackupFile, InstalledBrowser } from "$lib/commands/types";
 import { snippets } from "$lib/stores/snippets.svelte";
 import { todos } from "$lib/stores/todos.svelte";
 import { ui } from "$lib/stores/ui.svelte";
@@ -29,8 +30,7 @@ export type SettingItem = {
     | "language"
     | "retention"
     | "cleanup"
-    | "export"
-    | "import";
+    | "backup";
   title: string;
   value: string;
   icon:
@@ -77,6 +77,11 @@ class SettingsStore {
   browsersLoaded = $state(false);
   clipTextRetentionDays = $state<ClipRetentionDays>(7);
   customEngines = $state<SearchEngine[]>([]);
+  backups = $state<BackupFile[]>([]);
+  /** The path-entry screen, or null when it is not on screen. */
+  importDraft = $state<{ path: string } | null>(null);
+  /** What the path currently typed in that screen resolves to. */
+  importPreview = $state<{ kind: "ok"; file: BackupFile } | { kind: "bad" } | null>(null);
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
   recording = $state(false);
@@ -85,6 +90,7 @@ class SettingsStore {
   private browserLoad: Promise<void> | null = null;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private returnTimer: ReturnType<typeof setTimeout> | null = null;
+  private previewTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.ready = this.hydrate();
@@ -92,6 +98,9 @@ class SettingsStore {
     // before the picker is ever opened. Detection is a registry read, not an
     // app scan, so this is cheap enough to start with the rest of the boot.
     void this.loadBrowsers();
+    // Same reason: the backup row shows when the last backup was taken, and the
+    // panel opens on a list that has to be there before the user arrows into it.
+    void this.loadBackups();
     ui.onHideFlush(() => {
       // Without this the 1.5s "return to the settings list" timer fired after
       // the palette was hidden and overwrote whatever the user typed next.
@@ -134,6 +143,23 @@ class SettingsStore {
   readonly localeLabel = $derived(this.prefLabel(this.localePref));
 
   readonly retentionLabel = $derived(this.retentionPrefLabel(this.clipTextRetentionDays));
+
+  /** The rows of the backup screen, in one list: action, files, ways in. */
+  readonly backupRows = $derived(
+    buildBackupRows({
+      files: this.backups,
+      todos: todos.todos.length,
+      snippets: snippets.items.length,
+    }),
+  );
+
+  /** What the settings row says: when the newest readable backup was taken. */
+  readonly backupSummary = $derived.by(() => {
+    const newest = this.backups.find((file) => file.valid);
+    return newest
+      ? i18n.t("settings.backup.last", { when: backupLabel(newest.exportedAt) })
+      : i18n.t("settings.backup.none");
+  });
 
   readonly listItems = $derived.by((): SettingItem[] => [
     {
@@ -183,17 +209,10 @@ class SettingsStore {
       current: false,
     },
     {
-      id: "export",
-      title: i18n.t("settings.export"),
-      value: i18n.t("settings.backup.scope"),
+      id: "backup",
+      title: i18n.t("settings.backup"),
+      value: this.backupSummary,
       icon: "Download",
-      current: false,
-    },
-    {
-      id: "import",
-      title: i18n.t("settings.import"),
-      value: i18n.t("settings.backup.overwrite"),
-      icon: "Upload",
       current: false,
     },
   ]);
@@ -231,6 +250,8 @@ class SettingsStore {
         return this.locales.length;
       case "retention":
         return this.retentionOptions.length;
+      case "backup":
+        return this.backupRows.length;
       case "hotkey":
         return 0;
       default:
@@ -413,30 +434,120 @@ class SettingsStore {
     }
   }
 
-  async exportBackup(): Promise<void> {
+  /** Writes the current data into the app's own backup folder. */
+  async createBackup(): Promise<void> {
     await this.ready;
     try {
-      const ok = await invoke<boolean>("export_backup");
-      // `false` means the user closed the save dialog. Saying nothing made a
-      // cancelled export indistinguishable from a broken one.
-      this.flash(ok ? i18n.t("settings.export.ok") : i18n.t("settings.export.cancelled"));
+      const file = await invoke<BackupFile>("create_backup", { stamp: backupStamp(new Date()) });
+      await this.loadBackups();
+      // Put the highlight on what was just written, so the panel answers "where
+      // did it go" without the user having to look for it.
+      const index = this.backups.findIndex((entry) => entry.path === file.path);
+      this.selectedIndex = index >= 0 ? index + 1 : 1;
+      ui.flash(i18n.t("settings.backup.created", { name: file.name }));
     } catch {
-      this.flash(i18n.t("settings.export.fail"));
+      ui.flash(i18n.t("settings.backup.writeFail"));
     }
   }
 
-  async importBackup(): Promise<void> {
+  /** Writes the current data to a location the user picks, outside the folder. */
+  async saveBackupCopy(): Promise<void> {
     await this.ready;
     try {
-      const result = await invoke<BackupImportResult>("import_backup");
-      if (result.cancelled) return;
-      await todos.reload();
-      await snippets.reload();
-      if (result.settings && result.settingsValue) this.apply(result.settingsValue);
-      else if (result.settings) await this.reload();
-      this.flash(backupMessage(result));
+      const path = await invoke<string | null>("save_backup_copy", {
+        stamp: backupStamp(new Date()),
+      });
+      if (path) ui.flash(i18n.t("settings.backup.saved", { path }));
     } catch {
-      this.flash(i18n.t("settings.import.fail"));
+      ui.flash(i18n.t("settings.backup.writeFail"));
+    }
+  }
+
+  async revealBackups(): Promise<void> {
+    try {
+      await invoke("open_backups_dir");
+    } catch {
+      ui.flash(i18n.t("settings.backup.openFail"));
+    }
+  }
+
+  /** Runs whatever Enter means on the highlighted row of the backup screen. */
+  async runBackupRow(index: number): Promise<void> {
+    const row = this.backupRows[index];
+    if (!row) return;
+    if (row.kind === "create") return this.createBackup();
+    if (row.kind === "import") return this.openImportDraft();
+    if (row.kind === "saveAs") return this.saveBackupCopy();
+    if (row.kind === "folder") return this.revealBackups();
+    if (row.file?.valid) {
+      this.confirmImport(row.file.path, backupLabel(row.file.exportedAt));
+      return;
+    }
+    // The row says it cannot be read, and Enter must not pretend otherwise.
+    ui.flash(i18n.t("settings.backup.fail"));
+  }
+
+  openImportDraft() {
+    this.importDraft = { path: "" };
+    this.importPreview = null;
+    ui.focusField = "backup-path";
+  }
+
+  closeImportDraft() {
+    this.cancelPreview();
+    this.importDraft = null;
+    this.importPreview = null;
+    ui.focusField = "search";
+  }
+
+  /**
+   * Reads the file behind the path being typed, so the screen can describe it.
+   *
+   * The value comes from the event rather than from the draft, because the
+   * binding that writes the draft is a listener on the same element and the
+   * order of the two is not something to depend on.
+   */
+  previewImportPath(value: string): void {
+    const path = value.trim();
+    this.cancelPreview();
+    this.importPreview = null;
+    if (!path) return;
+    // Typing a path is a keystroke per character, and each one would be a file
+    // read; the wait is short enough to feel immediate and long enough to skip
+    // every prefix of what is being typed.
+    this.previewTimer = setTimeout(() => {
+      this.previewTimer = null;
+      void this.inspectImport(path);
+    }, 250);
+  }
+
+  async pickBackupFile(): Promise<void> {
+    try {
+      const path = await invoke<string | null>("pick_backup_file");
+      if (!path || !this.importDraft) return;
+      this.importDraft.path = path;
+      this.previewImportPath(path);
+    } catch {
+      ui.flash(i18n.t("settings.backup.fail"));
+    }
+  }
+
+  /** Enter on the import screen: read the file, then ask before replacing. */
+  async submitImportDraft(): Promise<void> {
+    const path = this.importDraft?.path.trim() ?? "";
+    if (!path) return;
+    const file = await this.inspectImport(path);
+    if (file) this.confirmImport(file.path, backupLabel(file.exportedAt));
+  }
+
+  async loadBackups(): Promise<void> {
+    try {
+      this.backups = await invoke<BackupFile[]>("list_backups");
+    } catch {
+      // An unreadable folder leaves the panel with its action rows and no files,
+      // which is honest about what the app can see; creating one then reports
+      // the write failure, which is the actionable half of the same problem.
+      this.backups = [];
     }
   }
 
@@ -447,6 +558,64 @@ class SettingsStore {
     } catch {
       /* keep in-memory settings */
     }
+  }
+
+  private cancelPreview() {
+    if (this.previewTimer) {
+      clearTimeout(this.previewTimer);
+      this.previewTimer = null;
+    }
+  }
+
+  private async inspectImport(path: string): Promise<BackupFile | null> {
+    try {
+      const file = await invoke<BackupFile>("inspect_backup", { path });
+      // The path may have been edited while the read was in flight; a preview of
+      // the previous one would be a description of a file nobody is looking at.
+      if (this.importDraft?.path.trim() === path) {
+        this.importPreview = { kind: "ok", file };
+      }
+      return file;
+    } catch {
+      if (this.importDraft?.path.trim() === path) {
+        this.importPreview = { kind: "bad" };
+      }
+      return null;
+    }
+  }
+
+  /**
+   * The second Enter before anything is replaced, in the app's one dialog.
+   *
+   * The body names the data on screen rather than the data in the file: that is
+   * what the import takes away, and the file itself is already described by the
+   * row — or, for a typed path, by the line under the field.
+   */
+  private confirmImport(path: string, name: string) {
+    const current = backupCounts(todos.todos.length, snippets.items.length);
+    ui.requestConfirm(
+      i18n.t("settings.backup.restore", { name }),
+      () => void this.restoreBackup(path, name),
+      i18n.t("settings.backup.restoreBody", { current }),
+    );
+  }
+
+  private async restoreBackup(path: string, name: string): Promise<void> {
+    try {
+      await invoke("import_backup_from", { path, stamp: backupStamp(new Date()) });
+    } catch {
+      // Past this point the file has already been read and shown as a valid
+      // backup, so what is left to fail is the writing: the snapshot, the three
+      // files, or the imported hotkey.
+      ui.flash(i18n.t("settings.backup.writeFail"));
+      return;
+    }
+    await todos.reload();
+    await snippets.reload();
+    await this.reload();
+    await this.loadBackups();
+    this.closeImportDraft();
+    ui.flash(i18n.t("settings.backup.restored", { name }));
   }
 
   private async readBrowsers() {
@@ -551,21 +720,3 @@ class SettingsStore {
 }
 
 export const settings = new SettingsStore();
-
-type BackupImportResult = {
-  cancelled: boolean;
-  todos: boolean;
-  snippets: boolean;
-  settings: boolean;
-  settingsValue?: AppSettings | null;
-};
-
-function backupMessage(result: BackupImportResult): string {
-  const parts: string[] = [];
-  if (result.todos) parts.push(i18n.t("settings.backup.todos"));
-  if (result.snippets) parts.push(i18n.t("settings.backup.snippets"));
-  if (result.settings) parts.push(i18n.t("settings.backup.settings"));
-  if (parts.length === 3) return i18n.t("settings.import.ok");
-  if (parts.length === 0) return i18n.t("settings.import.fail");
-  return i18n.t("settings.import.partial", { parts: parts.join(i18n.t("settings.backup.join")) });
-}

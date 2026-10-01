@@ -15,7 +15,7 @@ class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
   todoPanelOpen = $state(false);
-  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content" | "engine-name" | "engine-url" | "json-editor" | "anniversary-title" | "anniversary-date">("search");
+  focusField = $state<"search" | "todo-input" | "snippet-title" | "snippet-keyword" | "snippet-content" | "engine-name" | "engine-url" | "json-editor" | "anniversary-title" | "anniversary-date" | "backup-path">("search");
   showNonce = $state(0);
   shellOpen = $state(false);
   shellExiting = $state(false);

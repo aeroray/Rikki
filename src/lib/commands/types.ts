@@ -65,6 +65,24 @@ export interface InstalledBrowser {
   icon: string;
 }
 
+/**
+ * One file in the backup folder, as `list_backups` reports it.
+ *
+ * `valid` is false for a file that is in the folder but cannot be read as a
+ * backup — hand-edited, truncated, or not one of ours. It is still listed, with
+ * a row that says so, because a backup that silently vanished from the list is
+ * worse than one that admits it cannot be read.
+ */
+export interface BackupFile {
+  name: string;
+  path: string;
+  /** RFC3339 UTC, empty when the file could not be read. */
+  exportedAt: string;
+  todos: number;
+  snippets: number;
+  valid: boolean;
+}
+
 export interface Snippet {
   id: string;
   title: string;

@@ -113,13 +113,17 @@ pub fn bump_usage(app: AppHandle, key: String) -> Result<u32, String> {
     crate::storage::usage_store::increment_usage(&app, &key)
 }
 
-fn open_path(path: &str) -> Result<(), String> {
+/// Hands a path to the OS shell: an app, a file, a folder or a shortcut.
+///
+/// Public within the crate because opening a folder in Explorer or Finder is the
+/// same call, and the reasoning below is worth having once.
+pub(crate) fn open_path(path: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         Command::new("open")
             .arg(path)
             .spawn()
-            .map_err(|err| format!("open app: {err}"))?;
+            .map_err(|err| format!("open path: {err}"))?;
         return Ok(());
     }
 
@@ -150,7 +154,7 @@ fn open_path(path: &str) -> Result<(), String> {
         // handle, so `is_invalid()` would call a failure a success.
         if (result.0 as isize) <= 32 {
             return Err(format!(
-                "open app: ShellExecuteW failed ({})",
+                "open path: ShellExecuteW failed ({})",
                 result.0 as isize
             ));
         }
@@ -160,7 +164,7 @@ fn open_path(path: &str) -> Result<(), String> {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = path;
-        Err("app launch is only supported on Windows and macOS".into())
+        Err("opening a path is only supported on Windows and macOS".into())
     }
 }
 

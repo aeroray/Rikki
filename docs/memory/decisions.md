@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - Backups are one screen in the palette, not two native dialogs
+Decision:
+Export and import are one settings row (备份与恢复) opening one screen, `settings backup`. That screen is a single list: `新建备份`, whose value is the live counts of what it would write; then the files in `app_data_dir/backups/`, newest first, each labelled with its local `YYYY-MM-DD HH:MM:SS` and its counts, with a file that will not parse listed as 无法读取 rather than dropped; then `从文件导入…`, `另存为…` and `打开备份文件夹`. Enter on a file arms the existing `ActionConfirm` with a body naming the current data it would replace. `从文件导入…` opens a path field that describes the file it resolves to as it is typed (250ms debounce) and offers the native picker beside it; `另存为…` keeps the native save dialog. Before anything is replaced, the current data is written into the backup folder as a snapshot, and todos, snippets and settings are then committed through `json_file::write_all_or_nothing` — every temp written first, then the renames. A file that is missing a section is refused whole, and `settings.import.partial` is gone.
+Reason:
+The folder is the app's own, so export and import are two views of one thing and belonged in one list with one vocabulary, not on two settings rows that each opened a system modal in front of a 600×400 palette. A native dialog is not foreign to this app — the QR panel saves a PNG through one — but it is the wrong default for a recurring operation whose result the app can list itself. Restoring is irreversible, so it goes through the one confirmation dialog the app already has, and the snapshot is what makes it reversible anyway: an import that fails between the three writes, or a shortcut the imported settings cannot register, leaves the previous state in the folder as a file the user can restore.
+Note:
+The file name carries the local clock and is built in the frontend, because Rust has no local time without another dependency and the name is what the user reads in Explorer or Finder. `list_backups` reads at most 20 files, at boot and after anything writes to the folder. Not verified in the running app: the panel's height with a full header, and the two native dialogs (they are the parts that need a real window).
+
 ## 2026-10-01 - One empty state for every panel, and the backdrop carries its own corners
 Decision:
 Every command panel's empty state is `components/PanelEmpty.svelte`: an `ink-tertiary` 16px-stroke icon over a centred 13px block, `title` and `hint` both kept where both exist. A panel whose empty state shares its column with a second section (calc's history, color's recent strip) passes no `flex-1`, so the state stays in the flow. The three modal backdrops (`ActionConfirm`, `ClipConfirm`, `ImagePreview`) put `rounded-[inherit]` on the overlay wrapper and on the `bg-black/55 backdrop-blur-xl` layer itself.

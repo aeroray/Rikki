@@ -2,6 +2,9 @@
 
 Tombstones are newest first.
 
+## Tombstone: two settings rows for export/import, and partial imports
+Do not reintroduce unless the user explicitly reverses this. Reason: export and import are two views of one folder, so they are one screen with one vocabulary rather than two rows that each opened a native dialog; and a per-part import could leave two thirds of a restore applied, so a file missing a section is now refused whole instead of applied in part. Date: 2026-10-01.
+
 ## Tombstone: Simple Icons (and its Svelte wrappers) as the brand-logo source
 Do not reintroduce unless the user explicitly reverses this. Reason: the package has no Bing icon at all — checked at 16.33.0, and at 16.12.0, which is the snapshot the wrappers bundle — so it cannot cover the five search engines the settings offer. `@iconify-icons/cib` (CoreUI Brands, CC0, one module per icon) has all five. Date: 2026-09-30.
 

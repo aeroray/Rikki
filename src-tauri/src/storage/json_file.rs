@@ -27,6 +27,55 @@ pub fn write_json<T: Serialize + ?Sized>(path: &Path, data: &T) -> Result<(), St
     })
 }
 
+/// One file's worth of JSON, already serialized.
+pub struct JsonWrite<'a> {
+    pub path: &'a Path,
+    pub json: String,
+}
+
+impl<'a> JsonWrite<'a> {
+    pub fn new<T: Serialize + ?Sized>(path: &'a Path, data: &T) -> Result<Self, String> {
+        Ok(Self {
+            path,
+            json: serde_json::to_string_pretty(data)
+                .map_err(|err| format!("serialize {}: {err}", label(path)))?,
+        })
+    }
+}
+
+/// Replaces several files as one commit.
+///
+/// Each store owns one file, so restoring a backup is three writes at once.
+/// Writing them one at a time leaves the app holding a mixture of two backups
+/// when the disk fills up on the second one. Every temp file is written first —
+/// which is where a full disk or a denied permission shows up — and only then
+/// are the renames issued back to back.
+///
+/// A rename that fails midway still leaves the earlier files replaced, so this
+/// narrows the window rather than closing it; the caller is expected to have a
+/// copy of what it is replacing.
+pub fn write_all_or_nothing(entries: &[JsonWrite<'_>]) -> Result<(), String> {
+    let mut temps = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let tmp = tmp_path(entry.path);
+        if let Err(err) = fs::write(&tmp, &entry.json) {
+            for written in temps {
+                let _ = fs::remove_file(written);
+            }
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("write {} temp: {err}", label(entry.path)));
+        }
+        temps.push(tmp);
+    }
+    for (entry, tmp) in entries.iter().zip(temps) {
+        fs::rename(&tmp, entry.path).map_err(|err| {
+            let _ = fs::remove_file(&tmp);
+            format!("commit {}: {err}", label(entry.path))
+        })?;
+    }
+    Ok(())
+}
+
 /// Reads JSON from `path`.
 ///
 /// `Ok(None)` means the file is missing or empty. An unreadable file is moved
@@ -95,7 +144,7 @@ fn label(path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{read_json, read_json_or, write_json};
+    use super::{read_json, read_json_or, write_all_or_nothing, write_json, JsonWrite};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -153,6 +202,50 @@ mod tests {
         assert_eq!(read_json_or(&path, || Sample { value: 5 }), Sample { value: 5 });
         std::fs::write(&path, "nope").expect("seed corrupt");
         assert_eq!(read_json_or(&path, || Sample { value: 9 }), Sample { value: 9 });
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_group_of_files_is_replaced_together() {
+        let dir = temp_dir("group");
+        let first = dir.join("todos.json");
+        let second = dir.join("snippets.json");
+        write_json(&first, &Sample { value: 1 }).expect("seed first");
+        write_json(&second, &Sample { value: 2 }).expect("seed second");
+
+        let entries = [
+            JsonWrite::new(&first, &Sample { value: 10 }).expect("serialize"),
+            JsonWrite::new(&second, &Sample { value: 20 }).expect("serialize"),
+        ];
+        write_all_or_nothing(&entries).expect("commit");
+
+        assert_eq!(read_json::<Sample>(&first).expect("read"), Some(Sample { value: 10 }));
+        assert_eq!(read_json::<Sample>(&second).expect("read"), Some(Sample { value: 20 }));
+        assert!(!dir.join("todos.json.tmp").exists());
+        assert!(!dir.join("snippets.json.tmp").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The point of writing every temp first: a write that cannot happen must
+    /// leave the files that could have been written untouched.
+    #[test]
+    fn a_group_nothing_can_write_leaves_every_file_alone() {
+        let dir = temp_dir("group-failure");
+        let good = dir.join("todos.json");
+        let missing_dir = dir.join("nope").join("snippets.json");
+        write_json(&good, &Sample { value: 1 }).expect("seed");
+
+        let entries = [
+            JsonWrite::new(&good, &Sample { value: 99 }).expect("serialize"),
+            JsonWrite::new(&missing_dir, &Sample { value: 99 }).expect("serialize"),
+        ];
+        assert!(write_all_or_nothing(&entries).is_err());
+        assert_eq!(
+            read_json::<Sample>(&good).expect("read"),
+            Some(Sample { value: 1 }),
+            "a group that fails to write must not have replaced anything"
+        );
+        assert!(!dir.join("todos.json.tmp").exists(), "no temp file may survive");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

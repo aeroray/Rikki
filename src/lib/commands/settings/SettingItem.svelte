@@ -1,6 +1,20 @@
 <script lang="ts">
   import { i18n } from "$lib/i18n";
-  import { Compass, Download, Eraser, Globe, Keyboard, KeyRound, Languages, Palette, Timer, Upload } from "@lucide/svelte";
+  import {
+    Compass,
+    Download,
+    Eraser,
+    FileJson,
+    FolderOpen,
+    Globe,
+    HardDriveDownload,
+    Keyboard,
+    KeyRound,
+    Languages,
+    Palette,
+    Timer,
+    Upload,
+  } from "@lucide/svelte";
 
   let {
     id,
@@ -15,7 +29,20 @@
     id: string;
     title: string;
     value: string;
-    icon: "Globe" | "Compass" | "Palette" | "Keyboard" | "Languages" | "KeyRound" | "Timer" | "Eraser" | "Download" | "Upload";
+    icon:
+      | "Globe"
+      | "Compass"
+      | "Palette"
+      | "Keyboard"
+      | "Languages"
+      | "KeyRound"
+      | "Timer"
+      | "Eraser"
+      | "Download"
+      | "Upload"
+      | "FileJson"
+      | "HardDriveDownload"
+      | "FolderOpen";
     selected: boolean;
     onselect: () => void;
     current?: boolean;
@@ -32,6 +59,9 @@
     Upload,
     Timer,
     Eraser,
+    FileJson,
+    HardDriveDownload,
+    FolderOpen,
   };
   const Icon = $derived(icons[icon]);
   let row: HTMLButtonElement | undefined = $state();

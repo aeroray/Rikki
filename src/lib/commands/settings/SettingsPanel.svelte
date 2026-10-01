@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BackupImport from "$lib/commands/settings/BackupImport.svelte";
   import BrowserSelector from "$lib/commands/settings/BrowserSelector.svelte";
   import EngineCreate from "$lib/commands/settings/EngineCreate.svelte";
   import EngineSelector from "$lib/commands/settings/EngineSelector.svelte";
@@ -15,9 +16,11 @@
     openLanguageSettings,
     openRetentionSettings,
     openThemeSettings,
+    openBackupSettings,
     startEngineCreate,
     startClipCleanup,
   } from "$lib/commands/settings/actions";
+  import { BACKUP_ICONS, backupKeyLabel } from "$lib/commands/settings/backup";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { settings } from "$lib/stores/settings.svelte";
@@ -34,6 +37,7 @@
     settings.cancelReturn();
     clipboard.closeConfirm();
     if (settings.engineDraft) settings.closeEngineDraft();
+    if (settings.importDraft) settings.closeImportDraft();
   });
 
   $effect(() => {
@@ -42,6 +46,7 @@
       settings.cancelReturn();
       clipboard.closeConfirm();
       if (settings.engineDraft) settings.closeEngineDraft();
+      if (settings.importDraft) settings.closeImportDraft();
       return;
     }
     const next = parseSettingsScreen(ui.commandRest);
@@ -87,6 +92,7 @@
   // Key glyphs are not translated: they name physical keys, which read the same
   // in every locale.
   const selectedItemId = $derived(settings.listItems[settings.selectedIndex]?.id);
+  const selectedBackupRow = $derived(settings.backupRows[settings.selectedIndex]);
 
   const footerShortcuts = $derived.by((): FooterShortcut[] => {
     // A notice replaces the actions with a single remark, so it carries no chips.
@@ -110,14 +116,24 @@
         { keys: "Esc", label: i18n.t("key.back") },
       ];
     }
+    if (screen === "backup") {
+      // The chip names what Enter would do on this row, because the list holds
+      // four different actions. A row that cannot be read offers none of them,
+      // the way the cleanup row does when there is nothing to clean.
+      const label = selectedBackupRow?.file?.valid === false
+        ? null
+        : selectedBackupRow
+          ? backupKeyLabel(selectedBackupRow.kind)
+          : null;
+      return label
+        ? [{ keys: "Enter", label }, { keys: "Esc", label: i18n.t("key.back") }]
+        : [{ keys: "Esc", label: i18n.t("key.back") }];
+    }
     if (selectedItemId === "cleanup") {
       // Cleaning is off, so Enter would do nothing: say why instead of offering it.
       return settings.clipTextRetentionDays > 0
         ? [{ keys: "Enter", label: i18n.t("settings.keyClean") }]
         : [];
-    }
-    if (selectedItemId === "export" || selectedItemId === "import") {
-      return [{ keys: "Enter", label: i18n.t("settings.keyBackup") }];
     }
     return [{ keys: "Enter", label: i18n.t("key.open") }];
   });
@@ -134,13 +150,13 @@
     if (screen === "engine" || screen === "theme" || screen === "language" || screen === "retention") {
       return null;
     }
+    if (screen === "backup") {
+      return selectedBackupRow?.file?.valid === false ? i18n.t("settings.backup.fail") : null;
+    }
     if (selectedItemId === "cleanup") {
       return settings.clipTextRetentionDays > 0
         ? i18n.t("settings.notePinnedKept")
         : i18n.t("clip.cleanupDisabledHint");
-    }
-    if (selectedItemId === "export" || selectedItemId === "import") {
-      return i18n.t("settings.noteNoClipboard");
     }
     return null;
   });
@@ -148,6 +164,8 @@
 
 {#if settings.engineDraft}
   <EngineCreate />
+{:else if settings.importDraft}
+  <BackupImport />
 {:else if screen === "hotkey"}
   <HotkeyRecorder />
 {:else}
@@ -156,21 +174,36 @@
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-1">
       <div class="mb-1 flex items-center justify-between px-1">
-        <p class="text-[12px] leading-[1.4] text-ink-subtle">
-          {#if screen === "engine"}
-            {i18n.t("settings.engine")}
-          {:else if screen === "browser"}
-            {i18n.t("settings.browser")}
-          {:else if screen === "theme"}
-            {i18n.t("settings.theme")}
-          {:else if screen === "language"}
-            {i18n.t("settings.language")}
-          {:else if screen === "retention"}
-            {i18n.t("settings.clipRetention")}
-          {:else}
-            {i18n.t("settings.title")}
+        <div class="min-w-0">
+          <p class="text-[12px] leading-[1.4] text-ink-subtle">
+            {#if screen === "engine"}
+              {i18n.t("settings.engine")}
+            {:else if screen === "browser"}
+              {i18n.t("settings.browser")}
+            {:else if screen === "theme"}
+              {i18n.t("settings.theme")}
+            {:else if screen === "language"}
+              {i18n.t("settings.language")}
+            {:else if screen === "retention"}
+              {i18n.t("settings.clipRetention")}
+            {:else if screen === "backup"}
+              {i18n.t("settings.backup")}
+            {:else}
+              {i18n.t("settings.title")}
+            {/if}
+          </p>
+          <!-- What a backup holds, said once above the list rather than repeated
+               on every row: the two lines that answer "what am I backing up" and
+               "which settings does that mean" are the same on every visit. -->
+          {#if screen === "backup"}
+            <p class="text-[12px] leading-[1.4] text-ink-tertiary">
+              {i18n.t("settings.backup.scope")}
+            </p>
+            <p class="text-[12px] leading-[1.4] text-ink-tertiary">
+              {i18n.t("settings.backup.settingsList")}
+            </p>
           {/if}
-        </p>
+        </div>
         {#if screen === "engine"}
           <button
             type="button"
@@ -251,6 +284,21 @@
               }}
             />
           {/each}
+        {:else if screen === "backup"}
+          {#each settings.backupRows as row, index (row.key)}
+            <SettingItem
+              id="backup-{row.key}"
+              title={row.title}
+              value={row.value}
+              icon={BACKUP_ICONS[row.kind]}
+              current={false}
+              selected={index === settings.selectedIndex}
+              onselect={() => {
+                settings.selectedIndex = index;
+                void settings.runBackupRow(index);
+              }}
+            />
+          {/each}
         {:else}
           {#each settings.listItems as item, index (item.id)}
             <SettingItem
@@ -269,8 +317,7 @@
                 if (item.id === "language") openLanguageSettings();
                 if (item.id === "retention") openRetentionSettings();
                 if (item.id === "cleanup") startClipCleanup();
-                if (item.id === "export") void settings.exportBackup();
-                if (item.id === "import") void settings.importBackup();
+                if (item.id === "backup") openBackupSettings();
               }}
             />
           {/each}

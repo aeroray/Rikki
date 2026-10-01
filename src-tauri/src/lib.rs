@@ -17,7 +17,10 @@ use commands::anniversary::{
     create_anniversary, delete_anniversary, get_anniversaries, update_anniversary,
 };
 use commands::apps::{bump_usage, get_installed_apps, get_usage_counts, launch_app, AppIndex};
-use commands::backup::{export_backup, import_backup};
+use commands::backup::{
+    create_backup, import_backup_from, inspect_backup, list_backups, open_backups_dir,
+    pick_backup_file, save_backup_copy,
+};
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::qr::save_png_file;
 use commands::settings::{
@@ -448,8 +451,13 @@ pub fn run() {
             pronounce,
             pronounce_sentence,
             save_png_file,
-            export_backup,
-            import_backup,
+            list_backups,
+            create_backup,
+            inspect_backup,
+            import_backup_from,
+            save_backup_copy,
+            pick_backup_file,
+            open_backups_dir,
             list_browsers,
             open_web_url
         ])
