@@ -96,3 +96,12 @@ jobs:
           # the other matrix job already uploaded, which is what the app polls.
           includeUpdaterJson: true
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      # The notes live in a file rather than in this workflow, so publishing a
+      # version does not mean editing YAML. One job writes them: both would
+      # otherwise race, and they say the same thing either way.
+      - name: Write the release notes
+        if: matrix.platform == 'windows-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft --notes-file .github/release-notes.md
