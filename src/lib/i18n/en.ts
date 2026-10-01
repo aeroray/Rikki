@@ -142,7 +142,7 @@ export const en: Record<MessageKey, string> = {
   "anniversary.name": "Name",
   "anniversary.namePlaceholder": "e.g. Mom’s birthday",
   "anniversary.datePlaceholder": "1001 · n1001 · nr1001 · 19900515",
-  "anniversary.dateHint": "1001 = Oct 1; prefix n for lunar (n1001); add r for its leap month (nr1001); prefix a year to show “year N”",
+  "anniversary.dateHint": "1001 is Oct 1; a leading year records when it started",
   "anniversary.startsFrom": "Starting {year}",
   "anniversary.leapToggle": "Leap month {month}",
   "anniversary.leapMissing": "{year} has no leap month; using the regular month",
@@ -215,7 +215,6 @@ export const en: Record<MessageKey, string> = {
   "color.rgba": "RGBA",
   "color.hsla": "HSLA",
   "color.recent": "Recent colors",
-  "color.recentEmpty": "Colors copied to the clipboard will show up here",
   "color.useRecent": "Use {hex}",
 
   "json.valid": "Valid JSON",

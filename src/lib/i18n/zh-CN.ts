@@ -139,7 +139,7 @@ export const zhCN = {
   "anniversary.name": "名称",
   "anniversary.namePlaceholder": "例如：妈妈生日",
   "anniversary.datePlaceholder": "1001 · n1001 · nr1001 · 19900515",
-  "anniversary.dateHint": "1001 = 10月1日；开头加 n 为农历（n1001）；再加 r 表示闰月（nr1001）；最前面加年份可显示第 N 年",
+  "anniversary.dateHint": "1001 表示 10月1日；最前面加年份可记录起始年",
   "anniversary.startsFrom": "起始 {year} 年",
   "anniversary.leapToggle": "闰{month}月",
   "anniversary.leapMissing": "{year} 年没有闰月，将按常规月计算",
@@ -212,7 +212,6 @@ export const zhCN = {
   "color.rgba": "RGBA",
   "color.hsla": "HSLA",
   "color.recent": "最近颜色",
-  "color.recentEmpty": "从剪贴板复制过的颜色会出现在这里",
   "color.useRecent": "使用 {hex}",
 
   "json.valid": "JSON 有效",

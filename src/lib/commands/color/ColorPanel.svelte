@@ -62,18 +62,20 @@
         </ul>
       {:else if query}
         <p class="px-1 text-[14px] leading-5 text-ink-tertiary">{i18n.t("color.invalid")}</p>
-      {:else}
-        <!-- The recent-colours strip below shares this scroll column, so the
-             empty state stays in the flow instead of taking the leftover
-             height. -->
-        <PanelEmpty icon={Droplet} hint={i18n.t("color.emptyHint")} />
+      {:else if recents.length === 0}
+        <!-- Nothing typed and nothing remembered: the panel is genuinely empty,
+             so the state takes the whole column the way every other panel's
+             does, instead of sitting above a heading that introduces nothing. -->
+        <PanelEmpty class="flex-1" icon={Droplet} hint={i18n.t("color.emptyHint")} />
       {/if}
 
-      <div class="mt-4">
-        <p class="mb-2 px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("color.recent")}</p>
-        {#if recents.length === 0}
-          <p class="px-1 text-[13px] leading-5 text-ink-tertiary">{i18n.t("color.recentEmpty")}</p>
-        {:else}
+      {#if recents.length > 0}
+        <!-- The strip is the panel's own explanation when it exists, and the
+             heading alone says what it is. Showing both used to say the same
+             thing twice: an empty-state line about typing a colour, and another
+             about colours from the clipboard appearing here. -->
+        <div class="mt-4">
+          <p class="mb-2 px-1 text-[12px] leading-[1.4] text-ink-subtle">{i18n.t("color.recent")}</p>
           <ul class="flex flex-wrap gap-2 px-1 pb-1">
             {#each recents as color (color.hex)}
               <li>
@@ -97,8 +99,8 @@
               </li>
             {/each}
           </ul>
-        {/if}
-      </div>
+        </div>
+      {/if}
     </ScrollArea>
   </div>
 

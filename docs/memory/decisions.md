@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The colour panel's empty state and its recents are alternatives
+Decision:
+`ColorPanel` shows one or the other. With no recent colours the empty state takes the whole column (`class="flex-1"`, the way every other panel's does); with recent colours the strip is shown under its 最近颜色 heading and the empty-state line is gone. `color.recentEmpty` is deleted. The anniversary date hint is one short line about a leading year, because the syntax it used to teach is now two controls.
+Reason:
+The panel showed both at once — an empty-state line about typing a colour, another about clipboard colours appearing here, and a heading above them. With nothing remembered that is a heading introducing an absence plus two lines saying the same thing; with something remembered it is a hint about typing above the colours themselves. The `flex-1` was impossible before because the strip shared the scroll column, which is exactly the coupling that made both appear.
+Note:
+The date hint still spelled out `n1001` and `nr1001` after the form grew a 转为农历 button and a leap-month checkbox, so it was teaching syntax for two things the user can now press. What remains is the part no control covers: a leading year records when the anniversary started. Verified in the running app: `color` alone is a centred empty state with no heading, and after copying `#ff6363` the same panel shows 最近颜色 and the swatch with no empty-state line.
+
 ## 2026-10-01 - The leap month is a checkbox, asked only for the month it applies to
 Decision:
 The anniversary form offers a 闰{month}月 checkbox, and only when the typed month is the one that lunar year repeats. It flips the flag by rewriting the field through `draftTextFor`. `Ctrl+R` does the same and appears in the footer only while it would do something. `anniversary.leapNote` and `anniversary.leapDetected` are gone.
