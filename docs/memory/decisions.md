@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The Start Menu is re-read while the app runs
+Decision:
+`refresh_apps` runs `load_or_refresh` again and stores the result; `apps.refresh()` calls it when the palette opens, throttled to a minute.
+Reason:
+The fingerprint check — a file count and the newest modification time of the scan roots — was there from the start, so re-running the scan is a few directory reads when nothing has moved. What was missing was any reason to run it: `warm` answers once and short-circuits every later call, and the frontend hydrated once in its constructor. A launcher that is restarted often gets away with that; one that lives in the tray keeps offering shortcuts that have been deleted and misses everything installed since boot.
+Note:
+It sits beside `update.checkQuietly()` in the `palette-shown` handler, and for the same reason: the app's only regular moment is the one where an answer can be acted on, and both throttle themselves. Measured: with the app running, a shortcut copied into the Start Menu appeared in the search results once the interval had passed, with no restart.
+
 ## 2026-10-01 - Explorer gets its switch unquoted, and the folder button shows on hover
 Decision:
 `reveal` passes `/select,<path>` through `CommandExt::raw_arg` rather than `arg`. The folder button in `AppItem` fades in on `group-hover` as well as on `selected`, and sits in the layout at `opacity-0` rather than appearing.

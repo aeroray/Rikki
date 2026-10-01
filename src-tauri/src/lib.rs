@@ -22,7 +22,8 @@ use commands::anniversary::{
     create_anniversary, delete_anniversary, get_anniversaries, update_anniversary,
 };
 use commands::apps::{
-    bump_usage, get_installed_apps, get_usage_counts, launch_app, reveal_app, AppIndex,
+    bump_usage, get_installed_apps, get_usage_counts, launch_app, refresh_apps, reveal_app,
+    AppIndex,
 };
 use commands::calc::{get_calc_history, save_calc_history};
 use commands::qr::save_png_file;
@@ -534,6 +535,7 @@ pub fn run() {
             simulate_paste,
             get_foreground_app,
             get_installed_apps,
+            refresh_apps,
             launch_app,
             reveal_app,
             get_usage_counts,

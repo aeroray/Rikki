@@ -82,6 +82,27 @@ pub fn get_installed_apps(app: AppHandle) -> Result<Vec<InstalledApp>, String> {
     Ok(app.state::<AppIndex>().snapshot())
 }
 
+/// Picks up apps installed or removed since the last look.
+///
+/// `load_or_refresh` already compares a fingerprint of the scan roots — a file
+/// count and the newest modification time — and returns the cached list when they
+/// match, so this costs a few directory reads when nothing has moved. That is what
+/// makes it affordable to ask on every palette opening: `warm` answers once and
+/// never looks again, so a launcher left running in the tray used to keep offering
+/// shortcuts that had been deleted and miss everything installed since boot.
+#[tauri::command(async)]
+pub fn refresh_apps(app: AppHandle) -> Result<Vec<InstalledApp>, String> {
+    let index = app.state::<AppIndex>();
+    // The same lock `warm` takes, so a refresh and a cold scan cannot interleave.
+    let _scan = index
+        .scan
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let apps = apps::load_or_refresh(&app)?;
+    index.store(apps.clone());
+    Ok(apps)
+}
+
 // Spawns a process and then writes usage.json.
 #[tauri::command(async)]
 pub fn launch_app(app: AppHandle, path: String, index: State<AppIndex>) -> Result<(), String> {

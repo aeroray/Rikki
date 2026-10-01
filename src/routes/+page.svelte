@@ -65,10 +65,12 @@
 
     void listen("palette-shown", () => {
       ui.beginShow();
-      // Opening the palette is the app's only regular moment, and the only one
-      // where an answer can be acted on. `checkQuietly` throttles itself, so this
-      // is cheap to call every time.
+      // The two things worth asking about on a schedule, and both throttle
+      // themselves: a release, and whether the app list still matches the Start
+      // Menu. Opening the palette is the app's only regular moment, and the only
+      // one where either answer can be acted on.
       void update.checkQuietly();
+      void apps.refresh();
     })
       .then((stop) => stops.push(stop))
       .catch(() => {});
