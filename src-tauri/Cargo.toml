@@ -73,8 +73,6 @@ windows = { version = "0.58", features = [
     "Win32_System_Com",
     "Win32_System_Environment",
     "Win32_System_Performance",
-    # `GetSystemPowerStatus`, the one call the battery reading needs.
-    "Win32_System_Power",
     "Win32_System_Registry",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Shell",

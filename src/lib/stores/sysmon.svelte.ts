@@ -119,11 +119,13 @@ class SysmonStore {
     }
     this.gpuHistory = next;
 
-    // The first disk, which is the largest and therefore the one the panel lists
-    // first: charting every mount would be several lines saying the same thing,
-    // since none of them fills up quickly.
-    const disk = stats.disks[0];
-    if (disk) this.diskHistory = push(this.diskHistory, fill(disk.total - disk.free, disk.total));
+    // Every volume added up, matching the figure the chart sits under. It used to
+    // track the first disk alone, which drew one volume's line beneath a number
+    // that claims to be about the machine — a chart and a figure that disagree are
+    // worse than either alone.
+    const total = stats.disks.reduce((sum, disk) => sum + disk.total, 0);
+    const used = stats.disks.reduce((sum, disk) => sum + (disk.total - disk.free), 0);
+    if (total > 0) this.diskHistory = push(this.diskHistory, fill(used, total));
 
     // Network as one line rather than one per interface: the question a reader
     // has is "is this machine moving data", and the split by adapter is already

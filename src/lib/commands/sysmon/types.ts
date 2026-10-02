@@ -57,15 +57,6 @@ export type SysStats = {
     totalReceived: number;
     totalTransmitted: number;
   }>;
-  /** Null on a machine with no battery, which is every desktop. */
-  battery: {
-    /** Percent, 0..100. */
-    percent: number;
-    charging: boolean;
-    plugged: boolean;
-    /** Seconds until empty, or null when there is nothing to count down. */
-    secondsLeft: number | null;
-  } | null;
   system: {
     name: string;
     osVersion: string;

@@ -74,6 +74,26 @@ export function clock(seconds: number): string {
 }
 
 /**
+ * A volume, named the way the user already knows it.
+ *
+ * The system hands back whatever the volume was labelled at format time — 系统,
+ * 软件, `Macintosh HD` — and those are private words: 系统 means nothing on its
+ * own, and the panel was printing them as if they identified the disk. The drive
+ * letter is what everyone actually recognises, so it leads and the label follows
+ * as a hint: `C:\ · 系统`. A volume with no label, or one whose label is just its
+ * own letter, shows the mount alone rather than a trailing separator.
+ */
+export function volumeLabel(name: string, mount: string): string {
+  const label = name.trim();
+  if (!label) return mount;
+  // macOS mounts at `/Volumes/Name` and names the volume the same thing, so the
+  // label would repeat the last path segment.
+  if (mount.endsWith(`/${label}`)) return mount;
+  if (mount.startsWith(label) || label === mount) return mount;
+  return `${mount} · ${label}`;
+}
+
+/**
  * A CPU brand cut down to the part that identifies it.
  *
  * The full string is vendor boilerplate wrapped around one model number —

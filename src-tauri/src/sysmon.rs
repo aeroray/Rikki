@@ -60,9 +60,6 @@ pub struct Stats {
     gpus: Vec<Gpu>,
     disks: Vec<DiskRow>,
     network: Vec<NetworkRow>,
-    /// `None` on a machine with no battery, which is the ordinary case for a
-    /// desktop: the panel drops the section rather than showing a zero.
-    battery: Option<BatteryRow>,
     system: SystemFacts,
     processes: Vec<ProcessRow>,
 }
@@ -157,17 +154,6 @@ struct NetworkRow {
     /// Bytes since the interface came up.
     total_received: u64,
     total_transmitted: u64,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BatteryRow {
-    /// Percent, 0..100.
-    percent: f32,
-    charging: bool,
-    plugged: bool,
-    /// Seconds until empty, or `None` when there is nothing to count down.
-    seconds_left: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -351,12 +337,6 @@ impl Inner {
             gpus: gpu::usage(),
             disks: disk_rows.clone(),
             network: network_rows.clone(),
-            battery: crate::battery::read().map(|battery| BatteryRow {
-                percent: battery.percent,
-                charging: battery.charging,
-                plugged: battery.plugged,
-                seconds_left: battery.seconds_left,
-            }),
             system: SystemFacts {
                 name: System::name().unwrap_or_default(),
                 os_version: System::os_version().unwrap_or_default(),

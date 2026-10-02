@@ -79,7 +79,7 @@ Windows 是 `Alt+Space`，macOS 是 `⌘K`，可在 `settings` 里改。
 | `qr` | `qrcode`、二维码 | 复制 SVG | `Tab` 保存 PNG |
 | `qrd` | `qrdecode`、`scan`、识码、扫码 | 复制内容 | 识别剪贴板里的图片 |
 | `settings` | `set`、设置、配置、`preferences` | 打开一项设置 | 见下 |
-| `sys` | `monitor`、系统、系统状态、监控、性能 | — | 实时 CPU（每个核心一条）、内存、电池、磁盘、网络、显卡和占用最高的进程。只读；打开时采样，磁盘和网络每两秒一次 |
+| `sys` | `monitor`、系统、系统状态、监控、性能 | — | 实时 CPU（每个核心一条）、内存、磁盘、网络、显卡和占用最高的进程。只读；打开时采样，磁盘和网络每两秒一次 |
 | `gg` `bd` `bing` `ddg` `sogou` | 谷歌、百度、必应、搜狗 | 在浏览器中搜索 | |
 | `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏、休眠、关机、重启、注销；`restart`、`signout` | 在选定的时间执行 | 选一个预设时间，或直接输入：`30`、`1h30m`、`23:00`。定时后会显示倒计时，`Ctrl+Z` 可取消 |
 

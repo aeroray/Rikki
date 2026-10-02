@@ -79,7 +79,7 @@ Type the prefix and a space to open its panel. Root search (no prefix) launches 
 | `qr` | `qrcode`, 二维码 | Copy the SVG | `Tab` saves a PNG |
 | `qrd` | `qrdecode`, `scan`, 识码, 扫码 | Copy the payload | Reads the image on the clipboard |
 | `settings` | `set`, 设置, 配置, `preferences` | Open a setting | See below |
-| `sys` | `monitor`, 系统, 系统状态, 监控, 性能 | — | Live CPU (with a bar per core), memory, battery, disk, network, GPU and the busiest processes. Reads only; sampled while it is open, disks and network every two seconds |
+| `sys` | `monitor`, 系统, 系统状态, 监控, 性能 | — | Live CPU (with a bar per core), memory, disk, network, GPU and the busiest processes. Reads only; sampled while it is open, disks and network every two seconds |
 | `gg` `bd` `bing` `ddg` `sogou` | 谷歌, 百度, 必应, 搜狗 | Search in the browser | |
 | `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏, 休眠, 关机, 重启, 注销; `restart`, `signout` | Run it at the chosen time | Pick a delay, or type one: `30`, `1h30m`, `23:00`. A delay shows a countdown you can cancel with `Ctrl+Z` |
 

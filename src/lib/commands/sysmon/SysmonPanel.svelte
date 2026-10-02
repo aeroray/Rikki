@@ -1,12 +1,11 @@
 <script lang="ts">
   import Sparkline from "$lib/commands/sysmon/Sparkline.svelte";
-  import { bytes, clock, duration, fill, percent, rate, shortBrand } from "$lib/commands/sysmon/format";
+  import { bytes, duration, fill, percent, rate, shortBrand, volumeLabel } from "$lib/commands/sysmon/format";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { sysmon } from "$lib/stores/sysmon.svelte";
   import { ui } from "$lib/stores/ui.svelte";
-  import { BatteryCharging, Plug } from "@lucide/svelte";
   import { onDestroy } from "svelte";
 
   /**
@@ -88,36 +87,36 @@
   });
 
   /**
-   * The largest disk, which is the one the figure and the chart are about.
+   * The disk throughput, read off any row because every row carries the same one.
    *
-   * `read_disks` already sorts by size, so the first row is the biggest volume.
-   * Charting all of them would be several lines saying the same thing: none of
-   * them fills up on the scale of a minute.
+   * The platform counters are per device, so `read_disks` puts the machine's whole
+   * figure on each row rather than pretending it can split it between volumes. The
+   * panel prints it once, under the list, which is why this is only ever used for
+   * that one line.
    */
-  const mainDisk = $derived(stats?.disks[0] ?? null);
+  const diskIo = $derived(stats?.disks[0] ?? null);
+
+  /**
+   * Every volume added up, which is what the disk figure is about.
+   *
+   * The alternative was to make it about the largest volume, and that reads worse:
+   * the number would need the volume's name beside it to mean anything, and the
+   * name is already the first row of the list below — so the same words would
+   * appear twice and the figure would still be ambiguous without them. Summed, the
+   * figure answers "how full is this machine" and the list answers "which disk",
+   * with nothing repeated.
+   */
+  const diskTotal = $derived(
+    stats ? stats.disks.reduce((sum, disk) => sum + disk.total, 0) : 0,
+  );
+  const diskUsed = $derived(
+    stats ? stats.disks.reduce((sum, disk) => sum + (disk.total - disk.free), 0) : 0,
+  );
 
   /** Total throughput, which is what the network figure and chart show. */
   const networkRate = $derived(
     stats ? stats.network.reduce((sum, row) => sum + row.receivedPerSec + row.transmittedPerSec, 0) : 0,
   );
-
-  /**
-   * The battery's state in words.
-   *
-   * Charging and plugged in are different states and the panel says which: a full
-   * battery on mains is plugged in and not charging, and calling that "charging"
-   * is the kind of small lie a status panel should not tell.
-   */
-  const batteryState = $derived.by(() => {
-    const battery = stats?.battery;
-    if (!battery) return "";
-    if (battery.charging) return i18n.t("sysmon.batteryCharging");
-    if (battery.plugged) return i18n.t("sysmon.batteryPlugged");
-    if (battery.secondsLeft !== null) {
-      return i18n.t("sysmon.batteryLeft", { time: clock(battery.secondsLeft) });
-    }
-    return i18n.t("sysmon.batteryDischarging");
-  });
 </script>
 
 {#snippet figure(
@@ -139,16 +138,8 @@
       <h3 class="min-w-0 truncate text-[11px] font-medium uppercase leading-none tracking-wider text-ink-subtle">
         {label}
       </h3>
-      <!-- The subject sits beside its own section label rather than on a line of
-           its own: "独立显卡  NVIDIA GeForce RTX 4060" is one thought, and splitting
-           it cost a row and left the name looking like a stray caption. -->
-      {#if subject}
-        <span class="min-w-0 flex-1 truncate pt-px text-[11px] leading-none text-ink-tertiary">
-          {subject}
-        </span>
-      {/if}
-      <!-- `ml-auto` on the value, not on the label: with a subject in between, the
-           label must not push the number to the right. -->
+      <!-- `ml-auto` on the value, not on the label, so a second column in the same
+           row cannot push the number around. -->
       <span class="ml-auto shrink-0 text-[20px] font-semibold leading-none text-ink tabular-nums">
         {value}
       </span>
@@ -169,10 +160,17 @@
         <Sparkline {values} {max} />
       {/if}
     </div>
+    <!-- What the figure is *about*, under its own number rather than over the rows
+         it summarises. A GPU names its adapter here, a disk names its volume, and
+         the network names its interface when there is only one — so the heading can
+         stay a category and the specifics stay attached to the number they qualify.
+         Omitted entirely when there is nothing to say, so the row keeps its height
+         rather than reserving a blank line. -->
+    {#if subject}
+      <p class="truncate text-[11px] leading-4 text-ink-subtle">{subject}</p>
+    {/if}
     <!-- One line, and it truncates rather than wraps: a detail that grew to two
-         lines would move the section below it on every repaint. Omitted entirely
-         when there is nothing to say, so a GPU row that carries its name beside the
-         label does not leave a blank line under its chart. -->
+         lines would move the section below it on every repaint. -->
     {#if detail}
       <p class="truncate text-[11px] leading-4 text-ink-tertiary">{detail}</p>
     {/if}
@@ -247,112 +245,92 @@
           </div>
         {/if}
 
-        <!-- Battery, when there is one. A desktop has none and the section is
-             dropped rather than showing a zero: `battery` is null there, not 0%,
-             because "no battery" and "empty battery" are different facts.
+        <!-- Disk and network side by side, the way CPU and memory are: two
+             throughput figures read together, and a full-width chart each wasted
+             half of every row.
 
-             A level, not a sparkline: the chart would be a flat line at the
-             current percentage for an hour, which says nothing the number beside
-             it has not already said. A bar is the shape a level wants. -->
-        {#if stats.battery}
-          <section class="flex flex-col gap-1 border-t border-hairline pt-3">
-            <div class="flex items-center gap-2">
-              <h3 class="text-[11px] font-medium uppercase leading-none tracking-wider text-ink-subtle">
-                {i18n.t("sysmon.battery")}
-              </h3>
-              {#if stats.battery.charging}
-                <BatteryCharging class="size-3.5 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
-              {:else if stats.battery.plugged}
-                <Plug class="size-3.5 shrink-0 text-ink-tertiary" strokeWidth={1.5} aria-hidden="true" />
-              {/if}
-              <span class="ml-auto shrink-0 text-[20px] font-semibold leading-none text-ink tabular-nums">
-                {percent(stats.battery.percent)}
-              </span>
-            </div>
-            <div class="h-2 w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
-              <!-- Deliberately not `danger` at a low level. That colour means "this
-                   cannot be undone" in this design and keeps that meaning by not
-                   also meaning "this needs attention" — the same reasoning that
-                   keeps it off a failed copy. The number says the level. -->
-              <span
-                class="block h-full rounded-full bg-primary/60"
-                style="width: {Math.max(2, Math.min(100, stats.battery.percent))}%"
-              ></span>
-            </div>
-            <p class="truncate text-[11px] leading-4 text-ink-tertiary">{batteryState}</p>
-          </section>
+             Each one names its subject under its own number rather than over the
+             list below, so the figure and the rows read as one block without a
+             heading having to claim them. -->
+        {#if stats.disks.length > 0 || stats.network.length > 0}
+          <div class="flex gap-4 border-t border-hairline pt-3">
+            {#if stats.disks.length > 0}
+              {@render figure(
+                i18n.t("sysmon.disk"),
+                percent(fill(diskUsed, diskTotal)),
+                `${bytes(diskUsed)} / ${bytes(diskTotal)}`,
+                sysmon.diskHistory,
+                true,
+                // No subject: this number is every volume added up, and naming one
+                // of them beside it would say the figure is about that disk. The
+                // rows below are where the volumes are told apart.
+                "",
+              )}
+            {/if}
+            {#if stats.network.length > 0}
+              {@render figure(
+                i18n.t("sysmon.network"),
+                rate(networkRate),
+                stats.network.length === 1 ? stats.network[0].name : i18n.t("sysmon.interfaces", { count: stats.network.length }),
+                sysmon.networkHistory,
+                true,
+                "",
+                null,
+              )}
+            {/if}
+          </div>
         {/if}
 
-        <!-- Disk and network as two full-width sections rather than two figures
-             side by side. Each one owns a list — the mounts, the interfaces — and
-             side by side those lists had to be stacked underneath both figures,
-             where the network row read as a continuation of the disk block. The
-             label at the top of each section is what makes the ownership obvious. -->
+        <!-- One row per volume, under the figure that summarises them. The drive
+             letter leads and the volume's own label follows as a hint: the system
+             hands back whatever the volume was called at format time, and 系统 on
+             its own does not tell anyone which disk it is. -->
         {#if stats.disks.length > 0}
-          <section class="flex flex-col gap-1.5 border-t border-hairline pt-3">
-            {@render figure(
-              i18n.t("sysmon.disk"),
-              mainDisk ? percent(fill(mainDisk.total - mainDisk.free, mainDisk.total)) : "—",
-              mainDisk ? `${bytes(mainDisk.free)} ${i18n.t("sysmon.free")}` : "",
-              sysmon.diskHistory,
-            )}
-            <div class="flex flex-col gap-1">
-              {#each stats.disks as disk (disk.mount)}
-                <div class="flex items-baseline gap-3">
-                  <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
-                    {disk.name || disk.mount}
-                  </span>
-                  <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                    {bytes(disk.total - disk.free)} / {bytes(disk.total)}
-                  </span>
-                  <span class="w-10 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
-                    {percent(fill(disk.total - disk.free, disk.total))}
-                  </span>
-                </div>
-              {/each}
-              <!-- The throughput once, under the list: the platform counters are
-                   per device, so every mount on one physical disk would otherwise
-                   print the same two numbers. -->
-              <div class="flex items-baseline gap-3 pt-0.5">
-                <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.diskIo")}</span>
-                <span class="ml-auto text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                  {i18n.t("sysmon.read")} {rate(mainDisk?.readPerSec ?? 0)} · {i18n.t("sysmon.write")}
-                  {rate(mainDisk?.writePerSec ?? 0)}
+          <div class="flex flex-col gap-1">
+            {#each stats.disks as disk (disk.mount)}
+              <div class="flex items-baseline gap-3">
+                <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
+                  {volumeLabel(disk.name, disk.mount)}
+                </span>
+                <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                  {bytes(disk.total - disk.free)} / {bytes(disk.total)}
+                </span>
+                <span class="w-9 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
+                  {percent(fill(disk.total - disk.free, disk.total))}
                 </span>
               </div>
+            {/each}
+            <!-- The throughput once, under the list: the platform counters are per
+                 device, so every mount on one physical disk would otherwise print
+                 the same two numbers. -->
+            <div class="flex items-baseline gap-3 pt-0.5">
+              <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.diskIo")}</span>
+              <span class="ml-auto text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                {i18n.t("sysmon.read")} {rate(diskIo?.readPerSec ?? 0)} · {i18n.t("sysmon.write")}
+                {rate(diskIo?.writePerSec ?? 0)}
+              </span>
             </div>
-          </section>
+          </div>
         {/if}
 
+        <!-- One row per interface that is moving bytes. An idle adapter is not
+             listed: a laptop has several, and only the busy ones say anything. -->
         {#if stats.network.length > 0}
-          <section class="flex flex-col gap-1.5 border-t border-hairline pt-3">
-            {@render figure(
-              i18n.t("sysmon.network"),
-              rate(networkRate),
-              // The subject only when there is more than one interface: with one,
-              // the row below already names it and the label would say it twice.
-              stats.network.length > 1 ? stats.network[0].name : "",
-              sysmon.networkHistory,
-              false,
-              "",
-              null,
-            )}
-            <div class="flex flex-col gap-1">
-              {#each stats.network as row (row.name)}
-                <div class="flex items-baseline gap-3">
-                  <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
-                    {row.name}
-                  </span>
-                  <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                    ↓ {rate(row.receivedPerSec)}
-                  </span>
-                  <span class="w-20 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
-                    ↑ {rate(row.transmittedPerSec)}
-                  </span>
-                </div>
-              {/each}
-            </div>
-          </section>
+          <div class="flex flex-col gap-1">
+            {#each stats.network as row (row.name)}
+              <div class="flex items-baseline gap-3">
+                <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
+                  {row.name}
+                </span>
+                <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                  ↓ {rate(row.receivedPerSec)}
+                </span>
+                <span class="w-20 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
+                  ↑ {rate(row.transmittedPerSec)}
+                </span>
+              </div>
+            {/each}
+          </div>
         {/if}
 
         {#each gpuGroups as group (group.kind)}
@@ -364,10 +342,14 @@
                 {@render figure(
                   group.label,
                   gpu.usage === null ? "—" : percent(gpu.usage),
-                  group.gpus.length > 1 ? gpu.name : "",
+                  "",
                   sysmon.gpuHistory[gpu.name] ?? [],
                   true,
-                  group.gpus.length === 1 ? gpu.name : "",
+                  // Always named, whether there is one card or two: the panel used
+                  // to print the model only when a kind held two adapters, which
+                  // left the common single-GPU machine with a number and no idea
+                  // which chip it came from.
+                  gpu.name,
                 )}
               {/each}
             </div>
