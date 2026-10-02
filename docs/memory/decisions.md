@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - Success joins danger as a semantic colour, with one home
+Decision:
+`--color-success` (`#3dd68c` dark, `#218358` light) joins the tokens, and the arrow on the update bar is the only thing that paints it. `design/DESIGN.md` gains the row and the rule beside danger's.
+Reason:
+The bar's glyph was `ink-subtle`, the same grey as the meta text next to it, so the one line in the app that carries good news read as a footnote. Green is the signal everyone already reads as "this is fine", and it is the same kind of signal danger is — the tokens table had a column for semantics and only one entry in it. Dark is Radix's green-11 so it clears AA as text on `surface-1`; light is green-11 for white, measured at 4.7:1 rather than assumed.
+Note:
+Written down because DESIGN.md says lavender is the only accent, and a second colour is exactly the kind of thing that spreads: the rule beside it now says a second use is a decision to write down, not a colour to reach for. Verified by rendering the panel in headless Chrome with `available` temporarily set to a fake version — the arrow draws green beside it and the rest of the bar is unchanged. That trick is worth remembering: `pnpm dev` plus `chrome --headless=new --screenshot` renders the real UI without a Tauri window, which is also how the EmptyState bar was checked after a report that it was missing.
+
 ## 2026-10-02 - The clipboard groups by day, and its rows look like every other list
 Decision:
 Clipboard rows draw their glyph in the same `size-8` tile the home and settings lists use, the image thumbnail included (down from `size-10`, badge and all); each row gained a delete button at its end; and the recent block is split into day sections headed 今天 / 昨天 / a date, via a new `groupByDay`.

@@ -28,11 +28,14 @@ The application logo is the rounded lavender raccoon, refined concept A. Its def
 | ink-tertiary | `#62666d` | `#8a8f98` | Meta |
 | primary | `#5e6ad2` | same | Brand, completed check |
 | danger | `#ff6369` | `#c2262b` | Irreversible confirm |
+| success | `#3dd68c` | `#218358` | A release is waiting |
 | hairline | `rgb(255 255 255 / 0.06)` | `rgb(0 0 0 / 0.06)` | Structure |
 
 Lavender is only for focus, glow, the wordmark, and completed checks. Selected row text stays ink, not primary.
 
 Danger is a semantic signal, not a second accent. It appears on the confirm button of a dialog whose action cannot be undone — and on the warning glyph beside that dialog's title — and nowhere else: never on a row, a section, a label, or a normal button.
+
+Success is the same kind of signal with exactly one home: the arrow on the update bar, where it says a release is waiting rather than that something went wrong. Like danger it is never decoration — a second use is a decision to write down, not a colour to reach for.
 
 ## Type
 

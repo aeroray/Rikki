@@ -12,6 +12,13 @@
    * red-11 so it clears AA as text on `surface-1`; light is red-11 for white.
    */
   --color-danger: #ff6369;
+  /*
+   * The other semantic signal, and like danger it is not an accent: it marks the
+   * one place the app has good news to give — a release waiting in the update
+   * bar. Dark is Radix's green-11 so it clears AA as text on `surface-1`; light
+   * is green-11 for white.
+   */
+  --color-success: #3dd68c;
   --color-ink: #f7f8f8;
   --color-ink-muted: #d0d6e0;
   --color-ink-subtle: #8a8f98;
@@ -52,6 +59,7 @@ html[data-theme="light"] {
   --color-hairline: rgb(0 0 0 / 0.06);
   --color-hairline-strong: rgb(0 0 0 / 0.1);
   --color-danger: #c2262b;
+  --color-success: #218358;
   --app-shell-bg: rgb(244 245 246 / 0.94);
   --app-shell-shadow:
     rgb(0 0 0 / 0.12) 0 1.5px 0.5px 2.5px,

@@ -29,7 +29,7 @@
          what the mouse can do on the right. -->
     <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
       <li class="flex min-w-0 items-center gap-1.5">
-        <ArrowUpCircle class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
+        <ArrowUpCircle class="size-4 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
         <span class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
           {i18n.t("update.available", { version: update.available })}
         </span>
