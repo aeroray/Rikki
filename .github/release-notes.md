@@ -1,45 +1,85 @@
-## 🦝 第一个正式版本 · First release
+## 🖥️ 系统状态 · System monitor
 
-- 热键唤起一个玻璃质感的面板，输入即启动应用；输入前缀加空格进入其他功能
-  A hotkey opens a glass palette: type to launch an app, or a prefix and a space for everything else
-- 应用按使用频率排序，带图标并支持拼音匹配（`wx` → 微信）
-  Apps rank by how often you open them, with icons and pinyin matching (`wx` → 微信)
-- 输入 2 个以上字符直接网页搜索，`gg` `bd` `bing` `ddg` `sogou` 可指定引擎
-  Unmatched queries of 2+ characters search the web; `gg` `bd` `bing` `ddg` `sogou` pick the engine
+- 新命令 `sys`：实时查看 CPU（每个核心一条）、内存、显卡和占用最高的进程
+  New `sys` command: live CPU with a bar per core, memory, GPU and the busiest processes
+- 显卡按类型分区，独立显卡和核心显卡各占一块，名称取自系统枚举而不是「GPU 0」
+  GPUs are grouped by kind — discrete and integrated each get their own block, named from the system rather than "GPU 0"
+- 每条曲线保留最近一分钟，数字和走势一起看
+  Each figure keeps a minute of history, so the number and its trend read together
+
+## ⏻ 定时关机 · Scheduled power
+
+- 锁屏、休眠、关机、重启、注销都可以「几分钟后」或「几点」执行
+  Lock, sleep, shutdown, reboot and logout can all run after a delay or at a time
+- 选预设，或直接输入：`30`、`1h30m`、`23:00`
+  Pick a preset, or just type it: `30`, `1h30m`, `23:00`
+- 底栏显示倒计时，`Ctrl+Z` 在任何界面都能取消
+  A countdown sits in the bottom bar, and `Ctrl+Z` cancels it from anywhere
+- 立即关机 / 重启 / 注销仍会先确认；锁屏和休眠不会，因为一步就能回来
+  Immediate shutdown, restart and logout still ask first; lock and sleep do not, because one keystroke gets you back
+
+## 🔄 后台更新 · Background updates
+
+- 打开面板时自动检查新版本，六小时一次，不用再手动点
+  Opening the palette checks for a release automatically, once every six hours
+- 有新版本时底栏直接提示，`Ctrl+U` 即可安装
+  A new version shows in the bottom bar, and `Ctrl+U` installs it
 
 ## 📋 剪贴板 · Clipboard
 
-- 保留文本、图片和复制的文件；常用的可以固定，`Tab` 预览图片
-  Keeps text, images and copied files; pin what you want to keep, and `Tab` previews an image
-- 单条文本上限 512k 字符，图片最多 200 张、单张 5MB；过期清理是手动动作，不会自动删除
-  A single body over 512k characters is skipped, images cap at 200 files and 5MB each, and expired records are only removed when you run the cleanup yourself
+- `Tab` 现在可以预览任意一条：文本、图片、复制的文件和颜色
+  `Tab` now previews any entry: text, images, copied files and colours
+- 长文本可以滚动查看
+  Long text scrolls
+- 颜色面板支持方向键，包括在最近颜色之间移动
+  The colour panel takes the arrow keys, including through recent colours
 
-## 🧩 命令 · Commands
+## 📅 纪念日 · Anniversaries
 
-- 片段（`sn`）、待办（`todo`）、计算器（`calc`）、纪念日（`ann`）、万年历（`cal`）、表情（`em`）
-  Snippets (`sn`), todos (`todo`), calculator (`calc`), anniversaries (`ann`), calendar (`cal`), emoji (`em`)
-- 转换工具：颜色、JSON、Base64、时间戳、二维码（生成，或从剪贴板识别）
-  Converters: color, JSON, Base64, timestamps, QR codes (make one, or read one from the clipboard)
-- 翻译（`tr`）不需要任何 API Key：单词给词典卡片，整句给两条译文
-  Translate (`tr`) needs no API key: a word gets a dictionary card, a sentence gets two translations
-- 系统操作：锁屏、休眠、关机、重启、注销；后三个需要再按一次 Enter
-  System: lock, sleep, shutdown, reboot, logout; the last three ask for a second Enter
-- 每个命令也认中文名和拼音，输入法还在拼写时就能找到（`rili` → 万年历，`chongqi` → 重启）
-  Every command also answers to its Chinese name and to its pinyin, so it can be found while an IME is still composing (`rili` → 万年历, `chongqi` → 重启)
+- 公历可以一键转成农历
+  A solar date converts to lunar with one key
+- 闰月会问你要不要用，不用自己输 `r`
+  The leap month is offered rather than typed as an `r`
+- 农历纪念日的信息行以它自己的日历开头
+  A lunar anniversary leads with its own calendar
 
-## ⚙️ 设置 · Settings
+## 🎨 界面 · Interface
 
-- 主题可以跟随系统，也可以固定为亮色或暗色；默认跟随系统
-  The theme can follow the system or be pinned to light or dark; following the system is the default
-- 中文 / English，热键可改，剪贴板保留 7 天 / 30 天 / 永不
-  Chinese / English, a rebindable hotkey, and clipboard retention of 7 days, 30 days or never
-- 导出 / 导入配置：待办、片段和设置写进一个 JSON 文件，导入前会先确认
-  Export / import: todos, snippets and settings go to a JSON file, and importing asks before replacing anything
+- 搜索框左侧的图标跟着当前命令变——设置显示齿轮，万年历显示日历
+  The field's glyph follows the command: a gear for settings, a calendar for the calendar
+- 弹层、确认框和预览都加了背景模糊
+  Overlays, dialogs and the preview are blurred behind
+- 大写锁定时会提示（输入法中英文状态无法可靠读取，已放弃）
+  Caps Lock is shown (the IME's Chinese/English mode cannot be read reliably, so it was dropped)
+- 应用图标去掉了快捷方式箭头，选中后可以打开所在文件夹
+  App icons no longer wear the shortcut arrow, and a selected row can reveal its folder
 
-## 🔄 更新 · Updates
+## ⚡ 性能 · Performance
 
-- 应用内更新：设置最后一行会检查 GitHub Releases，用内置在应用里的公钥校验下载包，然后重启到新版本
-  In-app updates: the last settings row checks GitHub Releases, verifies the download against a key baked into the app, and restarts into the new version
+- 启动时不再预读整机状态，冷启动快了约 400ms
+  Startup no longer pre-reads the whole machine, about 400ms faster
+- 面板关掉就停止采样，常驻托盘不再空转
+  Sampling stops when the panel closes, so a tray app idles instead of polling
+- 进程列表每 3 秒刷新一次，不再每秒遍历一遍
+  The process list refreshes every three seconds rather than every second
+
+## 🍎 macOS
+
+- 不再占用 Dock，作为菜单栏应用运行
+  No Dock icon; it runs as a menu-bar app
+- 菜单栏图标左键展开菜单（平台惯例）；Windows 仍是左键唤起面板
+  The menu-bar icon opens its menu on a left click, as the platform expects; Windows still opens the palette on a left click
+- 快捷键提示在 macOS 上显示 ⌘
+  Shortcut labels show ⌘ on macOS
+
+## 🔧 修复 · Fixes
+
+- 应用列表会在运行期间重新扫描，新装的软件不用重启就能搜到
+  The app list is re-scanned while running, so software installed since launch is found without a restart
+- 定时任务的倒计时不会再偶尔不显示
+  A scheduled countdown no longer occasionally fails to appear
+- 取消更新确认框不再泄漏下载句柄
+  Cancelling the update dialog no longer leaks the download handle
 
 ---
 
@@ -50,8 +90,8 @@
 - **macOS (Apple Silicon)**: `*_aarch64.dmg`
   **macOS（Apple Silicon）**：`*_aarch64.dmg`
 
-Already installed? Open **设置 → 检查更新** and confirm — it downloads and restarts for you.
-已安装用户打开「设置 → 检查更新」确认即可，会自动下载并重启。
+Already on 1.0.0? Rikki now checks in the background, so the update appears in the bottom bar on its own — or open **设置 → 检查更新** and confirm.
+已经是 1.0.0 的用户：现在会自动后台检查，底栏会直接提示；也可以打开「设置 → 检查更新」手动确认。
 
 ⚠️ Neither package is code signed yet, so Windows shows SmartScreen's "unknown publisher" and macOS refuses the app until you clear the quarantine flag.
 ⚠️ 两个安装包都还没有代码签名，Windows 会提示「未知发布者」，macOS 需要先去掉隔离标记：
