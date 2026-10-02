@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The vocabulary test has to import every command
+Decision:
+`aliases.test.ts` imports `$lib/commands/sysmon`, and `COMMAND_ALIASES` gained a `sysmon` entry (`monitor`, 系统, 系统状态, 监控, 性能).
+Reason:
+The test asserts that every *registered* command has an alias entry, but it can only see the commands it imports — and `sysmon` was not among them. So the assertion passed while the system monitor had no aliases at all and was reachable only by typing its Latin prefix. A coverage check over a set the test assembles itself is only as complete as its imports, and a missing import fails open: it makes the check greener, not redder.
+Note:
+Both READMEs were also brought back in step with the app: the `sys` command was missing from the table entirely, clipboard `Tab` was described as previewing only images when it previews text, files and colours too, the system row still said the three destructive commands ask for a second Enter rather than describing the delay panel, the update row did not mention the six-hour background check or `Ctrl+U`, and the macOS menu-bar behaviour and the tray's per-platform left click were undocumented. Verified against the code rather than memory: `show_menu_on_left_click(cfg!(target_os = "macos"))` for the tray, `previewFor` for the four preview kinds, and a throwaway test that all six new spellings resolve to `sysmon`.
+
 ## 2026-10-01 - The countdown bar carries its own icon, and appears on every view
 Decision:
 `PendingPowerBar` looks its glyph up from the pending action — `Lock`, `Moon`, `Power`, `RotateCw`, `LogOut` — instead of drawing a fixed one, and it is rendered by the empty state and by `TodoList` as well as by `PanelFooter` and `ResultList`.

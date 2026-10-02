@@ -33,6 +33,11 @@ export const COMMAND_ALIASES: Record<string, string[]> = {
   qrdecode: ["qrdecode", "scan", "识码", "扫码"],
   settings: ["set", "设置", "配置", "preferences"],
   snippet: ["snip", "片段", "常用语"],
+  // The system monitor. Its prefix is `sys` and its title is 系统状态, so the words
+  // people would actually type are here. They were missing until now, and so was
+  // the command itself from `aliases.test.ts` — a command nobody imports is a
+  // command the coverage check cannot miss, which is how it went unnoticed.
+  sysmon: ["monitor", "系统", "系统状态", "监控", "性能"],
   timestamp: ["timestamp", "时间戳"],
   todo: ["待办", "待办事项"],
   translate: ["translate", "翻译"],

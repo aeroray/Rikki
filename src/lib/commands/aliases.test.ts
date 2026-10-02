@@ -12,6 +12,10 @@ import "$lib/commands/qrcode";
 import "$lib/commands/settings";
 import "$lib/commands/snippet";
 import "$lib/commands/sys";
+// Missing until now, which is why the coverage check below passed while `sysmon`
+// had no aliases at all: the test can only see the commands it imports, and a
+// command nobody imports is a command nobody checks.
+import "$lib/commands/sysmon";
 import "$lib/commands/timestamp";
 import "$lib/commands/todo";
 import "$lib/commands/translate";

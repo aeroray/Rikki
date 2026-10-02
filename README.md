@@ -11,14 +11,17 @@
 
 Rikki sits in the tray and opens a glass palette on a hotkey. Type to launch an app, or a prefix and a space for everything else. The name is a play on raccoon and "quick".
 
+On macOS it is a menu-bar app: no Dock icon, and the menu-bar icon opens its menu on a left click, the way the platform expects. On Windows the tray icon's left click opens the palette instead, with the menu on the right button.
+
 ## What it does
 
 - **Launch apps** — type any part of the name. Icons, pinyin (`wx` → 微信), ranked by how often you open it.
-- **Clipboard history** — text, images and copied files. Pin what you want to keep; `Tab` previews an image.
+- **Clipboard history** — text, images and copied files. Pin what you want to keep; `Tab` previews any of them.
 - **Snippets** — save text once, copy it with `sn`. `{{date}}`, `{{time}}` and `{{clipboard}}` expand on copy.
 - **Converters** — calc, color, JSON, Base64, timestamps, QR codes (make one, or read one from the clipboard).
 - **Translate** — no API key. A word gets a dictionary card; a sentence gets two translations.
-- **System** — lock, sleep, shutdown, reboot, logout; web search with `gg`, `bd`, `bing`, `ddg`, `sogou`.
+- **System** — lock, sleep, shutdown, reboot, logout, each of them now or after a delay; live CPU, memory and GPU readings with `sys`.
+- **Web search** with `gg`, `bd`, `bing`, `ddg`, `sogou`.
 - **中文 / English**, dark, light or following the system, and the hotkey is yours to rebind.
 
 ## Run it
@@ -43,9 +46,13 @@ pnpm tauri build    # package
 `Alt+Space` on Windows, `⌘K` on macOS. Rebind it in `settings`.
 
 - **Enter** does the thing: copy, paste, launch, run.
-- **Tab** does the second thing: preview an image, minify JSON, save a PNG, flip Base64.
+- **Tab** does the second thing: preview a clipboard item, minify JSON, save a PNG, flip Base64.
 - **Esc** backs out one step at a time, and hides the palette from an empty one.
+- **↑↓** walk whatever list is on screen — the commands, the apps, the calendar, a panel's options.
+- **Ctrl+Z** cancels a scheduled shutdown, restart, sleep, lock or log out, from anywhere.
 - Losing focus hides the palette but keeps your query, so the next show picks up where you left off.
+
+A scheduled action keeps a countdown in the bottom bar until it runs or is cancelled, so it stays visible whichever panel you are in.
 
 Every command also answers to its Chinese name and to its pinyin, so it can be found while an IME is still composing — `rili` reaches 万年历, `chongqi` reaches 重启. The whole vocabulary is in one table, `src/lib/commands/aliases.ts`.
 
@@ -71,8 +78,9 @@ Type the prefix and a space to open its panel. Root search (no prefix) launches 
 | `qr` | `qrcode`, 二维码 | Copy the SVG | `Tab` saves a PNG |
 | `qrd` | `qrdecode`, `scan`, 识码, 扫码 | Copy the payload | Reads the image on the clipboard |
 | `settings` | `set`, 设置, 配置, `preferences` | Open a setting | See below |
+| `sys` | `monitor`, 系统, 系统状态, 监控, 性能 | — | Live CPU (with a bar per core), memory, GPU and the busiest processes. Reads only; sampled once a second while it is open |
 | `gg` `bd` `bing` `ddg` `sogou` | 谷歌, 百度, 必应, 搜狗 | Search in the browser | |
-| `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏, 休眠, 关机, 重启, 注销; `restart`, `signout` | Run it | `shutdown`, `reboot` and `logout` ask for a second `Enter` |
+| `lock` `sleep` `shutdown` `reboot` `logout` | 锁屏, 休眠, 关机, 重启, 注销; `restart`, `signout` | Run it at the chosen time | Pick a delay, or type one: `30`, `1h30m`, `23:00`. A delay shows a countdown you can cancel with `Ctrl+Z` |
 
 The empty palette lists commands by how often you open them, with clipboard and snippets near the top until something else overtakes them.
 
@@ -82,7 +90,7 @@ The empty palette lists commands by how often you open them, with clipboard and 
 
 Export writes todos, snippets and settings to a JSON file wherever you point it; import reads one back and asks before replacing anything. Clipboard history is not part of it.
 
-Rikki updates itself. The last row checks GitHub Releases, verifies the download against a key baked into the app, and restarts into the new version. Neither package is code signed yet, so Windows shows SmartScreen's "unknown publisher" and macOS needs the quarantine flag cleared by hand: `xattr -cr /Applications/Rikki.app`.
+Rikki updates itself, and checks in the background rather than only when asked: opening the palette looks for a release, throttled to once every six hours, so a launcher left running in the tray still finds one. When there is a new version the bottom bar says so, with `Ctrl+U` to install. The download is verified against a key baked into the app, and the app restarts into the new version. Neither package is code signed yet, so Windows shows SmartScreen's "unknown publisher" and macOS needs the quarantine flag cleared by hand: `xattr -cr /Applications/Rikki.app`.
 
 ## Stack
 
