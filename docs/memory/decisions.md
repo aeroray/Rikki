@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - A disk is called by its letter, and the two columns own their own rows
+Decision:
+A Windows volume is labelled `C 盘` / `D 盘` and nothing else — `volumeLabel` reads the drive letter and the caller supplies the translated noun through a new `sysmon.drive` key. `read_disks` sorts by drive letter on Windows and by size elsewhere, so `C:` leads. The disk and network sections became a `grid-cols-2` where each column holds its own figure *and* its own rows.
+Reason:
+`C:\ · 系统` was worse than useless. The volume's own label is whatever it was called at format time, so printing it read as a description of the disk's contents — "the system disk", "the software disk" — when it is a leftover name, and the letter beside it is what everyone actually navigates by. Dropping it leaves `C 盘`, which is what a person says out loud. The sort was the other half: ordering by size put `D:` on top on this machine, so the panel opened with the data drive and the one that matters when it fills up sat underneath.
+Note:
+The layout fault was found by reading the structure rather than the pixels, and it is the kind proximity is supposed to catch: with the figures paired but both lists stacked full-width beneath them, the network chart sat directly above the *disk* rows. Each column owning its own rows is what makes the labels true. Two of my own mistakes came out of the render and were fixed in the same pass — a two-line-per-disk layout where the gap inside a disk equalled the gap between disks, so the free-space line looked like it belonged to the volume below it; and a `723 KB/s / 176 KB/s` throughput line that dropped the 读/写 labels and left the reader guessing which was which. `sysmon.interfaces` was added and then removed within the same change, and `catalog.test.ts` caught it as an unread key — the test earning its keep. Verified in headless Chrome at both 600×1000 and the real 600×400: `C 盘` above `D 盘`, each column's rows under its own chart, the palette's own height still fits and scrolls. `impeccable`'s mechanical detector returns `[]` for both changed files. `svelte-check` clean, 115 frontend tests, 115 Rust tests, and the real machine reports `C:` before `D:`.
+
 ## 2026-10-02 - The battery is gone, and a disk is named by its letter
 Decision:
 The battery reading is removed entirely — `src-tauri/src/battery.rs`, the `Win32_System_Power` feature, the `BatteryRow` field, the panel section and its four i18n keys. The disk and network figures move side by side, the way CPU and memory already were. The disk figure became the sum of every volume rather than the largest one, `diskHistory` follows it, and `volumeLabel` puts the drive letter first with the volume's own label as a hint.

@@ -74,16 +74,25 @@ export function clock(seconds: number): string {
 }
 
 /**
- * A volume, named the way the user already knows it.
+ * A volume, named the way a person names it.
  *
- * The system hands back whatever the volume was labelled at format time — 系统,
- * 软件, `Macintosh HD` — and those are private words: 系统 means nothing on its
- * own, and the panel was printing them as if they identified the disk. The drive
- * letter is what everyone actually recognises, so it leads and the label follows
- * as a hint: `C:\ · 系统`. A volume with no label, or one whose label is just its
- * own letter, shows the mount alone rather than a trailing separator.
+ * On Windows that is the letter and nothing else: `C 盘`, `D 盘`. The volume's own
+ * label — 系统, 软件 — is whatever it was called at format time, and printing it
+ * was actively worse than useless: it read as a description of the disk's contents
+ * ("the system disk", "the software disk") when it is only a leftover name, and the
+ * letter beside it is what everyone actually navigates by. A label is shown only
+ * when there is no letter to show, which is macOS: `/Volumes/Data` has nothing
+ * shorter to call itself.
+ *
+ * `localize` supplies the word for "drive", because `C 盘` is Chinese for a concept
+ * English names by the letter alone — the caller passes the translated noun.
  */
-export function volumeLabel(name: string, mount: string): string {
+export function volumeLabel(name: string, mount: string, localize: (letter: string) => string): string {
+  // `C:\`, `C:/`, or a bare `C:` — all the same volume, spelled three ways by
+  // three different parts of the system.
+  const letter = /^([A-Za-z]):[\\/]?$/.exec(mount.trim());
+  if (letter) return localize(letter[1].toUpperCase());
+
   const label = name.trim();
   if (!label) return mount;
   // macOS mounts at `/Volumes/Name` and names the volume the same thing, so the

@@ -349,11 +349,12 @@ impl Inner {
     }
 }
 
-/// The mounts worth listing, biggest first.
+/// The mounts worth listing, system drive first.
 ///
-/// Sorted by size rather than by mount point: a machine with a small recovery
-/// partition and a large data drive wants the drive on the first row, and the
-/// order of the system's own list is arbitrary.
+/// Ordered by drive letter on Windows and by size elsewhere. The letter is what a
+/// person navigates by, and `C:` is the one they look for first: sorting by size
+/// put `D:` on top on this machine, so the list opened with the data drive and the
+/// system drive — the one that matters when it fills up — sat underneath it.
 fn read_disks(disks: &Disks, interval: Duration) -> Vec<DiskRow> {
     // Summed across every disk rather than reported per mount: the platform
     // counters are per device, and a figure the panel had to split between `C:`
@@ -379,9 +380,28 @@ fn read_disks(disks: &Disks, interval: Duration) -> Vec<DiskRow> {
             write_per_sec,
         })
         .collect();
-    rows.sort_by(|a, b| b.total.cmp(&a.total));
+    rows.sort_by(|a, b| match (drive_letter(&a.mount), drive_letter(&b.mount)) {
+        // Both are Windows volumes: alphabetical, which puts `C:` first and keeps
+        // the rest in the order the user's own Explorer shows them.
+        (Some(left), Some(right)) => left.cmp(&right),
+        // A Windows volume above a mount point, so the drives people think in come
+        // before the ones they do not.
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        // Two mount points: the biggest first, which is the best guess available.
+        (None, None) => b.total.cmp(&a.total),
+    });
     rows.truncate(DISK_LIMIT);
     rows
+}
+
+/// The uppercase drive letter of a Windows mount, or `None` for anything else.
+fn drive_letter(mount: &str) -> Option<char> {
+    let bytes = mount.as_bytes();
+    if bytes.len() >= 2 && bytes[1] == b':' {
+        return Some((bytes[0] as char).to_ascii_uppercase());
+    }
+    None
 }
 
 /// The interfaces that are actually moving bytes, busiest first.
@@ -450,7 +470,7 @@ fn per_second(received: u64, transmitted: u64, interval: Duration) -> (u64, u64)
 
 #[cfg(test)]
 mod tests {
-    use super::{per_second, SKIP_MOUNTS};
+    use super::{drive_letter, per_second, SKIP_MOUNTS};
     use std::time::Duration;
 
     #[test]
@@ -482,6 +502,18 @@ mod tests {
                 "{mount} should be listed"
             );
         }
+    }
+
+    /// The letter is what the sort key and the label both read, so it has to come
+    /// out of every spelling Windows uses.
+    #[test]
+    fn a_drive_letter_is_read_from_every_spelling_of_a_mount() {
+        assert_eq!(drive_letter("C:\\"), Some('C'));
+        assert_eq!(drive_letter("d:/"), Some('D'));
+        assert_eq!(drive_letter("E:"), Some('E'));
+        assert_eq!(drive_letter("/"), None);
+        assert_eq!(drive_letter("/Volumes/Data"), None);
+        assert_eq!(drive_letter(""), None);
     }
 }
 

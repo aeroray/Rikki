@@ -249,87 +249,92 @@
              throughput figures read together, and a full-width chart each wasted
              half of every row.
 
-             Each one names its subject under its own number rather than over the
-             list below, so the figure and the rows read as one block without a
-             heading having to claim them. -->
+             A two-column grid rather than one flex row of figures with the lists
+             stacked underneath, which is what this was and what it got wrong: the
+             disk rows pushed the network rows below both figures, so the network
+             chart sat directly above a list belonging to the other section. Here
+             each column holds its own figure *and* its own rows, so proximity says
+             what the labels say. -->
         {#if stats.disks.length > 0 || stats.network.length > 0}
-          <div class="flex gap-4 border-t border-hairline pt-3">
+          <div class="grid grid-cols-2 gap-4 border-t border-hairline pt-3">
             {#if stats.disks.length > 0}
-              {@render figure(
-                i18n.t("sysmon.disk"),
-                percent(fill(diskUsed, diskTotal)),
-                `${bytes(diskUsed)} / ${bytes(diskTotal)}`,
-                sysmon.diskHistory,
-                true,
-                // No subject: this number is every volume added up, and naming one
-                // of them beside it would say the figure is about that disk. The
-                // rows below are where the volumes are told apart.
-                "",
-              )}
+              <div class="flex min-w-0 flex-col gap-1.5">
+                {@render figure(
+                  i18n.t("sysmon.disk"),
+                  percent(fill(diskUsed, diskTotal)),
+                  `${bytes(diskUsed)} / ${bytes(diskTotal)}`,
+                  sysmon.diskHistory,
+                )}
+                <div class="flex flex-col gap-1">
+                  {#each stats.disks as disk (disk.mount)}
+                    <!-- One line per volume: the name, what is left, and how full.
+                         Two lines per disk was tried and read badly — the gap
+                         between a disk's own two lines was the same as the gap
+                         between disks, so the free-space line looked like it
+                         belonged to the volume below it. -->
+                    <div class="flex items-baseline gap-2">
+                      <span class="shrink-0 text-[12px] leading-[1.45] text-ink">
+                        {volumeLabel(disk.name, disk.mount, (letter) =>
+                          i18n.t("sysmon.drive", { letter }),
+                        )}
+                      </span>
+                      <!-- The free space rather than the used: on a disk that is
+                           filling up the question is how much room is left, and
+                           `used / total` makes the reader subtract to answer it.
+                           The total is dropped — the percentage beside it already
+                           says how much of the whole that is. -->
+                      <span class="min-w-0 flex-1 truncate text-[11px] leading-4 text-ink-subtle tabular-nums">
+                        {i18n.t("sysmon.free", { free: bytes(disk.free) })}
+                      </span>
+                      <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                        {percent(fill(disk.total - disk.free, disk.total))}
+                      </span>
+                    </div>
+                  {/each}
+                  <!-- The throughput once, under the list: the platform counters
+                       are per device, so every mount on one physical disk would
+                       otherwise print the same two numbers. Both directions are
+                       labelled: two bare rates separated by a slash leave the
+                       reader to guess which is which. -->
+                  <div class="flex items-baseline gap-2 pt-0.5">
+                    <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.diskIo")}</span>
+                    <span class="ml-auto truncate text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                      {i18n.t("sysmon.read")} {rate(diskIo?.readPerSec ?? 0)} ·
+                      {i18n.t("sysmon.write")} {rate(diskIo?.writePerSec ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             {/if}
+
             {#if stats.network.length > 0}
-              {@render figure(
-                i18n.t("sysmon.network"),
-                rate(networkRate),
-                stats.network.length === 1 ? stats.network[0].name : i18n.t("sysmon.interfaces", { count: stats.network.length }),
-                sysmon.networkHistory,
-                true,
-                "",
-                null,
-              )}
+              <div class="flex min-w-0 flex-col gap-1.5">
+                {@render figure(
+                  i18n.t("sysmon.network"),
+                  rate(networkRate),
+                  "",
+                  sysmon.networkHistory,
+                  false,
+                  "",
+                  null,
+                )}
+                <div class="flex flex-col gap-1">
+                  {#each stats.network as row (row.name)}
+                    <div class="flex items-baseline gap-2">
+                      <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
+                        {row.name}
+                      </span>
+                      <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                        ↓ {rate(row.receivedPerSec)}
+                      </span>
+                      <span class="w-16 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
+                        ↑ {rate(row.transmittedPerSec)}
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
             {/if}
-          </div>
-        {/if}
-
-        <!-- One row per volume, under the figure that summarises them. The drive
-             letter leads and the volume's own label follows as a hint: the system
-             hands back whatever the volume was called at format time, and 系统 on
-             its own does not tell anyone which disk it is. -->
-        {#if stats.disks.length > 0}
-          <div class="flex flex-col gap-1">
-            {#each stats.disks as disk (disk.mount)}
-              <div class="flex items-baseline gap-3">
-                <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
-                  {volumeLabel(disk.name, disk.mount)}
-                </span>
-                <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                  {bytes(disk.total - disk.free)} / {bytes(disk.total)}
-                </span>
-                <span class="w-9 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
-                  {percent(fill(disk.total - disk.free, disk.total))}
-                </span>
-              </div>
-            {/each}
-            <!-- The throughput once, under the list: the platform counters are per
-                 device, so every mount on one physical disk would otherwise print
-                 the same two numbers. -->
-            <div class="flex items-baseline gap-3 pt-0.5">
-              <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.diskIo")}</span>
-              <span class="ml-auto text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                {i18n.t("sysmon.read")} {rate(diskIo?.readPerSec ?? 0)} · {i18n.t("sysmon.write")}
-                {rate(diskIo?.writePerSec ?? 0)}
-              </span>
-            </div>
-          </div>
-        {/if}
-
-        <!-- One row per interface that is moving bytes. An idle adapter is not
-             listed: a laptop has several, and only the busy ones say anything. -->
-        {#if stats.network.length > 0}
-          <div class="flex flex-col gap-1">
-            {#each stats.network as row (row.name)}
-              <div class="flex items-baseline gap-3">
-                <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
-                  {row.name}
-                </span>
-                <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                  ↓ {rate(row.receivedPerSec)}
-                </span>
-                <span class="w-20 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
-                  ↑ {rate(row.transmittedPerSec)}
-                </span>
-              </div>
-            {/each}
           </div>
         {/if}
 
