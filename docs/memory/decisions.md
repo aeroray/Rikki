@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - The countdown bar carries its own icon, and appears on every view
+Decision:
+`PendingPowerBar` looks its glyph up from the pending action — `Lock`, `Moon`, `Power`, `RotateCw`, `LogOut` — instead of drawing a fixed one, and it is rendered by the empty state and by `TodoList` as well as by `PanelFooter` and `ResultList`.
+Reason:
+Two faults with the same shape: the bar knew less about the timer than the panel that set it. A hardcoded power symbol said "shutdown" while the machine was going to sleep, and only the views that happened to render a footer showed it at all — the empty state, which is the panel a user opens first and with nothing typed, showed nothing. A countdown the user cannot see is a countdown they cannot cancel, so it belongs on every view rather than only the ones that already had a bar to hang it on.
+Note:
+`PanelFooter` already delegates to this component, so every panel that uses it was covered; the gaps were exactly the three views that render no footer at all — `EmptyState`, `ResultList` and `TodoList`. In `TodoList` the bar sits outside the padded wrapper, because it draws its own full-width top border and an inset parent would cut it short. Verified in the running app with nothing typed: `⏻ 休眠将在 15 分钟 后执行` with the moon glyph for a sleep, and `⇥ 注销将在 15 分钟 后执行` with the sign-out glyph for a log out.
+
 ## 2026-10-01 - All five system commands take a delay, and the countdown is generation-guarded
 Decision:
 `lock`, `sleep`, `shutdown`, `reboot` and `logout` all open the same delay panel. Only shutdown and restart use an OS timer; lock, sleep and logout run from a thread that sleeps first, because the OS offers no scheduled form of them and log out has no way to abort one. `needsConfirm` decides the dialog: never for a delay, and on an immediate action only for shutdown, restart and log out.

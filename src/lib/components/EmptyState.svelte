@@ -1,6 +1,7 @@
 <script lang="ts">
   import { activateCommand } from "$lib/commands/activate";
   import CommandItem from "$lib/components/CommandItem.svelte";
+  import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
@@ -33,4 +34,8 @@
     {/each}
     {/key}
   </ScrollArea>
+  <!-- The empty state has no `PanelFooter`, so without this a scheduled action was
+       invisible until something was typed — the panel a user opens first was the
+       one place it could not be seen. -->
+  <PendingPowerBar />
 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
+  import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { todos } from "$lib/stores/todos.svelte";
@@ -53,8 +54,11 @@
   }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col px-3 pb-3">
-  <div class="mb-2 flex items-baseline justify-between px-1 text-[12px] leading-[1.4] text-ink-subtle">
+<!-- The content keeps its own padding, and the countdown sits outside it: the bar
+     draws its own full-width top border, which an inset wrapper would cut short. -->
+<div class="flex min-h-0 flex-1 flex-col">
+  <div class="flex min-h-0 flex-1 flex-col px-3 pb-3">
+    <div class="mb-2 flex items-baseline justify-between px-1 text-[12px] leading-[1.4] text-ink-subtle">
     <span>{i18n.t("todo.title")}</span>
     <span class="tabular-nums">
       {i18n.t("todo.doneCount", { done: todos.completed, total: todos.total })}
@@ -116,4 +120,9 @@
       </ul>
     </ScrollArea>
   {/if}
+  </div>
+  <!-- This view carries its own input row and no `PanelFooter`, so the countdown
+       needs adding here as well: a scheduled shutdown has to be visible from every
+       view, not only the ones that happen to share a footer. -->
+  <PendingPowerBar />
 </div>

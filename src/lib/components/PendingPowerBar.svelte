@@ -4,15 +4,15 @@
   import { describeDelay } from "$lib/commands/sys/schedule";
   import { i18n } from "$lib/i18n";
   import { power } from "$lib/stores/power.svelte";
-  import { Power } from "@lucide/svelte";
+  import { Lock, LogOut, Moon, Power, RotateCw } from "@lucide/svelte";
 
   /**
    * The countdown bar, shown while any of the five actions is pending.
    *
-   * Its own component because it has to appear in two places that do not share a
-   * footer: the panels, which render `PanelFooter`, and the root list, which does
-   * not. A timer set an hour ago has to be visible from wherever the user happens
-   * to be — and the root list is where they usually are.
+   * Its own component because it has to appear in three places that do not share a
+   * footer: the panels, which render `PanelFooter`, and the empty state and the root
+   * list, which render none. A timer set an hour ago has to be visible from wherever
+   * the user happens to be — and the empty state is where they arrive.
    */
   const when = $derived(
     (() => {
@@ -21,25 +21,29 @@
     })(),
   );
 
-  /** The action's own verb, so the bar says what is about to happen. */
-  const ACTION_LABELS = {
-    lock: "sys.lock",
-    sleep: "sys.sleep",
-    shutdown: "sys.shutdown",
-    restart: "sys.reboot",
-    logout: "sys.logout",
+  /**
+   * Each action's own verb and glyph.
+   *
+   * The glyph has to match the command that set the timer: a bar that always drew a
+   * power symbol said "shutdown" while the machine was going to sleep.
+   */
+  const PRESENTATION = {
+    lock: { label: "sys.lock", Icon: Lock },
+    sleep: { label: "sys.sleep", Icon: Moon },
+    shutdown: { label: "sys.shutdown", Icon: Power },
+    restart: { label: "sys.reboot", Icon: RotateCw },
+    logout: { label: "sys.logout", Icon: LogOut },
   } as const;
 
-  const what = $derived(
-    power.pending ? i18n.t(ACTION_LABELS[power.pending.action]) : "",
-  );
+  const current = $derived(power.pending ? PRESENTATION[power.pending.action] : null);
+  const what = $derived(current ? i18n.t(current.label) : "");
 </script>
 
-{#if power.pending}
+{#if power.pending && current}
   <div class="flex min-h-8 shrink-0 items-center gap-3 border-t border-hairline px-3">
     <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
       <li class="flex min-w-0 items-center gap-1.5">
-        <Power class="size-4 shrink-0 text-danger" strokeWidth={1.5} aria-hidden="true" />
+        <current.Icon class="size-4 shrink-0 text-danger" strokeWidth={1.5} aria-hidden="true" />
         <span class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
           {i18n.t("power.pending", { action: what, when })}
         </span>
