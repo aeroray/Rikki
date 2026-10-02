@@ -1,15 +1,15 @@
 ## 🖥️ 系统状态 · System monitor
 
-- `sys` 新增磁盘、网络和显卡之外的整机读数，并排成两栏：左边磁盘，右边网络
-  `sys` gained disk and network readings, laid out in two columns: disk on the left, network on the right
+- `sys` 新增磁盘和网络读数，和 CPU、内存、显卡排在一起，磁盘和网络并成两栏
+  `sys` gained disk and network readings alongside CPU, memory and GPU, with disk and network side by side
 - 磁盘按 `C 盘` / `D 盘` 显示，C 盘在前；每个卷给出可用空间和占用百分比
   Disks are listed as `C 盘` / `D 盘` with the system drive first, each showing its free space and how full it is
 - 网络分成**下载**和**上传**两张独立的图，各自一条曲线
   Network is two separate charts, **download** and **upload**, each with its own line
 - 网络空闲时不再整块消失（之前只在有流量时显示）
   The network section no longer disappears when the network is idle
-- 底栏信息补齐：网卡数量与累计流量、磁盘读写速率
-  The columns carry more of what they measure: interface count and lifetime traffic, disk read and write rates
+- 每一栏都补上了它测量的东西：网卡数量与累计流量、磁盘读写速率
+  Each column carries more of what it measures: interface count and lifetime traffic, disk read and write rates
 
 ## ✂️ 片段 · Snippets
 
