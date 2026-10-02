@@ -114,8 +114,11 @@
   );
 
   /** Total throughput, which is what the network figure and chart show. */
-  const networkRate = $derived(
-    stats ? stats.network.reduce((sum, row) => sum + row.receivedPerSec + row.transmittedPerSec, 0) : 0,
+  const networkDown = $derived(
+    stats ? stats.network.reduce((sum, row) => sum + row.receivedPerSec, 0) : 0,
+  );
+  const networkUp = $derived(
+    stats ? stats.network.reduce((sum, row) => sum + row.transmittedPerSec, 0) : 0,
   );
 
   /**
@@ -123,8 +126,8 @@
    *
    * Named when there is one, counted when there are several: a laptop with a VPN
    * up has three or four adapters and the panel is not the place to tell them
-   * apart — the number above is the whole machine's, and this says what it came
-   * from without turning the column into a table.
+   * apart — the numbers above are the whole machine's, and this says what they
+   * came from without turning the column into a table.
    */
   const networkSubject = $derived.by(() => {
     if (!stats || stats.network.length === 0) return "";
@@ -135,11 +138,11 @@
   /**
    * Everything this machine has sent and received, since each interface came up.
    *
-   * The second line of the column, and the reason it has one: the disk column
+   * The line under the two charts, and the reason the column has one: the disk side
    * carries a row per volume plus a throughput line, so without this the network
-   * side was half the height of the one beside it and the grid showed a hole. It
-   * is also the honest answer to "how much has this machine actually moved",
-   * which the instantaneous rate cannot give.
+   * column came up short and the grid showed a hole. It is also the honest answer
+   * to "how much has this machine actually moved", which an instantaneous rate
+   * cannot give.
    */
   const networkTotals = $derived.by(() => {
     if (!stats || stats.network.length === 0) return "";
@@ -296,20 +299,21 @@
               : 'grid-cols-1'}"
           >
             {#if stats.disks.length > 0}
-              <div class="flex min-w-0 flex-col gap-1.5">
+              <div class="flex min-w-0 flex-col gap-2">
                 {@render figure(
                   i18n.t("sysmon.disk"),
                   percent(fill(diskUsed, diskTotal)),
                   `${bytes(diskUsed)} / ${bytes(diskTotal)}`,
                   sysmon.diskHistory,
                 )}
+                <!-- A row per volume, then the throughput as a second labelled
+                     block. The disk column has to reach roughly the height of the
+                     two network charts beside it, and the way to do that is with
+                     information rather than padding: the read and write rates were
+                     one cramped line and are now the same shape as a volume row,
+                     each direction on its own. -->
                 <div class="flex flex-col gap-1">
                   {#each stats.disks as disk (disk.mount)}
-                    <!-- One line per volume: the name, what is left, and how full.
-                         Two lines per disk was tried and read badly — the gap
-                         between a disk's own two lines was the same as the gap
-                         between disks, so the free-space line looked like it
-                         belonged to the volume below it. -->
                     <div class="flex items-baseline gap-2">
                       <span class="shrink-0 text-[12px] leading-[1.45] text-ink">
                         {volumeLabel(disk.name, disk.mount, (letter) =>
@@ -331,14 +335,24 @@
                   {/each}
                   <!-- The throughput once, under the list: the platform counters
                        are per device, so every mount on one physical disk would
-                       otherwise print the same two numbers. Both directions are
-                       labelled: two bare rates separated by a slash leave the
-                       reader to guess which is which. -->
-                  <div class="flex items-baseline gap-2 pt-0.5">
-                    <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.diskIo")}</span>
-                    <span class="ml-auto truncate text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                      {i18n.t("sysmon.read")} {rate(diskIo?.readPerSec ?? 0)} ·
-                      {i18n.t("sysmon.write")} {rate(diskIo?.writePerSec ?? 0)}
+                       otherwise print the same two numbers. Read and write on their
+                       own lines, matching the two directions the network column
+                       shows, because a bare pair of rates leaves the reader to work
+                       out which is which. -->
+                  <div class="flex items-baseline gap-2">
+                    <span class="shrink-0 text-[12px] leading-[1.45] text-ink-subtle">
+                      {i18n.t("sysmon.read")}
+                    </span>
+                    <span class="ml-auto shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                      {rate(diskIo?.readPerSec ?? 0)}
+                    </span>
+                  </div>
+                  <div class="flex items-baseline gap-2">
+                    <span class="shrink-0 text-[12px] leading-[1.45] text-ink-subtle">
+                      {i18n.t("sysmon.write")}
+                    </span>
+                    <span class="ml-auto shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                      {rate(diskIo?.writePerSec ?? 0)}
                     </span>
                   </div>
                 </div>
@@ -346,22 +360,42 @@
             {/if}
 
             {#if stats.network.length > 0}
-              <div class="flex min-w-0 flex-col gap-1.5">
+              <div class="flex min-w-0 flex-col gap-2">
+                <!-- Download and upload as two stacked figures, each with its own
+                     chart. Summed into one line the reader cannot tell which
+                     direction moved — a backup saturating the uplink and a large
+                     download draw the same shape — and the two are different things
+                     to watch. Stacked rather than side by side because a chart in
+                     half a column is too narrow to read a shape from. -->
                 {@render figure(
-                  i18n.t("sysmon.network"),
-                  rate(networkRate),
-                  // One number for the whole machine, not a row per adapter. The
-                  // question this column answers is "is anything moving", and a
-                  // list of five adapters — Wi-Fi, Ethernet, a VPN tunnel, a
-                  // virtual switch — is a table to study rather than a reading to
-                  // glance at. The name below says which interface is carrying it,
-                  // and the lifetime totals say how much has gone through.
-                  networkTotals,
-                  sysmon.networkHistory,
+                  i18n.t("sysmon.download"),
+                  rate(networkDown),
+                  "",
+                  sysmon.networkDownHistory,
                   false,
-                  networkSubject,
+                  "",
                   null,
                 )}
+                {@render figure(
+                  i18n.t("sysmon.upload"),
+                  rate(networkUp),
+                  "",
+                  sysmon.networkUpHistory,
+                  false,
+                  "",
+                  null,
+                )}
+                <!-- What the two numbers came from, and what has gone through in
+                     total. Under both charts rather than beside either, because
+                     both describe the machine rather than one direction. -->
+                <div class="flex items-baseline gap-2">
+                  <span class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
+                    {networkSubject}
+                  </span>
+                  <span class="ml-auto shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                    {networkTotals}
+                  </span>
+                </div>
               </div>
             {/if}
           </div>

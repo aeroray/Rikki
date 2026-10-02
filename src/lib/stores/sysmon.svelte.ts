@@ -37,8 +37,10 @@ class SysmonStore {
   gpuHistory = $state<Record<string, number[]>>({});
   /** Percent of the first disk's space used, which is the volume people watch. */
   diskHistory = $state<number[]>([]);
-  /** Bytes per second, received and transmitted, summed across the interfaces. */
-  networkHistory = $state<number[]>([]);
+  /** Bytes per second received, summed across the interfaces. */
+  networkDownHistory = $state<number[]>([]);
+  /** Bytes per second transmitted, summed across the interfaces. */
+  networkUpHistory = $state<number[]>([]);
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
@@ -75,7 +77,8 @@ class SysmonStore {
     this.memoryHistory = [];
     this.gpuHistory = {};
     this.diskHistory = [];
-    this.networkHistory = [];
+    this.networkDownHistory = [];
+    this.networkUpHistory = [];
     void this.sample();
     this.timer = setInterval(() => void this.sample(), INTERVAL);
   }
@@ -127,11 +130,13 @@ class SysmonStore {
     const used = stats.disks.reduce((sum, disk) => sum + (disk.total - disk.free), 0);
     if (total > 0) this.diskHistory = push(this.diskHistory, fill(used, total));
 
-    // Network as one line rather than one per interface: the question a reader
-    // has is "is this machine moving data", and the split by adapter is already
-    // in the rows below the chart.
-    const rate = stats.network.reduce((sum, row) => sum + row.receivedPerSec + row.transmittedPerSec, 0);
-    this.networkHistory = push(this.networkHistory, rate);
+    // Two series rather than one sum: upload and download are different things to
+    // watch — a backup saturating the uplink looks nothing like a download — and
+    // added together the line cannot say which one moved.
+    const down = stats.network.reduce((sum, row) => sum + row.receivedPerSec, 0);
+    const up = stats.network.reduce((sum, row) => sum + row.transmittedPerSec, 0);
+    this.networkDownHistory = push(this.networkDownHistory, down);
+    this.networkUpHistory = push(this.networkUpHistory, up);
   }
 }
 

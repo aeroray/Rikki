@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - Download and upload are two charts, and the snippet form takes the arrows
+Decision:
+The network column is two stacked figures — 下载 and 上传, each with its own chart and value — with the interface name and the lifetime totals on one line under both. `networkHistory` became `networkDownHistory` and `networkUpHistory`. The disk column's throughput became two labelled rows (读 / 写) instead of one cramped line, so the two columns end at the same height. Separately, `SnippetCreate` gained `↑↓` navigation between its four fields, wrapping at both ends, and the field refs are typed `HTMLElement` because the list holds an input, a textarea and a button.
+Reason:
+Two things the user reported, both correct. Summed into one line, a download and a backup saturating the uplink draw the same shape, so the chart could not say which direction moved — and they are different things to watch. The snippet form was the one screen in the app the keyboard could not reach: `SearchBar` returns early while a draft is open, so no key reached the fields at all, and moving from the title to the body meant tabbing through everything in between. A panel whose whole purpose is making snippets quick was the slowest place to write one.
+Note:
+The height match is done with information rather than padding: the disk column gained the read/write rows it should always have had, which is also what makes the two columns end together. Two of the three faults found while building were mine, caught by the render and the type checker rather than by reading: a type predicate on a union of three element types does not narrow to anything they all are, and `sysmon.diskIo` plus `sysmon.network` went dead the moment the headings became 下载/上传 and 读/写 — `catalog.test.ts` failed on both, which is the test doing its job for the second time today. In the textarea the arrows stay with the caret until it reaches the top or bottom, since taking them unconditionally would make a multi-line body impossible to edit, and a modifier key is left alone so word-wise and selection movement still work. Verified: the panel rendered in headless Chrome at 600×1000 and the real 600×400, where both columns end level and the two charts draw different shapes from different series; `impeccable detect` returns `[]`; `svelte-check` clean, 115 frontend tests, 115 Rust tests. The form's arrow navigation is reasoned and type-checked but not yet exercised in the running app.
+
 ## 2026-10-02 - The network column is one number, and it does not blink
 Decision:
 The network section shows a single rate for the whole machine, with the interface name (or a count) and the lifetime totals as the two lines under it. `read_networks` filters on the lifetime totals instead of the current rate, and sorts by lifetime bytes rather than by the live rate.
