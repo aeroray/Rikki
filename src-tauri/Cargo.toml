@@ -31,6 +31,10 @@ tauri-plugin-power-manager = "0.1.1"
 reqwest = { version = "0.12", features = ["json"] }
 md5 = "0.7"
 rand = "0.8"
+# Launch at login. The OS holds this state and the plugin is the only thing that
+# reads it back, so nothing about it is duplicated in `settings.json` — a second
+# copy could only disagree with what the login item actually does.
+tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"

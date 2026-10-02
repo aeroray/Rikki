@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { disable as disableAutostart, enable as enableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 import {
   defaultHotkey,
   getSearchEngine,
@@ -27,6 +28,7 @@ export type SettingItem = {
     | "browser"
     | "theme"
     | "hotkey"
+    | "autostart"
     | "language"
     | "retention"
     | "cleanup"
@@ -40,6 +42,7 @@ export type SettingItem = {
     | "Compass"
     | "Palette"
     | "Keyboard"
+    | "Rocket"
     | "Languages"
     | "Timer"
     | "Eraser"
@@ -85,6 +88,14 @@ class SettingsStore {
    * apart from a list that has not arrived yet. */
   browsersLoaded = $state(false);
   clipTextRetentionDays = $state<ClipRetentionDays>(7);
+  /**
+   * Whether the app is registered as a login item.
+   *
+   * The OS holds this, not `settings.json`: the login item is a fact about the
+   * machine, and a copy in our own file would be a claim we could not check. The
+   * value here is only ever what the plugin reported back.
+   */
+  autostartEnabled = $state(false);
   customEngines = $state<SearchEngine[]>([]);
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
@@ -112,6 +123,10 @@ class SettingsStore {
     // before the picker is ever opened. Detection is a registry read, not an
     // app scan, so this is cheap enough to start with the rest of the boot.
     void this.loadBrowsers();
+    // Read once at boot rather than when the settings list is opened: the row has
+    // to be right the first time it is drawn, and a value that arrived a frame
+    // later would flicker between the two labels.
+    void this.loadAutostart();
     ui.onHideFlush(() => {
       // Without this the 1.5s "return to the settings list" timer fired after
       // the palette was hidden and overwrote whatever the user typed next.
@@ -152,6 +167,10 @@ class SettingsStore {
   readonly browserLabel = $derived(browserDisplayName(this.browserPath, this.installedBrowsers));
 
   readonly hotkeyLabel = $derived(formatHotkey(this.hotkey || defaultHotkey()));
+
+  readonly autostartLabel = $derived(
+    i18n.t(this.autostartEnabled ? "settings.autostart.on" : "settings.autostart.off"),
+  );
 
   /**
    * What the settings row shows.
@@ -199,6 +218,12 @@ class SettingsStore {
       title: i18n.t("settings.hotkey"),
       value: this.hotkeyLabel,
       icon: "Keyboard",
+    },
+    {
+      id: "autostart",
+      title: i18n.t("settings.autostart"),
+      value: this.autostartLabel,
+      icon: "Rocket",
     },
     {
       id: "language",
@@ -383,6 +408,52 @@ class SettingsStore {
       String(days),
       i18n.t("settings.clipRetention.saved", { name: this.retentionPrefLabel(days) }),
     );
+  }
+
+  /**
+   * Turns the login item on or off, and reports what the OS actually did.
+   *
+   * The value is read back rather than assumed: on macOS the LaunchAgent write
+   * can fail, and on Windows the `Run` value belongs to the machine rather than
+   * to this process — so a row showing the *requested* state would be the one
+   * place the user could be told something untrue about a setting they cannot
+   * check anywhere else in the app.
+   *
+   * No `scheduleReturn()`: unlike the pickers this row opens no screen, so there
+   * is nowhere to return to and the jump would only cut the notice short.
+   */
+  async setAutostart(enabled: boolean): Promise<boolean> {
+    await this.ready;
+    try {
+      if (enabled) await enableAutostart();
+      else await disableAutostart();
+      this.autostartEnabled = await isAutostartEnabled();
+      this.flash(
+        i18n.t(this.autostartEnabled ? "settings.autostart.on" : "settings.autostart.off"),
+      );
+      return true;
+    } catch {
+      this.flash(i18n.t("settings.autostart.failed"));
+      return false;
+    }
+  }
+
+  /**
+   * Re-reads the login item from the OS.
+   *
+   * Called at boot and every time the settings panel is opened, because the
+   * entry can be removed from outside the app — Task Manager's Startup tab,
+   * `msconfig`, macOS's Login Items — and a stale "on" would be a claim the user
+   * has no way to correct from here.
+   */
+  async loadAutostart(): Promise<void> {
+    try {
+      this.autostartEnabled = await isAutostartEnabled();
+    } catch {
+      // No runtime, or the plugin is not permitted. Off is the state a fresh
+      // install is in, and the row is then at least not claiming otherwise.
+      this.autostartEnabled = false;
+    }
   }
 
   async captureHotkey(event: KeyboardEvent): Promise<boolean> {

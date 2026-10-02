@@ -106,6 +106,12 @@ export function runSettingItem(id: SettingItemId): void {
   if (id === "language") return openLanguageSettings();
   if (id === "retention") return openRetentionSettings();
   if (id === "cleanup") return startClipCleanup();
+  // A login item has two states and no screen worth opening between them: the
+  // row already says which one it is in, so the key press is the whole answer.
+  if (id === "autostart") {
+    void settings.setAutostart(!settings.autostartEnabled);
+    return;
+  }
   // These three act on the list rather than opening a screen of their own:
   // there is nothing between the keystroke and the dialog or the check.
   if (id === "export") {

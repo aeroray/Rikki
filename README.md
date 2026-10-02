@@ -86,7 +86,7 @@ The empty palette lists commands by how often you open them, with clipboard and 
 
 ## Settings
 
-`settings` opens one list: search engine, browser, theme, hotkey, language, clipboard retention, cleanup of expired records, export / import, and check for updates.
+`settings` opens one list: search engine, browser, theme, hotkey, launch at login, language, clipboard retention, cleanup of expired records, export / import, and check for updates.
 
 Export writes todos, snippets and settings to a JSON file wherever you point it; import reads one back and asks before replacing anything. Clipboard history is not part of it.
 

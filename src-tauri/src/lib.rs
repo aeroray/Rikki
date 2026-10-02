@@ -436,6 +436,14 @@ pub fn run() {
             ignore_blur: Mutex::new(false),
         })
         .plugin(tauri_plugin_clipboard_x::init())
+        // Launch at login. `LaunchAgent` is macOS's own mechanism; Windows uses
+        // the per-user `Run` key. No arguments are passed, because the window
+        // starts hidden and the tray icon is the whole of what a login launch
+        // should produce.
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_power_manager::init())
         // The updater checks the endpoint in `tauri.conf.json` and verifies the

@@ -21,10 +21,18 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/i18n";
   import { Plus } from "@lucide/svelte";
-  import { onDestroy, untrack } from "svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
 
   const screen = $derived(parseSettingsScreen(ui.commandRest));
   let lastScreen = $state<SettingsScreen | null>(null);
+
+  // The login item can be changed from outside the app — Task Manager's Startup
+  // tab, `msconfig`, macOS's Login Items — so the row is re-read each time this
+  // panel is opened rather than only at boot. One IPC call, and the alternative
+  // is a row showing a state the OS no longer agrees with.
+  onMount(() => {
+    void settings.loadAutostart();
+  });
 
   onDestroy(() => {
     settings.cancelReturn();
