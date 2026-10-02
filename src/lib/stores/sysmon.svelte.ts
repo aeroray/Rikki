@@ -35,6 +35,10 @@ class SysmonStore {
   memoryHistory = $state<number[]>([]);
   /** Percentages per GPU, keyed by the name the panel shows. */
   gpuHistory = $state<Record<string, number[]>>({});
+  /** Percent of the first disk's space used, which is the volume people watch. */
+  diskHistory = $state<number[]>([]);
+  /** Bytes per second, received and transmitted, summed across the interfaces. */
+  networkHistory = $state<number[]>([]);
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
@@ -70,6 +74,8 @@ class SysmonStore {
     this.cpuHistory = [];
     this.memoryHistory = [];
     this.gpuHistory = {};
+    this.diskHistory = [];
+    this.networkHistory = [];
     void this.sample();
     this.timer = setInterval(() => void this.sample(), INTERVAL);
   }
@@ -112,6 +118,18 @@ class SysmonStore {
       next[gpu.name] = push(this.gpuHistory[gpu.name] ?? [], gpu.usage ?? 0);
     }
     this.gpuHistory = next;
+
+    // The first disk, which is the largest and therefore the one the panel lists
+    // first: charting every mount would be several lines saying the same thing,
+    // since none of them fills up quickly.
+    const disk = stats.disks[0];
+    if (disk) this.diskHistory = push(this.diskHistory, fill(disk.total - disk.free, disk.total));
+
+    // Network as one line rather than one per interface: the question a reader
+    // has is "is this machine moving data", and the split by adapter is already
+    // in the rows below the chart.
+    const rate = stats.network.reduce((sum, row) => sum + row.receivedPerSec + row.transmittedPerSec, 0);
+    this.networkHistory = push(this.networkHistory, rate);
   }
 }
 

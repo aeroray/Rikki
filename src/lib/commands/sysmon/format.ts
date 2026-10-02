@@ -47,6 +47,33 @@ export function fill(used: number, total: number): number {
 }
 
 /**
+ * A transfer rate, in the unit that keeps it short.
+ *
+ * Built on `bytes` so the two agree on units and decimals: `1.2 MB/s` beside
+ * `1.2 GB` reads as the same kind of number. `0 B/s` rather than an empty string,
+ * because a rate of nothing is a fact the panel should state.
+ */
+export function rate(bytesPerSecond: number): string {
+  return `${bytes(bytesPerSecond)}/s`;
+}
+
+/**
+ * A duration as a clock, for a countdown that is usually minutes.
+ *
+ * `2:14` rather than `2 小时 14 分钟`: this sits beside a percentage in a
+ * half-width figure, and the two-unit prose form is twice as wide for the same
+ * information. Hours are only shown when there are hours.
+ */
+export function clock(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = total % 60;
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
+}
+
+/**
  * A CPU brand cut down to the part that identifies it.
  *
  * The full string is vendor boilerplate wrapped around one model number —

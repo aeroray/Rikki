@@ -14,11 +14,33 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use sysinfo::{ProcessesToUpdate, System};
+use sysinfo::{DiskRefreshKind, Disks, Networks, ProcessesToUpdate, System};
 
 /// How many processes the panel shows. It is a list to glance at, not a task
 /// manager, and the rows it does not show are the ones nobody is looking for.
 const PROCESS_LIMIT: usize = 8;
+
+/// How many mounts the panel lists. A machine with a dozen partitions would
+/// otherwise push the sections below it off the screen.
+const DISK_LIMIT: usize = 4;
+
+/// How many interfaces are listed, busiest first. The rest are the virtual
+/// adapters a VPN or a hypervisor leaves behind, and they move no bytes.
+const NETWORK_LIMIT: usize = 3;
+
+/// Mounts that hold no user data and would only push the real ones down.
+///
+/// On macOS the sealed system volume is read-only and reports a figure nobody can
+/// act on; the rest are kernel filesystems.
+const SKIP_MOUNTS: &[&str] = &["/System/Volumes", "/private/var/vm", "/dev", "/proc", "/sys"];
+
+/// How often the disk and network figures are re-read.
+///
+/// Their throughput is a delta between two readings divided by the interval, so
+/// the interval has to be known rather than measured per call. Two seconds is the
+/// compromise: one second made the numbers jitter without telling the reader
+/// anything new, and the byte counters move far more slowly than a CPU.
+const IO_INTERVAL: Duration = Duration::from_secs(2);
 
 /// How often the process list is rebuilt, as opposed to how often the CPU and
 /// memory are read.
@@ -36,6 +58,11 @@ pub struct Stats {
     cpu: Cpu,
     memory: Memory,
     gpus: Vec<Gpu>,
+    disks: Vec<DiskRow>,
+    network: Vec<NetworkRow>,
+    /// `None` on a machine with no battery, which is the ordinary case for a
+    /// desktop: the panel drops the section rather than showing a zero.
+    battery: Option<BatteryRow>,
     system: SystemFacts,
     processes: Vec<ProcessRow>,
 }
@@ -95,6 +122,54 @@ struct SystemFacts {
     uptime: u64,
 }
 
+/// One mount, as the panel lists it.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct DiskRow {
+    /// The mount point, which is what identifies a volume to the reader. The
+    /// device name is `\\?\Volume{…}` on Windows and `/dev/disk3s5` on macOS.
+    mount: String,
+    /// The volume's own label when the system gives one, otherwise empty and the
+    /// panel shows the mount point alone.
+    name: String,
+    /// Bytes.
+    total: u64,
+    free: u64,
+    /// Bytes per second since the previous reading.
+    ///
+    /// The same figure on every row, because the platform counters are per device
+    /// rather than per mount: Windows reports one set for the physical disk behind
+    /// `C:` and `D:`, so splitting it between them would be inventing an
+    /// attribution the system does not make. The panel prints it once, under the
+    /// list.
+    read_per_sec: u64,
+    write_per_sec: u64,
+}
+
+/// One interface's throughput.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct NetworkRow {
+    name: String,
+    /// Bytes per second since the previous reading.
+    received_per_sec: u64,
+    transmitted_per_sec: u64,
+    /// Bytes since the interface came up.
+    total_received: u64,
+    total_transmitted: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BatteryRow {
+    /// Percent, 0..100.
+    percent: f32,
+    charging: bool,
+    plugged: bool,
+    /// Seconds until empty, or `None` when there is nothing to count down.
+    seconds_left: Option<u64>,
+}
+
 #[derive(Serialize)]
 #[derive(Clone)]
 #[serde(rename_all = "camelCase")]
@@ -117,6 +192,15 @@ struct Inner {
     processes: Vec<ProcessRow>,
     /// When `processes` was taken. The list is rebuilt on its own, slower, clock.
     processes_at: Instant,
+    /// Kept between calls because both figures are deltas: a fresh `Disks` answers
+    /// zero throughput the first time, and a fresh `Networks` answers zero too.
+    disks: Disks,
+    networks: Networks,
+    disk_rows: Vec<DiskRow>,
+    network_rows: Vec<NetworkRow>,
+    /// When the two above were taken, which is also the interval their rates are
+    /// divided by.
+    io_at: Instant,
 }
 
 pub struct Monitor {
@@ -165,12 +249,26 @@ impl Inner {
         // row of zeroes.
         system.refresh_cpu_all();
         system.refresh_memory();
+        // Built here rather than per snapshot: `new_with_refreshed_list` walks
+        // every mount and every interface, which is the same class of cost as
+        // `new_all` and must not be paid once a second.
+        let disks = Disks::new_with_refreshed_list_specifics(
+            DiskRefreshKind::nothing().with_storage().with_io_usage(),
+        );
+        let networks = Networks::new_with_refreshed_list();
         Self {
             system,
             processes: Vec::new(),
             // Backdated, so the first snapshot fills the list immediately rather
             // than showing an empty section for three seconds.
             processes_at: Instant::now() - PROCESS_INTERVAL,
+            disks,
+            networks,
+            disk_rows: Vec::new(),
+            network_rows: Vec::new(),
+            // Backdated as well, so the first snapshot re-reads instead of
+            // reporting a rate against a one-second baseline it never measured.
+            io_at: Instant::now() - IO_INTERVAL,
         }
     }
 
@@ -181,10 +279,31 @@ impl Inner {
             system,
             processes,
             processes_at,
+            disks,
+            networks,
+            disk_rows,
+            network_rows,
+            io_at,
         } = self;
 
         system.refresh_cpu_all();
         system.refresh_memory();
+
+        // Disk and network, on their own slower clock. The interval is measured
+        // rather than assumed, because it is what the byte deltas are divided by:
+        // a tick that arrived late then reports the true rate instead of an
+        // inflated one.
+        if io_at.elapsed() >= IO_INTERVAL {
+            let interval = io_at.elapsed();
+            disks.refresh_specifics(
+                true,
+                DiskRefreshKind::nothing().with_storage().with_io_usage(),
+            );
+            networks.refresh(true);
+            *disk_rows = read_disks(disks, interval);
+            *network_rows = read_networks(networks, interval);
+            *io_at = Instant::now();
+        }
 
         // The expensive half, on its own clock. See `PROCESS_INTERVAL`.
         if processes_at.elapsed() >= PROCESS_INTERVAL {
@@ -230,6 +349,14 @@ impl Inner {
             cpu,
             memory,
             gpus: gpu::usage(),
+            disks: disk_rows.clone(),
+            network: network_rows.clone(),
+            battery: crate::battery::read().map(|battery| BatteryRow {
+                percent: battery.percent,
+                charging: battery.charging,
+                plugged: battery.plugged,
+                seconds_left: battery.seconds_left,
+            }),
             system: SystemFacts {
                 name: System::name().unwrap_or_default(),
                 os_version: System::os_version().unwrap_or_default(),
@@ -238,6 +365,142 @@ impl Inner {
                 uptime: System::uptime(),
             },
             processes,
+        }
+    }
+}
+
+/// The mounts worth listing, biggest first.
+///
+/// Sorted by size rather than by mount point: a machine with a small recovery
+/// partition and a large data drive wants the drive on the first row, and the
+/// order of the system's own list is arbitrary.
+fn read_disks(disks: &Disks, interval: Duration) -> Vec<DiskRow> {
+    // Summed across every disk rather than reported per mount: the platform
+    // counters are per device, and a figure the panel had to split between `C:`
+    // and `D:` would be inventing an attribution the system does not make.
+    let read: u64 = disks.list().iter().map(|disk| disk.usage().read_bytes).sum();
+    let written: u64 = disks.list().iter().map(|disk| disk.usage().written_bytes).sum();
+    let (read_per_sec, write_per_sec) = per_second(read, written, interval);
+
+    let mut rows: Vec<DiskRow> = disks
+        .list()
+        .iter()
+        .filter(|disk| disk.total_space() > 0)
+        .filter(|disk| {
+            let mount = disk.mount_point().to_string_lossy();
+            !SKIP_MOUNTS.iter().any(|skip| mount.starts_with(skip))
+        })
+        .map(|disk| DiskRow {
+            mount: disk.mount_point().to_string_lossy().to_string(),
+            name: disk.name().to_string_lossy().to_string(),
+            total: disk.total_space(),
+            free: disk.available_space(),
+            read_per_sec,
+            write_per_sec,
+        })
+        .collect();
+    rows.sort_by(|a, b| b.total.cmp(&a.total));
+    rows.truncate(DISK_LIMIT);
+    rows
+}
+
+/// The interfaces that are actually moving bytes, busiest first.
+///
+/// An idle interface is dropped rather than listed at zero: a laptop has several
+/// (Wi-Fi, Ethernet, a VPN tunnel, a virtual switch) and only the ones in use say
+/// anything. The totals travel with the rows that stay, so an interface that has
+/// been quiet since the last tick does not lose its lifetime figure mid-read.
+///
+/// The busiest row usually has a twin: Windows reports a filter driver beside the
+/// adapter it is bound to — `WLAN` and `WLAN-Huorong NDIS Filter Driver-0000` —
+/// with identical counters. They are collapsed to the shorter name, because two
+/// rows of the same numbers is not twice the information.
+fn read_networks(networks: &Networks, interval: Duration) -> Vec<NetworkRow> {
+    let mut rows: Vec<NetworkRow> = networks
+        .list()
+        .iter()
+        .map(|(name, data)| {
+            let (received_per_sec, transmitted_per_sec) =
+                per_second(data.received(), data.transmitted(), interval);
+            NetworkRow {
+                name: name.clone(),
+                received_per_sec,
+                transmitted_per_sec,
+                total_received: data.total_received(),
+                total_transmitted: data.total_transmitted(),
+            }
+        })
+        .filter(|row| row.received_per_sec > 0 || row.transmitted_per_sec > 0)
+        .collect();
+    rows.sort_by(|a, b| {
+        (b.received_per_sec + b.transmitted_per_sec)
+            .cmp(&(a.received_per_sec + a.transmitted_per_sec))
+            // Shorter first on a tie, which is what puts `WLAN` above its own
+            // filter driver rather than leaving the order to the hash map.
+            .then_with(|| a.name.len().cmp(&b.name.len()))
+    });
+    rows.dedup_by(|a, b| {
+        let same = a.received_per_sec == b.received_per_sec
+            && a.transmitted_per_sec == b.transmitted_per_sec
+            && a.total_received == b.total_received
+            && a.total_transmitted == b.total_transmitted;
+        // `a` is the later of the two, and `dedup_by` removes it when this is
+        // true — so the shorter name, which sorted first, is the one that stays.
+        same && a.name.starts_with(&b.name)
+    });
+    rows.truncate(NETWORK_LIMIT);
+    rows
+}
+
+/// A byte delta as a rate, guarding the one way the division can go wrong.
+///
+/// A zero interval would divide by zero, and it is reachable: `elapsed` on a
+/// clock with coarse resolution can read zero when two snapshots land in the same
+/// tick.
+fn per_second(received: u64, transmitted: u64, interval: Duration) -> (u64, u64) {
+    let seconds = interval.as_secs_f64();
+    if seconds <= 0.0 {
+        return (0, 0);
+    }
+    (
+        (received as f64 / seconds) as u64,
+        (transmitted as f64 / seconds) as u64,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{per_second, SKIP_MOUNTS};
+    use std::time::Duration;
+
+    #[test]
+    fn a_rate_is_the_delta_over_the_interval() {
+        assert_eq!(per_second(2_000, 1_000, Duration::from_secs(2)), (1_000, 500));
+        // A sub-second interval scales up rather than rounding to zero.
+        assert_eq!(per_second(500, 0, Duration::from_millis(500)), (1_000, 0));
+    }
+
+    /// A zero interval is reachable — two snapshots inside one clock tick — and
+    /// dividing by it would be a panic on a timer thread.
+    #[test]
+    fn a_zero_interval_reports_nothing_rather_than_dividing_by_it() {
+        assert_eq!(per_second(1_000, 1_000, Duration::ZERO), (0, 0));
+    }
+
+    /// The mounts the panel refuses to list, and the ones it must not.
+    #[test]
+    fn the_skipped_mounts_are_system_volumes_only() {
+        for mount in ["/System/Volumes/Data", "/private/var/vm", "/dev", "/proc", "/sys"] {
+            assert!(
+                SKIP_MOUNTS.iter().any(|skip| mount.starts_with(skip)),
+                "{mount} should be skipped"
+            );
+        }
+        for mount in ["C:\\", "D:\\", "/", "/Volumes/Data", "/home"] {
+            assert!(
+                !SKIP_MOUNTS.iter().any(|skip| mount.starts_with(skip)),
+                "{mount} should be listed"
+            );
         }
     }
 }

@@ -38,7 +38,11 @@ tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-sysinfo = "0.39.6"
+# `disk` and `network` are off by default and the panel reads both: free space
+# per mount, and the byte counters every interface keeps. They stay the only two
+# features enabled — `component` would pull in a temperature list the panel has no
+# room for.
+sysinfo = { version = "0.39.6", features = ["disk", "network"] }
 system_shutdown = "4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -69,6 +73,8 @@ windows = { version = "0.58", features = [
     "Win32_System_Com",
     "Win32_System_Environment",
     "Win32_System_Performance",
+    # `GetSystemPowerStatus`, the one call the battery reading needs.
+    "Win32_System_Power",
     "Win32_System_Registry",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Shell",

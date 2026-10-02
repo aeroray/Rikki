@@ -3,6 +3,7 @@
     values,
     tone = "text-primary",
     fill = "fill-primary/15",
+    max,
   }: {
     /** Percentages, oldest first. Fewer than two points draws nothing. */
     values: number[];
@@ -10,6 +11,16 @@
     tone?: string;
     /** Fill class for the area under it. */
     fill?: string;
+    /**
+     * The value the top of the box means.
+     *
+     * Omitted for a percentage, which is most of what this draws. `null` scales to
+     * the window's own maximum, for a series whose unit has no natural ceiling —
+     * bytes per second can be ten or ten million, and a percentage axis would
+     * flatten every reading to nothing. The figure beside the chart is the real
+     * number either way; this only decides the shape.
+     */
+    max?: number | null;
   } = $props();
 
   // A fixed viewBox in abstract units, stretched to whatever box it lands in.
@@ -19,6 +30,12 @@
   const WIDTH = 100;
   const HEIGHT = 100;
 
+  /** The ceiling a value is drawn against, guarded against a flat zero series. */
+  const ceiling = $derived.by(() => {
+    if (max !== null) return max ?? 100;
+    return Math.max(1, ...values);
+  });
+
   const line = $derived.by(() => {
     if (values.length < 2) return "";
     const step = WIDTH / (values.length - 1);
@@ -27,7 +44,7 @@
         const x = index * step;
         // Clamped, because a reading is not guaranteed to be in range: a
         // percentage can arrive as 100.4 from a rounding driver.
-        const y = HEIGHT - (Math.max(0, Math.min(100, value)) / 100) * HEIGHT;
+        const y = HEIGHT - (Math.max(0, Math.min(ceiling, value)) / ceiling) * HEIGHT;
         return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
       })
       .join(" ");

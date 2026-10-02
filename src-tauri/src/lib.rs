@@ -8,6 +8,7 @@ mod apps;
 mod apps_icons;
 #[cfg(windows)]
 mod autofill;
+mod battery;
 mod commands;
 mod cursor;
 mod input;

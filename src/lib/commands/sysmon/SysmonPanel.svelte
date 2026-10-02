@@ -1,11 +1,12 @@
 <script lang="ts">
   import Sparkline from "$lib/commands/sysmon/Sparkline.svelte";
-  import { bytes, duration, fill, percent, shortBrand } from "$lib/commands/sysmon/format";
+  import { bytes, clock, duration, fill, percent, rate, shortBrand } from "$lib/commands/sysmon/format";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { sysmon } from "$lib/stores/sysmon.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { BatteryCharging, Plug } from "@lucide/svelte";
   import { onDestroy } from "svelte";
 
   /**
@@ -85,6 +86,38 @@
       }))
       .filter((group) => group.gpus.length > 0);
   });
+
+  /**
+   * The largest disk, which is the one the figure and the chart are about.
+   *
+   * `read_disks` already sorts by size, so the first row is the biggest volume.
+   * Charting all of them would be several lines saying the same thing: none of
+   * them fills up on the scale of a minute.
+   */
+  const mainDisk = $derived(stats?.disks[0] ?? null);
+
+  /** Total throughput, which is what the network figure and chart show. */
+  const networkRate = $derived(
+    stats ? stats.network.reduce((sum, row) => sum + row.receivedPerSec + row.transmittedPerSec, 0) : 0,
+  );
+
+  /**
+   * The battery's state in words.
+   *
+   * Charging and plugged in are different states and the panel says which: a full
+   * battery on mains is plugged in and not charging, and calling that "charging"
+   * is the kind of small lie a status panel should not tell.
+   */
+  const batteryState = $derived.by(() => {
+    const battery = stats?.battery;
+    if (!battery) return "";
+    if (battery.charging) return i18n.t("sysmon.batteryCharging");
+    if (battery.plugged) return i18n.t("sysmon.batteryPlugged");
+    if (battery.secondsLeft !== null) {
+      return i18n.t("sysmon.batteryLeft", { time: clock(battery.secondsLeft) });
+    }
+    return i18n.t("sysmon.batteryDischarging");
+  });
 </script>
 
 {#snippet figure(
@@ -94,6 +127,7 @@
   values: number[],
   grow = false,
   subject = "",
+  max: number | null | undefined = undefined,
 )}
   <!-- A number over its own recent shape.
        `items-start` aligns the boxes, and `leading-none` on the small text aligns
@@ -132,7 +166,7 @@
           aria-hidden="true"
         ></span>
       {:else}
-        <Sparkline {values} />
+        <Sparkline {values} {max} />
       {/if}
     </div>
     <!-- One line, and it truncates rather than wraps: a detail that grew to two
@@ -211,6 +245,114 @@
               {bytes(stats.memory.swapUsed)} / {bytes(stats.memory.swapTotal)}
             </span>
           </div>
+        {/if}
+
+        <!-- Battery, when there is one. A desktop has none and the section is
+             dropped rather than showing a zero: `battery` is null there, not 0%,
+             because "no battery" and "empty battery" are different facts.
+
+             A level, not a sparkline: the chart would be a flat line at the
+             current percentage for an hour, which says nothing the number beside
+             it has not already said. A bar is the shape a level wants. -->
+        {#if stats.battery}
+          <section class="flex flex-col gap-1 border-t border-hairline pt-3">
+            <div class="flex items-center gap-2">
+              <h3 class="text-[11px] font-medium uppercase leading-none tracking-wider text-ink-subtle">
+                {i18n.t("sysmon.battery")}
+              </h3>
+              {#if stats.battery.charging}
+                <BatteryCharging class="size-3.5 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
+              {:else if stats.battery.plugged}
+                <Plug class="size-3.5 shrink-0 text-ink-tertiary" strokeWidth={1.5} aria-hidden="true" />
+              {/if}
+              <span class="ml-auto shrink-0 text-[20px] font-semibold leading-none text-ink tabular-nums">
+                {percent(stats.battery.percent)}
+              </span>
+            </div>
+            <div class="h-2 w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+              <!-- Deliberately not `danger` at a low level. That colour means "this
+                   cannot be undone" in this design and keeps that meaning by not
+                   also meaning "this needs attention" — the same reasoning that
+                   keeps it off a failed copy. The number says the level. -->
+              <span
+                class="block h-full rounded-full bg-primary/60"
+                style="width: {Math.max(2, Math.min(100, stats.battery.percent))}%"
+              ></span>
+            </div>
+            <p class="truncate text-[11px] leading-4 text-ink-tertiary">{batteryState}</p>
+          </section>
+        {/if}
+
+        <!-- Disk and network as two full-width sections rather than two figures
+             side by side. Each one owns a list — the mounts, the interfaces — and
+             side by side those lists had to be stacked underneath both figures,
+             where the network row read as a continuation of the disk block. The
+             label at the top of each section is what makes the ownership obvious. -->
+        {#if stats.disks.length > 0}
+          <section class="flex flex-col gap-1.5 border-t border-hairline pt-3">
+            {@render figure(
+              i18n.t("sysmon.disk"),
+              mainDisk ? percent(fill(mainDisk.total - mainDisk.free, mainDisk.total)) : "—",
+              mainDisk ? `${bytes(mainDisk.free)} ${i18n.t("sysmon.free")}` : "",
+              sysmon.diskHistory,
+            )}
+            <div class="flex flex-col gap-1">
+              {#each stats.disks as disk (disk.mount)}
+                <div class="flex items-baseline gap-3">
+                  <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
+                    {disk.name || disk.mount}
+                  </span>
+                  <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                    {bytes(disk.total - disk.free)} / {bytes(disk.total)}
+                  </span>
+                  <span class="w-10 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
+                    {percent(fill(disk.total - disk.free, disk.total))}
+                  </span>
+                </div>
+              {/each}
+              <!-- The throughput once, under the list: the platform counters are
+                   per device, so every mount on one physical disk would otherwise
+                   print the same two numbers. -->
+              <div class="flex items-baseline gap-3 pt-0.5">
+                <span class="text-[11px] leading-4 text-ink-subtle">{i18n.t("sysmon.diskIo")}</span>
+                <span class="ml-auto text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                  {i18n.t("sysmon.read")} {rate(mainDisk?.readPerSec ?? 0)} · {i18n.t("sysmon.write")}
+                  {rate(mainDisk?.writePerSec ?? 0)}
+                </span>
+              </div>
+            </div>
+          </section>
+        {/if}
+
+        {#if stats.network.length > 0}
+          <section class="flex flex-col gap-1.5 border-t border-hairline pt-3">
+            {@render figure(
+              i18n.t("sysmon.network"),
+              rate(networkRate),
+              // The subject only when there is more than one interface: with one,
+              // the row below already names it and the label would say it twice.
+              stats.network.length > 1 ? stats.network[0].name : "",
+              sysmon.networkHistory,
+              false,
+              "",
+              null,
+            )}
+            <div class="flex flex-col gap-1">
+              {#each stats.network as row (row.name)}
+                <div class="flex items-baseline gap-3">
+                  <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
+                    {row.name}
+                  </span>
+                  <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
+                    ↓ {rate(row.receivedPerSec)}
+                  </span>
+                  <span class="w-20 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
+                    ↑ {rate(row.transmittedPerSec)}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </section>
         {/if}
 
         {#each gpuGroups as group (group.kind)}

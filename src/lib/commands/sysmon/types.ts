@@ -30,6 +30,42 @@ export type SysStats = {
     /** Percent, 0..100, or null when the platform cannot say. */
     usage: number | null;
   }>;
+  disks: Array<{
+    /** The mount point, which is what identifies a volume to the reader. */
+    mount: string;
+    /** The volume's own label, or empty and the panel shows the mount alone. */
+    name: string;
+    /** Bytes. */
+    total: number;
+    free: number;
+    /**
+     * Bytes per second, the same figure on every row.
+     *
+     * The platform counters are per device rather than per mount — Windows
+     * reports one set for the physical disk behind `C:` and `D:` — so the panel
+     * prints it once under the list rather than pretending it is per volume.
+     */
+    readPerSec: number;
+    writePerSec: number;
+  }>;
+  network: Array<{
+    name: string;
+    /** Bytes per second. */
+    receivedPerSec: number;
+    transmittedPerSec: number;
+    /** Bytes since the interface came up. */
+    totalReceived: number;
+    totalTransmitted: number;
+  }>;
+  /** Null on a machine with no battery, which is every desktop. */
+  battery: {
+    /** Percent, 0..100. */
+    percent: number;
+    charging: boolean;
+    plugged: boolean;
+    /** Seconds until empty, or null when there is nothing to count down. */
+    secondsLeft: number | null;
+  } | null;
   system: {
     name: string;
     osVersion: string;
