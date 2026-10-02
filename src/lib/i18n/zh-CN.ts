@@ -371,6 +371,7 @@ export const zhCN = {
   "clip.pasteFiles": "粘贴 {count} 个文件，{ago}",
   "clip.pin": "固定",
   "clip.unpin": "取消固定",
+  "clip.delete": "删除这条记录",
   "clip.previewTitle": "预览",
   "clip.closePreview": "关闭预览",
   "clip.previewAlt": "剪贴板图片预览",
@@ -392,6 +393,9 @@ export const zhCN = {
   "clip.cleanupNone": "没有可清理的记录",
   "clip.saveFailed": "保存失败，改动可能没有写入磁盘",
 
+  "time.today": "今天",
+  "time.yesterday": "昨天",
+  "time.date": "{date}",
   "time.justNow": "刚刚",
   "time.secondsAgo": "{n}秒前",
   "time.minutesAgo": "{n}分钟前",

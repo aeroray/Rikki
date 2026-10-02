@@ -16,7 +16,7 @@ On macOS it is a menu-bar app: no Dock icon, and the menu-bar icon opens its men
 ## What it does
 
 - **Launch apps** — type any part of the name. Icons, pinyin (`wx` → 微信), ranked by how often you open it.
-- **Clipboard history** — text, images and copied files. Pin what you want to keep; `Tab` previews any of them.
+- **Clipboard history** — text, images and copied files, grouped by day. Pin what you want to keep; `Tab` previews any of them.
 - **Snippets** — save text once, copy it with `sn`. `{{date}}`, `{{time}}` and `{{clipboard}}` expand on copy.
 - **Todos** — one line each, with an optional `#label` so a project's items stay together. `#` picks a label, `Ctrl+T` relabels, `Tab` reads a long one in full.
 - **Converters** — calc, color, JSON, Base64, timestamps, QR codes (make one, or read one from the clipboard).
@@ -64,7 +64,7 @@ Type the prefix and a space to open its panel. Root search (no prefix) launches 
 | Prefix | Also | Enter | Notes |
 | --- | --- | --- | --- |
 | _(empty)_ | apps | Launch | An unmatched query of 2+ characters searches the web |
-| `clip` | 剪贴板, 剪切板 | Paste the selected item | `Tab` previews images; `Shift+Delete` clears the unpinned ones |
+| `clip` | 剪贴板, 剪切板 | Paste the selected item | Grouped by day; `Tab` previews any kind, `Delete` removes one, `Shift+Delete` clears the unpinned ones |
 | `sn` | `snippet`, `snip`, 片段, 常用语 | Copy the snippet | `sn add` or `Ctrl+N` creates one |
 | `todo` | 待办, 待办事项 | Add an item | End it with `#label` to tag it; `#` picks a label, `Ctrl+T` relabels, `Tab` previews |
 | `calc` | 计算器, 计算 | Copy the result | History is saved |

@@ -21,6 +21,7 @@
     Link,
     Mail,
     Pin,
+    Trash2,
     Type,
     ZoomIn,
   } from "@lucide/svelte";
@@ -49,12 +50,14 @@
     now,
     onselect,
     onpin,
+    onremove,
   }: {
     entry: ClipboardEntry;
     selected: boolean;
     now: number;
     onselect: () => void;
     onpin: () => void;
+    onremove: () => void;
   } = $props();
 
   let row: HTMLDivElement | undefined = $state();
@@ -156,7 +159,7 @@
   {#if entry.type === "image"}
     <button
       type="button"
-      class="pressable relative size-10 shrink-0 overflow-hidden rounded-md bg-surface-1 media-outline active:scale-[0.96]"
+      class="pressable relative size-8 shrink-0 overflow-hidden rounded-sm bg-surface-1 media-outline active:scale-[0.96]"
       aria-label={i18n.t("clip.preview", { dims: dims ? ` ${dims}` : "" })}
       onclick={openPreview}
     >
@@ -179,9 +182,9 @@
         {/if}
       {/key}
       <span
-        class="pointer-events-none absolute right-0.5 bottom-0.5 flex size-4 items-center justify-center rounded-[3px] bg-black/70"
+        class="pointer-events-none absolute right-0 bottom-0 flex size-3.5 items-center justify-center rounded-[2px] bg-black/70"
       >
-        <ZoomIn class="size-2.5 text-white" strokeWidth={2} aria-hidden="true" />
+        <ZoomIn class="size-2 text-white" strokeWidth={2} aria-hidden="true" />
       </span>
     </button>
   {/if}
@@ -203,18 +206,23 @@
         </span>
       </span>
     {:else}
-      {#if kind === "color"}
-        <!-- The swatch is this row's icon: it shows the colour the row holds. -->
-        <span
-          class="media-outline size-4 shrink-0 rounded-sm"
-          style="background-color: {color?.rgbaCss}"
-          aria-hidden="true"
-        ></span>
-      {:else}
-        <span class="flex size-4 shrink-0 items-center justify-center text-ink-subtle">
+      <!-- The same tile the home list and the settings list draw. A bare glyph
+           beside a tinted square is the difference between "an icon" and "a
+           kind", and a column of rows should read as one list. -->
+      <span
+        class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-ink-muted"
+      >
+        {#if kind === "color"}
+          <!-- The swatch is this row's icon: it shows the colour the row holds. -->
+          <span
+            class="media-outline size-4 rounded-sm"
+            style="background-color: {color?.rgbaCss}"
+            aria-hidden="true"
+          ></span>
+        {:else}
           <KindIcon class="size-4" strokeWidth={1.5} aria-hidden="true" />
-        </span>
-      {/if}
+        {/if}
+      </span>
       <span class="min-w-0 flex-1">
         <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{title}</span>
         <span class="block truncate text-[12px] font-normal leading-[1.45] text-ink-tertiary tabular-nums">
@@ -238,5 +246,16 @@
       fill={entry.pinned ? "currentColor" : "none"}
       aria-hidden="true"
     />
+  </button>
+  <!-- The keyboard already reaches this (`Delete`), but a row that can only be
+       removed by a key nobody can see is a row most users cannot remove. It sits
+       last, where the todo rows put theirs. -->
+  <button
+    type="button"
+    class="pressable flex size-10 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:text-ink active:scale-[0.96]"
+    aria-label={i18n.t("clip.delete")}
+    onclick={onremove}
+  >
+    <Trash2 class="size-4" strokeWidth={1.5} aria-hidden="true" />
   </button>
 </div>

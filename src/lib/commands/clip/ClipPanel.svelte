@@ -1,5 +1,6 @@
 <script lang="ts">
   import ClipItem from "$lib/commands/clip/ClipItem.svelte";
+  import { groupByDay } from "$lib/commands/clip/group";
   import { primaryShortcut } from "$lib/commands/settings/engines";
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
@@ -10,10 +11,19 @@
   import { Clipboard } from "@lucide/svelte";
   import { onDestroy, onMount } from "svelte";
 
+  let now = $state(Date.now());
+
   const items = $derived(clipboard.filtered(ui.commandRest));
   const pinned = $derived(items.filter((entry) => entry.pinned));
   const recent = $derived(items.filter((entry) => !entry.pinned));
-  let now = $state(Date.now());
+  const groups = $derived(groupByDay(recent, now));
+  /**
+   * Where each recent entry sits in the flat list the keyboard walks.
+   *
+   * The rows are drawn under day headings, but `selectedIndex` counts entries,
+   * not headings — and a heading is not something the arrows can land on.
+   */
+  const recentIndex = $derived(new Map(recent.map((entry, index) => [entry.id, index])));
 
   // Key glyphs are not translated: they name physical keys, which read the same
   // in every locale.
@@ -91,6 +101,7 @@
                     selected={clipboard.selectedIndex === index}
                     onselect={() => paste(entry.id)}
                     onpin={() => clipboard.togglePin(entry.id)}
+                    onremove={() => clipboard.remove(entry.id)}
                   />
                 </li>
               {/each}
@@ -98,25 +109,34 @@
           </section>
         {/if}
 
-        <!-- The recent block has no heading: everything below the pinned ones is
-             recent, so the label only repeated what the list already showed. The
-             pinned block keeps its own, because that split is the one a reader
-             cannot see for themselves. -->
-        {#if recent.length > 0}
-          <ul class="flex flex-col gap-1">
-            {#each recent as entry, index (entry.id)}
-              <li>
-                <ClipItem
-                  {entry}
-                  {now}
-                  selected={clipboard.selectedIndex === pinned.length + index}
-                  onselect={() => paste(entry.id)}
-                  onpin={() => clipboard.togglePin(entry.id)}
-                />
-              </li>
-            {/each}
-          </ul>
-        {/if}
+        <!-- The recent block is grouped by day rather than headed once: a
+             clipboard fills up over weeks, and a "3 天前" on every row makes the
+             reader convert each one. A heading does that work once per group,
+             which is what the eye actually scans for. The pinned block keeps its
+             single heading, because that split is the one a reader cannot see
+             for themselves. -->
+        {#each groups as group (group.day)}
+          <section>
+            <p class="mb-1 px-1 text-[12px] leading-[1.4] text-ink-subtle">
+              {i18n.t(group.label.key, group.label.vars)}
+            </p>
+            <ul class="flex flex-col gap-1">
+              {#each group.entries as entry (entry.id)}
+                <li>
+                  <ClipItem
+                    {entry}
+                    {now}
+                    selected={clipboard.selectedIndex ===
+                      pinned.length + (recentIndex.get(entry.id) ?? 0)}
+                    onselect={() => paste(entry.id)}
+                    onpin={() => clipboard.togglePin(entry.id)}
+                    onremove={() => clipboard.remove(entry.id)}
+                  />
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/each}
       </ScrollArea>
     {/if}
   </div>

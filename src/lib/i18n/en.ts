@@ -375,6 +375,7 @@ export const en: Record<MessageKey, string> = {
   "clip.pasteFiles": "Paste {count} files, {ago}",
   "clip.pin": "Pin",
   "clip.unpin": "Unpin",
+  "clip.delete": "Delete this entry",
   "clip.previewTitle": "Preview",
   "clip.closePreview": "Close preview",
   "clip.previewAlt": "Clipboard image preview",
@@ -396,6 +397,9 @@ export const en: Record<MessageKey, string> = {
   "clip.cleanupNone": "Nothing to clean",
   "clip.saveFailed": "Couldn’t save — the change may not have been written to disk",
 
+  "time.today": "Today",
+  "time.yesterday": "Yesterday",
+  "time.date": "{date}",
   "time.justNow": "Just now",
   "time.secondsAgo": "{n}s ago",
   "time.minutesAgo": "{n}m ago",

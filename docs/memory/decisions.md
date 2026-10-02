@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - The clipboard groups by day, and its rows look like every other list
+Decision:
+Clipboard rows draw their glyph in the same `size-8` tile the home and settings lists use, the image thumbnail included (down from `size-10`, badge and all); each row gained a delete button at its end; and the recent block is split into day sections headed 今天 / 昨天 / a date, via a new `groupByDay`.
+Reason:
+Three reports, one shape: the panel did not look like the rest of the app. A bare glyph beside a tinted square is the difference between "an icon" and "a kind", so a clipboard column read as a different list from the one two keystrokes away. The missing button is the same fault in the other direction — `Delete` *did* remove a single entry, but a row whose only way out is a key nobody can see is a row most users cannot remove, and every other list in the app shows a bin. And a clipboard fills up over weeks: `3 天前` on every row makes the reader convert each one, while a heading does that work once per group, which is what the eye actually scans for.
+Note:
+`groupByDay` compares local day boundaries rather than 24-hour windows — otherwise an entry from 23:50 and one from 00:10 would share a heading that is wrong for one of them — and it is generic over the entry, so the grouping is tested without a clipboard. The headings are not rows the arrows can land on: `selectedIndex` still counts entries, so the panel maps each recent entry back to its flat position through a `Map`, rather than assuming the drawn order matches the walked order. The README's clipboard row also said `Tab` previews images, which stopped being true when it learned to preview text, files and colours; that is corrected with the rest. Verified: `svelte-check` clean, 115 frontend tests (5 new for the grouping), both catalogs in step. Not verified in the running app.
+
 ## 2026-10-02 - Tab goes back to previewing, and labels get a list instead of a cycle
 Decision:
 `Tab` in the todo panel previews the highlighted item, handled by the window key handler the way the clipboard's is, with `TodoPreview` drawing it. The label filter is no longer a key at all: `todo #` or `todo #购` puts the label picker in the content column, where the arrows walk it and Enter commits. `Ctrl+T` opens the same picker over the highlighted todo to move it to another label. Todo rows are one line with `truncate`, because the preview is now where the rest is read.
