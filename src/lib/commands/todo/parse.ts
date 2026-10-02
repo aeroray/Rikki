@@ -17,8 +17,11 @@ export type TodoDraft =
  * they are. A rule that grabbed any `#` anywhere would eat the text of anyone
  * writing about issue numbers, and the fix would be to escape it — a syntax the
  * user has to remember is worse than one they can read off the row.
+ *
+ * The label may be empty: `todo #` names no label, which is a request to see
+ * them rather than a filter over nothing.
  */
-const TRAILING_TAG = /^(?:(.*?)\s+)?#([^\s#]+)$/;
+const TRAILING_TAG = /^(?:(.*?)\s+)?#([^\s#]*)$/;
 
 export function parseTodoInput(rest: string): TodoDraft {
   const input = rest.trim();
@@ -38,9 +41,23 @@ export function parseTodoInput(rest: string): TodoDraft {
  *
  * A line being typed as a new todo filters nothing: the list behind it should
  * stay the whole list until the item exists. Only a line that is purely a label
- * narrows anything.
+ * narrows anything — and `todo #` narrows nothing either, which is how the panel
+ * tells "show me the labels" from "show me this one".
  */
 export function filterTagOf(rest: string): string {
   const draft = parseTodoInput(rest);
   return draft.kind === "filter" ? draft.tag : "";
+}
+
+/**
+ * True while the query is naming a label the list does not hold.
+ *
+ * `todo #购` is not a filter, it is the beginning of a label. A filter that
+ * matches nothing is a dead end the user has to back out of; the list of labels
+ * that do match is the thing they were reaching for. This is also what makes
+ * `todo #` mean "show me the labels", since an empty label is held by nobody.
+ */
+export function isBrowsingTags(rest: string, known: (tag: string) => boolean): boolean {
+  const draft = parseTodoInput(rest);
+  return draft.kind === "filter" && !known(draft.tag);
 }

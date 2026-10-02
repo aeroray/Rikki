@@ -3,6 +3,7 @@ import { closeEmojiDrill } from "$lib/commands/emoji/actions";
 import { closeJsonEdit } from "$lib/commands/json/actions";
 import { closeSettingsDrill } from "$lib/commands/settings/actions";
 import { cancelSnippetDraft } from "$lib/commands/snippet/actions";
+import { closePicker } from "$lib/commands/todo/actions";
 import { clipboard } from "$lib/stores/clipboard.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 
@@ -13,6 +14,10 @@ export function escapePalette(): void {
     ui.cancelConfirm();
     return;
   }
+  if (ui.todoPreview) {
+    ui.todoPreview = null;
+    return;
+  }
   if (ui.preview) {
     ui.preview = null;
     return;
@@ -21,6 +26,10 @@ export function escapePalette(): void {
     clipboard.closeConfirm();
     return;
   }
+  // Before the settings drill: the label picker sits inside the todo panel the
+  // same way a settings sub-screen sits inside its list, and Escape should undo
+  // one step of it rather than leave the whole command.
+  if (closePicker()) return;
   if (closeSettingsDrill()) return;
   if (closeAnniversaryDrill()) return;
   if (closeEmojiDrill()) return;

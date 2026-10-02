@@ -42,20 +42,37 @@ class TodoStore {
   }
 
   /**
-   * The next label in the cycle: everything, then each label, then back.
+   * The todo whose label is being picked right now, or null.
    *
-   * A cycle rather than a list to pick from, because the labels are the user's
-   * own words and reading them off a menu is slower than pressing Tab until the
-   * right one is on screen — which is also why the result is written back into
-   * the query instead of living in a field of its own.
+   * The id rather than a boolean, because the row the picker will write to has
+   * to survive the list re-sorting or filtering underneath it while it is open.
    */
-  nextTag(current: string): string {
-    const tags = this.tags;
-    if (tags.length === 0) return "";
-    const index = tags.indexOf(current);
-    if (index === -1) return tags[0];
-    if (index === tags.length - 1) return "";
-    return tags[index + 1];
+  assigning = $state<string | null>(null);
+
+  /** Whether a label is one the list actually holds. */
+  hasTag(tag: string): boolean {
+    return tag !== "" && this.tags.includes(tag);
+  }
+
+  /**
+   * The labels a partial query matches, in the order the picker lists them.
+   *
+   * Substring rather than prefix: the labels are the user's own words, and
+   * `#项目` should find 老项目 as readily as 项目A — the picker is a short list
+   * read at a glance, not a search field that has to be typed exactly.
+   */
+  matchTags(query: string): string[] {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return this.tags;
+    return this.tags.filter((tag) => tag.toLowerCase().includes(needle));
+  }
+
+  setTag(id: string, tag: string) {
+    const label = tag.trim();
+    void this.ready.then(() => {
+      this.todos = this.todos.map((todo) => (todo.id === id ? { ...todo, tag: label } : todo));
+      this.enqueueWrite();
+    });
   }
 
   async reload() {

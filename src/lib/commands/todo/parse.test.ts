@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { filterTagOf, parseTodoInput } from "$lib/commands/todo/parse";
+import { filterTagOf, isBrowsingTags, parseTodoInput } from "$lib/commands/todo/parse";
 
 describe("parseTodoInput", () => {
   it("reads plain text as a todo with no label", () => {
@@ -28,6 +28,13 @@ describe("parseTodoInput", () => {
   it("reads a line that is only a label as a filter", () => {
     expect(parseTodoInput("#购物")).toEqual({ kind: "filter", tag: "购物" });
     expect(parseTodoInput("   #购物   ")).toEqual({ kind: "filter", tag: "购物" });
+  });
+
+  /// A bare `#` names no label, which is a request to see them rather than a
+  /// filter over nothing.
+  it("reads a bare # as a filter with no label", () => {
+    expect(parseTodoInput("#")).toEqual({ kind: "filter", tag: "" });
+    expect(parseTodoInput("  #  ")).toEqual({ kind: "filter", tag: "" });
   });
 
   /// The rule is "ends the line, starts at a word boundary", and these are the
@@ -59,5 +66,25 @@ describe("filterTagOf", () => {
     // Being typed as a new item, with or without a label of its own.
     expect(filterTagOf("买牛奶")).toBe("");
     expect(filterTagOf("买牛奶 #购物")).toBe("");
+  });
+});
+
+describe("isBrowsingTags", () => {
+  const known = (tag: string) => tag === "购物";
+
+  it("is true while the query names no label the list holds", () => {
+    // `todo #` names none at all, and `#购` is the beginning of one: a filter
+    // that matches nothing is a dead end, while the labels that do match are
+    // what the user was reaching for.
+    expect(isBrowsingTags("#", known)).toBe(true);
+    expect(isBrowsingTags("#购", known)).toBe(true);
+  });
+
+  it("is false for a label that exists, and for a line being typed", () => {
+    expect(isBrowsingTags("#购物", known)).toBe(false);
+    expect(isBrowsingTags("", known)).toBe(false);
+    expect(isBrowsingTags("买牛奶", known)).toBe(false);
+    // A new item that happens to end in a label is not a filter.
+    expect(isBrowsingTags("买牛奶 #购物", known)).toBe(false);
   });
 });

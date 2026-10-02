@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - Tab goes back to previewing, and labels get a list instead of a cycle
+Decision:
+`Tab` in the todo panel previews the highlighted item, handled by the window key handler the way the clipboard's is, with `TodoPreview` drawing it. The label filter is no longer a key at all: `todo #` or `todo #购` puts the label picker in the content column, where the arrows walk it and Enter commits. `Ctrl+T` opens the same picker over the highlighted todo to move it to another label. Todo rows are one line with `truncate`, because the preview is now where the rest is read.
+Reason:
+Tab was doing two jobs and the wrong one was mine. In this app Tab means "show me the rest of this" — the clipboard panel has said so since long before todos had labels — so a Tab that cycled a filter was a key whose meaning depended on which panel the user was standing in. The cycle was the wrong shape regardless: with nine labels it is a way to *read* them one at a time, not a way to reach one, which is what the user reported. One picker answers both complaints, and the same picker relabels a todo because "which label" is the same question from the user's side — the rows differ by one entry and the key that commits them, and nothing else. The row became one line for the mirror-image reason: a todo that wraps makes its row a different height from its neighbours, and a list of different heights is one the eye cannot walk down.
+Note:
+`todo #` reaching the picker is not a special case in the parser: an empty label is held by nobody, so `isBrowsingTags` already answers "this names no label the list has" — the same test that turns `todo #购` into a picker rather than a filter over nothing. A filter matching nothing is a dead end the user has to back out of, which is why a partial label browses instead of filtering. `toggleTodoPreview` refuses while the picker is up, because the highlight is on a label and the index would otherwise preview whatever todo sits at that position behind the list. The preview body takes focus so the arrows page through a long item, which is why Tab lives on the window rather than the field — and why `SearchBar`'s focus-restoring effect now exempts `ui.todoPreview`, or it would pull the keyboard back on the frame the preview opened. Verified: `svelte-check` clean, 110 frontend tests (3 new), both catalogs in step. Not verified in the running app.
+
 ## 2026-10-02 - Todo loses its second input, and gains one label
 Decision:
 `TodoInput` is gone. `todo 买牛奶` + Enter creates the item from the palette's own field, which is now the only text field in this view. `Todo` gained a `tag` string (`#[serde(default)]`), a trailing `#label` sets it, `Tab` cycles the filter through every label in use, and `TodoList` wears a `PanelFooter` and a relative age on each row.

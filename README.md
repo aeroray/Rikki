@@ -65,7 +65,7 @@ Type the prefix and a space to open its panel. Root search (no prefix) launches 
 | _(empty)_ | apps | Launch | An unmatched query of 2+ characters searches the web |
 | `clip` | 剪贴板, 剪切板 | Paste the selected item | `Tab` previews images; `Shift+Delete` clears the unpinned ones |
 | `sn` | `snippet`, `snip`, 片段, 常用语 | Copy the snippet | `sn add` or `Ctrl+N` creates one |
-| `todo` | 待办, 待办事项 | Add an item | End it with `#label` to tag it; `Tab` filters by label |
+| `todo` | 待办, 待办事项 | Add an item | End it with `#label` to tag it; `#` picks a label, `Ctrl+T` relabels, `Tab` previews |
 | `calc` | 计算器, 计算 | Copy the result | History is saved |
 | `ann` | `anniversary`, `days`, 纪念日, 倒计时 | Edit the selected one, or create | Solar or lunar. Type a date to count down without saving: `1001`, `20261001`, `n1001` (lunar), `nr1001` (lunar leap month) |
 | `cal` | `calendar`, `date`, 万年历, 日历 | Copy the date | Month grid with lunar dates. Arrows pick a day, PgUp/PgDn a month, Shift+↑↓ a year, Home goes to today; `cal 20261001` jumps |

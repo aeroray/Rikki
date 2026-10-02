@@ -31,6 +31,12 @@
   import { colorOptions, runColorOption } from "$lib/commands/color/selection";
   import { handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
   import { handleJsonEnter } from "$lib/commands/json/actions";
+  import {
+    applyPickerRow,
+    isPickingTags,
+    pickerRows,
+    startAssignTag,
+  } from "$lib/commands/todo/actions";
   import { filterTagOf, parseTodoInput } from "$lib/commands/todo/parse";
   import { escapePalette } from "$lib/commands/escape";
   import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
@@ -140,7 +146,11 @@
   const optionCount = $derived.by((): number => {
     if (ui.view === "empty") return ui.homeCommands.length;
     if (ui.view === "suggest") return ui.rootHits.length;
-    if (ui.view === "todo") return todos.filtered(filterTagOf(ui.commandRest)).length;
+    if (ui.view === "todo") {
+      return isPickingTags()
+        ? pickerRows().length
+        : todos.filtered(filterTagOf(ui.commandRest)).length;
+    }
     if (ui.view === "clip") return clipboard.filtered(ui.commandRest).length;
     if (ui.view === "snippet") {
       return snippets.draft ? 0 : snippets.filtered(ui.commandRest).length;
@@ -217,6 +227,7 @@
     if (
       ui.focusField === "search" &&
       !ui.preview &&
+      !ui.todoPreview &&
       !snippets.draft &&
       !settings.engineDraft
     ) {
@@ -328,9 +339,47 @@
     }
 
     if (ui.view === "todo") {
-      // Every key here arrives through the field's own handler, which is now the
-      // only text field in this view: the panel's separate input row is gone, so
-      // the arrows and Enter work while an item is being typed as well as after.
+      const picking = isPickingTags();
+
+      if (!picking) {
+        // `Ctrl+T` puts the highlighted todo under another label. A key rather
+        // than a Tab cycle, because the labels are the user's own words and
+        // there may be nine of them: cycling is a way to read a list, not a way
+        // to reach one entry in it.
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "t") {
+          event.preventDefault();
+          startAssignTag();
+          return;
+        }
+        // `Tab` is not handled here. It belongs to the window handler, like the
+        // clipboard's: the preview body takes focus so the arrows can page
+        // through it, and a key that has to work while the field does *not* have
+        // the keyboard cannot live on the field.
+      }
+
+      // The picker owns the list while it is open: the arrows walk its rows and
+      // Enter commits one. Everything else falls through to the field, which is
+      // what lets `todo #购` narrow the list as it is typed.
+      if (picking) {
+        const rows = pickerRows();
+        if (event.key === "ArrowDown" && rows.length > 0) {
+          event.preventDefault();
+          ui.selectedIndex = Math.min(rows.length - 1, ui.selectedIndex + 1);
+          return;
+        }
+        if (event.key === "ArrowUp" && rows.length > 0) {
+          event.preventDefault();
+          ui.selectedIndex = Math.max(0, ui.selectedIndex - 1);
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyPickerRow(rows[ui.selectedIndex]);
+          return;
+        }
+        return;
+      }
+
       const draft = parseTodoInput(ui.commandRest);
       const items = todos.filtered(filterTagOf(ui.commandRest));
       const selected = items[ui.selectedIndex];
@@ -349,25 +398,10 @@
         todos.remove(selected.id);
         return;
       }
-      // `Tab` walks the labels, and it only claims the key while the line is not
-      // being typed as an item: over `买牛奶 #购物` the user is writing a todo, and
-      // a Tab that replaced it with the next label would eat the sentence.
-      if (
-        event.key === "Tab" &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        (draft.kind === "empty" || draft.kind === "filter")
-      ) {
-        event.preventDefault();
-        const next = todos.nextTag(draft.kind === "filter" ? draft.tag : "");
-        ui.searchText = next ? `todo #${next} ` : "todo ";
-        ui.selectedIndex = 0;
-        return;
-      }
       // Enter takes the highlighted row unless the line is a new item waiting to
-      // be created. A line that is only a label is not one: it filters the list,
-      // and the user reading that list expects Enter to act on what they see.
+      // be created. A line that is only a label never reaches here — it opened
+      // the picker above — and the user reading a filtered list expects Enter to
+      // act on what they see.
       if (event.key === "Enter" && selected && draft.kind !== "create") {
         event.preventDefault();
         todos.toggle(selected.id);

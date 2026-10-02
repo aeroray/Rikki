@@ -1,6 +1,6 @@
 import { parseColor } from "$lib/commands/color/parse";
 import { listCommands, listHomeCommands, match, rankCommand } from "$lib/commands/registry";
-import type { RootHit } from "$lib/commands/types";
+import type { RootHit, Todo } from "$lib/commands/types";
 import { i18n } from "$lib/i18n";
 import { usageBonus } from "$lib/fuzzy";
 import { apps } from "$lib/stores/apps.svelte";
@@ -33,6 +33,14 @@ class UiStore {
   shellOpen = $state(false);
   shellExiting = $state(false);
   preview = $state<ClipPreview | null>(null);
+  /**
+   * The todo opened by `Tab`, shown over the panel.
+   *
+   * Its own field rather than a `ClipPreview` kind: the two are drawn alike but
+   * share nothing else — a clip preview is built from a body string and a kind
+   * the clipboard store decided, while this is one todo the list handed over.
+   */
+  todoPreview = $state<Todo | null>(null);
   /**
    * Caps Lock, shown as a badge on the search field.
    *
@@ -262,6 +270,7 @@ class UiStore {
       this.noticeTimer = null;
     }
     this.preview = null;
+    this.todoPreview = null;
     this.shellExiting = true;
     this.shellOpen = false;
     void requestHidePalette();

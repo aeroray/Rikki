@@ -33,6 +33,7 @@
   import PowerPanel from "$lib/commands/sys/PowerPanel.svelte";
   import { currentPowerAction } from "$lib/commands/sys/actions";
   import { toggleSelectedPreview } from "$lib/commands/clip/preview";
+  import { toggleTodoPreview } from "$lib/commands/todo/actions";
   import { escapePalette } from "$lib/commands/escape";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
   import { saveQrPng } from "$lib/commands/qrcode/actions";
@@ -40,6 +41,7 @@
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
   import TodoList from "$lib/commands/todo/TodoList.svelte";
+  import TodoPreview from "$lib/commands/todo/TodoPreview.svelte";
   import TranslatePanel from "$lib/commands/translate/TranslatePanel.svelte";
   import TimestampPanel from "$lib/commands/timestamp/TimestampPanel.svelte";
   import QRPanel from "$lib/commands/qrcode/QRPanel.svelte";
@@ -148,6 +150,14 @@
     if (ui.view === "clip") {
       event.preventDefault();
       toggleSelectedPreview();
+      return;
+    }
+    if (ui.view === "todo") {
+      // The same key and the same meaning as the clipboard's, handled in the same
+      // place for the same reason: the preview body takes focus so the arrows page
+      // through a long todo, so this cannot live on the search field.
+      event.preventDefault();
+      toggleTodoPreview();
       return;
     }
     if (ui.view === "json") {
@@ -264,6 +274,7 @@
      undimmed shell showed through as a white sliver along the arc. Out here the
      only rounded clip on the path is the backdrop's own, so the two agree. -->
 <ClipPreview preview={ui.preview} onclose={() => (ui.preview = null)} />
+<TodoPreview />
 <ClipConfirm />
 <ActionConfirm />
 </div>
