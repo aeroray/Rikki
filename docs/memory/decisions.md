@@ -82,6 +82,8 @@ Measured three ways rather than inferred. Anonymous `GET` of the endpoint: 404 f
 Note:
 The updater has no way to authenticate a release download: the endpoint is a plain HTTPS GET from the plugin, so a private repository can never serve it, and the failure is a bare 404 inside `check()` that the frontend swallowed. Two things are *not* the cause and were checked before blaming the network: the minisign public key in `tauri.conf.json` matches `~/.tauri/rikki-updater.key.pub` byte for byte, and `relaunch()` calls `plugin:process|restart`, which `process:allow-restart` in the capability already grants. Publishing the release is a second, independent gate — `tauri-action` writes it as a **draft**, and `/releases/latest` skips drafts — so a repository made public would still need the release published by hand.
 
+**Resolved 2026-10-02:** the repository was made public and the endpoint answers **200** with a complete manifest for `1.1.1` — all four platform entries, signatures included. Both predictions held: the visibility was the whole of it, and `1.1.0` was a draft until it was published by hand. Two things this leaves behind. The tag is not the release: pushing `v1.1.2` builds packages and writes a *draft*, so the version is not offered until someone with write access publishes it — and the `gh` account used for the checks here has `pull: true, push: false`, so it can see neither the draft nor the switch that publishes it. Verify from the outside instead: the endpoint's `version` field is the only honest answer to "is this release live".
+
 ## 2026-10-01 - The vocabulary test has to import every command
 Decision:
 `aliases.test.ts` imports `$lib/commands/sysmon`, and `COMMAND_ALIASES` gained a `sysmon` entry (`monitor`, 系统, 系统状态, 监控, 性能).
