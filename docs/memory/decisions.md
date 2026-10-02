@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - All five system commands take a delay, and the countdown is generation-guarded
+Decision:
+`lock`, `sleep`, `shutdown`, `reboot` and `logout` all open the same delay panel. Only shutdown and restart use an OS timer; lock, sleep and logout run from a thread that sleeps first, because the OS offers no scheduled form of them and log out has no way to abort one. `needsConfirm` decides the dialog: never for a delay, and on an immediate action only for shutdown, restart and log out.
+Reason:
+The commands each had their own immediate behaviour, and "in an hour" is one answer for all five rather than five features. The confirm rule follows the same question as before — can this be taken back? A lock or a sleep is one keystroke from where the user was, so it never asks; the other three end the session and take unsaved work with them. A delay never asks for any of them, because the footer's countdown and its `Ctrl+Z` are the safety net.
+Note:
+The footer bug was a race, not a rendering fault: `watch()` read `pending_power` while a schedule was still in flight, the read answered "nothing pending", and that stale answer was written over the timer that had just been set — stopping the poll with it. The store now carries a generation counter, bumped on every schedule and cancel, and a response whose generation is stale is dropped. Verified: `sleep` + 立即 slept the machine with no dialog (event 42 then 107 in the system log), while `logout` + 立即 showed 确认立即注销？; and the countdown appeared on the root list, which has no `PanelFooter` of its own.
+
 ## 2026-10-01 - Shutdown and restart take a delay, chosen from a panel
 Decision:
 `shutdown` and `reboot` open a panel instead of running at once. It lists `立即` first and then 15m / 30m / 1h / 2h / 4h, each with the wall-clock time it lands on; typing adds a `自定义时间` row at the top, which Enter takes. `30` reads as minutes, `1h30m` as a duration, `23:00` as the next time that clock occurs. A pending timer shows a countdown bar with `Ctrl+Z` to cancel.

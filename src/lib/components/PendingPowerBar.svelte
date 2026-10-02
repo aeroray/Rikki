@@ -7,7 +7,7 @@
   import { Power } from "@lucide/svelte";
 
   /**
-   * The countdown bar, shown while a shutdown or restart is pending.
+   * The countdown bar, shown while any of the five actions is pending.
    *
    * Its own component because it has to appear in two places that do not share a
    * footer: the panels, which render `PanelFooter`, and the root list, which does
@@ -20,6 +20,19 @@
       return i18n.t(key, params);
     })(),
   );
+
+  /** The action's own verb, so the bar says what is about to happen. */
+  const ACTION_LABELS = {
+    lock: "sys.lock",
+    sleep: "sys.sleep",
+    shutdown: "sys.shutdown",
+    restart: "sys.reboot",
+    logout: "sys.logout",
+  } as const;
+
+  const what = $derived(
+    power.pending ? i18n.t(ACTION_LABELS[power.pending.action]) : "",
+  );
 </script>
 
 {#if power.pending}
@@ -28,13 +41,7 @@
       <li class="flex min-w-0 items-center gap-1.5">
         <Power class="size-4 shrink-0 text-danger" strokeWidth={1.5} aria-hidden="true" />
         <span class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
-          {i18n.t("power.pending", {
-            action:
-              power.pending.action === "restart"
-                ? i18n.t("sys.reboot")
-                : i18n.t("sys.shutdown"),
-            when,
-          })}
+          {i18n.t("power.pending", { action: what, when })}
         </span>
       </li>
       <li class="shrink-0">

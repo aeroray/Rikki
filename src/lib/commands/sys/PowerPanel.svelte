@@ -1,11 +1,15 @@
 <script lang="ts">
-  import { commitPower, powerQueryUnreadable, type PowerAction } from "$lib/commands/sys/actions";
+  import {
+    commitPower,
+    powerQueryUnreadable,
+    type PowerAction,
+  } from "$lib/commands/sys/actions";
   import { delayOptions } from "$lib/commands/sys/schedule";
   import PanelFooter, { type FooterShortcut } from "$lib/components/PanelFooter.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { i18n } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
-  import { Power, RotateCw } from "@lucide/svelte";
+  import { Lock, LogOut, Moon, Power, RotateCw } from "@lucide/svelte";
 
   let { action }: { action: PowerAction } = $props();
 
@@ -14,8 +18,17 @@
   const now = $derived(new Date());
   const options = $derived(delayOptions(ui.commandRest, now));
 
-  const label = $derived(action === "shutdown" ? i18n.t("sys.shutdown") : i18n.t("sys.reboot"));
-  const Icon = $derived(action === "shutdown" ? Power : RotateCw);
+  /** Each action's own verb and glyph, so the panel says what it will do. */
+  const PRESENTATION = {
+    lock: { label: "sys.lock", Icon: Lock },
+    sleep: { label: "sys.sleep", Icon: Moon },
+    shutdown: { label: "sys.shutdown", Icon: Power },
+    restart: { label: "sys.reboot", Icon: RotateCw },
+    logout: { label: "sys.logout", Icon: LogOut },
+  } as const;
+
+  const label = $derived(i18n.t(PRESENTATION[action].label));
+  const Icon = $derived(PRESENTATION[action].Icon);
 
   const footerShortcuts = $derived<FooterShortcut[]>([
     { keys: "↑↓", label: i18n.t("key.select") },

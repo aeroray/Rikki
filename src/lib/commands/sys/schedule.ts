@@ -1,3 +1,5 @@
+import type { PowerAction } from "$lib/commands/sys/actions";
+
 /**
  * What the user typed after `shutdown` or `reboot`, turned into a delay.
  *
@@ -136,6 +138,19 @@ export function clockOf(now: Date, seconds: number): string {
   const hours = String(at.getHours()).padStart(2, "0");
   const minutes = String(at.getMinutes()).padStart(2, "0");
   return `${hours}:${minutes}`;
+}
+
+/**
+ * Which actions still need a confirmation when run immediately.
+ *
+ * Only the ones that close something the user cannot get back: a lock or a sleep
+ * is one keystroke away from where they were, while a shutdown, a restart or a log
+ * out ends the session and takes unsaved work with it. A delay never needs one, for
+ * any of them — it can be cancelled from the footer.
+ */
+export function needsConfirm(action: PowerAction, seconds: number): boolean {
+  if (seconds > 0) return false;
+  return action === "shutdown" || action === "restart" || action === "logout";
 }
 
 /**

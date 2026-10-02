@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clockOf, delayOptions, parseDelay } from "$lib/commands/sys/schedule";
+import { clockOf, delayOptions, needsConfirm, parseDelay } from "$lib/commands/sys/schedule";
 
 /** A fixed clock, so `23:00` means the same thing in every run. */
 const NOON = new Date(2026, 9, 1, 12, 0, 0);
@@ -91,6 +91,31 @@ describe("delayOptions", () => {
     // The footer says the text was not understood; the list still offers a way out.
     const options = delayOptions("tomorrow", NOON);
     expect(options.length).toBe(delayOptions("", NOON).length);
+  });
+});
+
+describe("needsConfirm", () => {
+  /**
+   * A delay is cancellable from the footer, so it never asks. An immediate action
+   * asks only when it ends something the user cannot get back — which is why lock
+   * and sleep never do: both are one keystroke away from where they were.
+   */
+  it("never asks for a delay, whatever the action", () => {
+    for (const action of ["lock", "sleep", "shutdown", "restart", "logout"] as const) {
+      expect(needsConfirm(action, 60)).toBe(false);
+    }
+  });
+
+  it("asks before an immediate action that ends the session", () => {
+    expect(needsConfirm("shutdown", 0)).toBe(true);
+    expect(needsConfirm("restart", 0)).toBe(true);
+    expect(needsConfirm("logout", 0)).toBe(true);
+  });
+
+  it("does not ask before locking or sleeping", () => {
+    // Neither loses anything: the session is still there afterwards.
+    expect(needsConfirm("lock", 0)).toBe(false);
+    expect(needsConfirm("sleep", 0)).toBe(false);
   });
 });
 

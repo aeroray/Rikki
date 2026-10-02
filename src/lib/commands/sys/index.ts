@@ -1,53 +1,35 @@
-import { invoke } from "@tauri-apps/api/core";
-import { logout, sleep } from "tauri-plugin-power-manager-api";
 import { register } from "$lib/commands/registry";
 import type { Command } from "$lib/commands/types";
-import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 
-function action(
-  command: Omit<Command, "run" | "mode">,
-  run: () => Promise<void>,
-): Command {
-  return {
-    ...command,
-    mode: "action",
-    run() {
-      void run()
-        .then(() => ui.beginHide({ reset: true }))
-        .catch(() => ui.flash(i18n.t("sys.failed")));
-    },
-  };
-}
-
-const commands: Command[] = [
-  action(
-    {
-      id: "lock",
-      prefix: "lock",
-      title: "Lock",
-      titleZh: "锁屏",
-      description: "Lock this session",
-      descriptionZh: "锁定当前会话",
-      icon: "Lock",
-    },
-    () => invoke("lock_screen"),
-  ),
-  action(
-    {
-      id: "sleep",
-      prefix: "sleep",
-      title: "Sleep",
-      titleZh: "休眠",
-      description: "Put the computer to sleep",
-      descriptionZh: "将电脑置于睡眠状态",
-      icon: "Moon",
-    },
-    () => sleep(),
-  ),
-  // Shutdown and reboot open a panel rather than running at once: both take a
-  // delay, and the panel is where the delay is chosen. Enter on the row opens it,
-  // and every key inside belongs to the panel.
+/**
+ * The five system commands.
+ *
+ * All five open the same panel, which is where a delay is chosen. They used to run
+ * the moment Enter was pressed, which meant there was no way to say "in an hour" —
+ * and the answer to that is one panel, not five.
+ */
+const commands: Array<Omit<Command, "run"> & { prefix: string }> = [
+  {
+    id: "lock",
+    prefix: "lock",
+    title: "Lock",
+    titleZh: "锁屏",
+    description: "Lock now, or after a delay",
+    descriptionZh: "立即锁屏，或指定时间后锁屏",
+    icon: "Lock",
+    aliases: ["lockscreen"],
+  },
+  {
+    id: "sleep",
+    prefix: "sleep",
+    title: "Sleep",
+    titleZh: "休眠",
+    description: "Sleep now, or after a delay",
+    descriptionZh: "立即休眠，或指定时间后休眠",
+    icon: "Moon",
+    aliases: ["suspend"],
+  },
   {
     id: "shutdown",
     prefix: "shutdown",
@@ -57,13 +39,6 @@ const commands: Command[] = [
     descriptionZh: "立即关机，或指定时间后关机",
     icon: "Power",
     aliases: ["off"],
-    run(input) {
-      const rest = input.trim();
-      // `shutdown 30` from the root list goes straight to the panel with the
-      // delay already typed, so the mouse-free path is two keystrokes shorter.
-      ui.searchText = rest ? `shutdown ${rest}` : "shutdown ";
-      ui.focusField = "search";
-    },
   },
   {
     id: "reboot",
@@ -74,27 +49,28 @@ const commands: Command[] = [
     descriptionZh: "立即重启，或指定时间后重启",
     icon: "RotateCw",
     aliases: ["restart"],
-    run(input) {
-      const rest = input.trim();
-      ui.searchText = rest ? `reboot ${rest}` : "reboot ";
-      ui.focusField = "search";
-    },
   },
-  action(
-    {
-      id: "logout",
-      prefix: "logout",
-      title: "Logout",
-      titleZh: "注销",
-      description: "Sign out of this account",
-      descriptionZh: "注销当前用户",
-      icon: "LogOut",
-      confirm: true,
-    },
-    () => logout(),
-  ),
+  {
+    id: "logout",
+    prefix: "logout",
+    title: "Logout",
+    titleZh: "注销",
+    description: "Sign out now, or after a delay",
+    descriptionZh: "立即注销，或指定时间后注销",
+    icon: "LogOut",
+    aliases: ["signout"],
+  },
 ];
 
 for (const command of commands) {
-  register(command);
+  register({
+    ...command,
+    run(input) {
+      // `shutdown 30` from the root list goes straight to the panel with the delay
+      // already typed, so the mouse-free path is two keystrokes shorter.
+      const rest = input.trim();
+      ui.searchText = rest ? `${command.prefix} ${rest}` : `${command.prefix} `;
+      ui.focusField = "search";
+    },
+  });
 }

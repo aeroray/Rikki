@@ -68,7 +68,17 @@ class UiStore {
     if (this.isCommandActive("anniversary")) return "anniversary";
     if (this.isCommandActive("calendar")) return "calendar";
     if (this.isCommandActive("sysmon")) return "sysmon";
-    if (this.isCommandActive("shutdown") || this.isCommandActive("reboot")) return "power";
+    // All five system commands share one panel: a lock takes a delay the same way
+    // a shutdown does.
+    if (
+      this.isCommandActive("lock") ||
+      this.isCommandActive("sleep") ||
+      this.isCommandActive("shutdown") ||
+      this.isCommandActive("reboot") ||
+      this.isCommandActive("logout")
+    ) {
+      return "power";
+    }
     if (this.isCommandActive("settings")) return "settings";
     if (this.isCommandActive("emoji")) return "emoji";
     if (this.isCommandActive("translate")) return "translate";

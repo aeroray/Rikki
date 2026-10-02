@@ -499,7 +499,6 @@
         return;
       }
     }
-
     if (ui.view === "sysmon") {
       // The panel is a reading, not a list: the arrows scroll it, and there is no
       // selection to move. Page Up/Down and Home/End come along because a long

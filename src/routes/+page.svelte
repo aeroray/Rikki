@@ -31,6 +31,7 @@
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
   import SysmonPanel from "$lib/commands/sysmon/SysmonPanel.svelte";
   import PowerPanel from "$lib/commands/sys/PowerPanel.svelte";
+  import { currentPowerAction } from "$lib/commands/sys/actions";
   import { toggleSelectedPreview } from "$lib/commands/clip/preview";
   import { escapePalette } from "$lib/commands/escape";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
@@ -215,7 +216,7 @@
     {:else if ui.view === "sysmon"}
       <SysmonPanel />
     {:else if ui.view === "power"}
-      <PowerPanel action={ui.matchedCommand?.id === "reboot" ? "restart" : "shutdown"} />
+      <PowerPanel action={currentPowerAction()} />
     {:else if ui.view === "color"}
       <ColorPanel />
     {:else if ui.view === "json"}
