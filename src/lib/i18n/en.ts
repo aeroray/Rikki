@@ -97,6 +97,7 @@ export const en: Record<MessageKey, string> = {
   "settings.current": "Current: {value}",
   "settings.saveFail": "Couldn’t save the setting. Try again",
   "settings.keySetDefault": "Set default",
+  "settings.keyHotkey": "Rebind",
   "settings.keyDeleteCustom": "Delete custom",
   "settings.engineDeleteBody": "This custom search engine will be removed.",
   "settings.addEngine": "Add a custom engine",

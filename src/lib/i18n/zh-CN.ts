@@ -95,6 +95,7 @@ export const zhCN = {
   "settings.current": "当前: {value}",
   "settings.saveFail": "无法保存设置，请再试一次",
   "settings.keySetDefault": "设为默认",
+  "settings.keyHotkey": "修改快捷键",
   "settings.keyDeleteCustom": "删除自定义",
   "settings.engineDeleteBody": "这个自定义搜索引擎会被移除。",
   "settings.addEngine": "添加自定义引擎",

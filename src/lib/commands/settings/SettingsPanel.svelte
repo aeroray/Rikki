@@ -142,42 +142,50 @@
         { keys: "Esc", label: i18n.t("key.back") },
       ];
     }
+    // The settings list. Each row names what Enter does to it, and `Esc` is added
+    // to all of them: it is the same key on every row of this screen — it leaves
+    // the settings command and puts the search back — and a list the user cannot
+    // see how to leave is the one thing a footer is there to prevent. The
+    // sub-screens above say so for the same reason.
+    const chips: FooterShortcut[] = [];
     if (selectedItemId === "cleanup") {
       // Cleaning is off, so Enter would do nothing: say why instead of offering it.
-      return settings.clipTextRetentionDays > 0
-        ? [{ keys: "Enter", label: i18n.t("settings.keyClean") }]
-        : [];
-    }
-    if (selectedItemId === "autostart") {
+      if (settings.clipTextRetentionDays > 0) {
+        chips.push({ keys: "Enter", label: i18n.t("settings.keyClean") });
+      }
+    } else if (selectedItemId === "autostart") {
       // The label names the direction the key would take the setting, not what the
       // row already says: "开机自启动" over a row reading 已开启 tells the user
       // nothing about what Enter is about to do, and the two states need opposite
       // words.
-      return [
-        {
-          keys: "Enter",
-          label: i18n.t(
-            settings.autostartEnabled ? "settings.keyAutostartOff" : "settings.keyAutostartOn",
-          ),
-        },
-      ];
-    }
-    // The rows that act rather than open name their own action, the way the
-    // cleanup row does: "打开" would be a lie about what Enter does here.
-    if (selectedItemId === "export") {
-      return [{ keys: "Enter", label: i18n.t("settings.keyExport") }];
-    }
-    if (selectedItemId === "import") {
-      return [{ keys: "Enter", label: i18n.t("settings.keyImport") }];
-    }
-    if (selectedItemId === "update") {
+      chips.push({
+        keys: "Enter",
+        label: i18n.t(
+          settings.autostartEnabled ? "settings.keyAutostartOff" : "settings.keyAutostartOn",
+        ),
+      });
+    } else if (selectedItemId === "hotkey") {
+      // Not "打开": Enter opens no list here. It puts the recorder on screen and
+      // waits for a key, which is a different thing to be told about.
+      chips.push({ keys: "Enter", label: i18n.t("settings.keyHotkey") });
+    } else if (selectedItemId === "export") {
+      // The rows that act rather than open name their own action, the way the
+      // cleanup row does: "打开" would be a lie about what Enter does here.
+      chips.push({ keys: "Enter", label: i18n.t("settings.keyExport") });
+    } else if (selectedItemId === "import") {
+      chips.push({ keys: "Enter", label: i18n.t("settings.keyImport") });
+    } else if (selectedItemId === "update") {
       // While a check runs the key does nothing — `checkNow` refuses a second one
       // — so the chip goes away and the message below says why. Offering "检查"
       // over a check already in flight is an invitation to press it again.
-      if (update.checking) return [];
-      return [{ keys: "Enter", label: i18n.t("settings.keyCheck") }];
+      if (!update.checking) {
+        chips.push({ keys: "Enter", label: i18n.t("settings.keyCheck") });
+      }
+    } else {
+      chips.push({ keys: "Enter", label: i18n.t("key.open") });
     }
-    return [{ keys: "Enter", label: i18n.t("key.open") }];
+    chips.push({ keys: "Esc", label: i18n.t("key.back") });
+    return chips;
   });
 
   const footerMessage = $derived.by((): string | null => {
