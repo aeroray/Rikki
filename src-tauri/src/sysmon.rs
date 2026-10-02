@@ -404,12 +404,14 @@ fn drive_letter(mount: &str) -> Option<char> {
     None
 }
 
-/// The interfaces that are actually moving bytes, busiest first.
+/// The interfaces that have moved bytes, busiest first.
 ///
-/// An idle interface is dropped rather than listed at zero: a laptop has several
-/// (Wi-Fi, Ethernet, a VPN tunnel, a virtual switch) and only the ones in use say
-/// anything. The totals travel with the rows that stay, so an interface that has
-/// been quiet since the last tick does not lose its lifetime figure mid-read.
+/// Filtered on the *lifetime* totals rather than on the current rate, which is the
+/// difference between a column that stays put and one that blinks: a rate of zero
+/// is the normal state of an idle network, and filtering those out made the whole
+/// section vanish and reappear as traffic came and went. An adapter that has never
+/// carried a byte — loopback, a virtual switch nobody bound to — still drops out,
+/// which is what the filter was for.
 ///
 /// The busiest row usually has a twin: Windows reports a filter driver beside the
 /// adapter it is bound to — `WLAN` and `WLAN-Huorong NDIS Filter Driver-0000` —
@@ -430,11 +432,18 @@ fn read_networks(networks: &Networks, interval: Duration) -> Vec<NetworkRow> {
                 total_transmitted: data.total_transmitted(),
             }
         })
-        .filter(|row| row.received_per_sec > 0 || row.transmitted_per_sec > 0)
+        .filter(|row| row.total_received > 0 || row.total_transmitted > 0)
         .collect();
     rows.sort_by(|a, b| {
-        (b.received_per_sec + b.transmitted_per_sec)
-            .cmp(&(a.received_per_sec + a.transmitted_per_sec))
+        // By lifetime bytes, not by the current rate. The rate changes every tick
+        // and an idle interface reads zero, so ordering by it made the rows swap
+        // places as traffic came and went — the list would not sit still long
+        // enough to read. Lifetime totals answer the same question ("which of
+        // these do I actually use") and barely move between polls.
+        let left = a.total_received + a.total_transmitted;
+        let right = b.total_received + b.total_transmitted;
+        right
+            .cmp(&left)
             // Shorter first on a tie, which is what puts `WLAN` above its own
             // filter driver rather than leaving the order to the hash map.
             .then_with(|| a.name.len().cmp(&b.name.len()))

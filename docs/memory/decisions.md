@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - The network column is one number, and it does not blink
+Decision:
+The network section shows a single rate for the whole machine, with the interface name (or a count) and the lifetime totals as the two lines under it. `read_networks` filters on the lifetime totals instead of the current rate, and sorts by lifetime bytes rather than by the live rate.
+Reason:
+Two faults, one of them mine and one of them the user's report. The report was that the column flashed in and out: the filter was `received_per_sec > 0 || transmitted_per_sec > 0`, and an idle rate is the *normal* state of a network, so on any tick where nothing was moving the list came back empty and the whole column vanished — measured on this machine, an idle tick had zero rows where a busy one had three. Filtering on lifetime bytes keeps every adapter that has ever carried traffic and still drops loopback and unbound virtual switches, which is what the filter was for. Sorting by the live rate had the same shape of problem: rows swapped places as traffic came and went, and a list that will not sit still cannot be read, so it sorts by lifetime bytes now.
+Note:
+The empty area under the chart was the second report, and it was a real hole rather than a preference: the disk column carries a row per volume plus a throughput line, while the network side had one row, so the grid showed half a column of nothing. The lifetime totals were already being read on the Rust side and never displayed — they fill it and answer a question the instantaneous rate cannot. One number instead of a row per adapter is the user's call and the right one for this panel: the question is "is anything moving", and five adapters is a table to study rather than a reading to glance at. The grid also collapses to one column when only one section has content, since a fixed `grid-cols-2` left the survivor at half width with an empty half beside it, which reads as something failing to load. Verified: the real machine reports three interfaces where the old filter would have shown one or none, and the panel was rendered in headless Chrome with an idle adapter in the fixture — the column holds its height and the totals line is filled. `impeccable detect` returns `[]`. `svelte-check` clean, 115 frontend tests, 115 Rust tests.
+
 ## 2026-10-02 - A disk is called by its letter, and the two columns own their own rows
 Decision:
 A Windows volume is labelled `C 盘` / `D 盘` and nothing else — `volumeLabel` reads the drive letter and the caller supplies the translated noun through a new `sysmon.drive` key. `read_disks` sorts by drive letter on Windows and by size elsewhere, so `C:` leads. The disk and network sections became a `grid-cols-2` where each column holds its own figure *and* its own rows.

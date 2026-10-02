@@ -38,6 +38,8 @@ export const en: Record<MessageKey, string> = {
   "sysmon.read": "R",
   "sysmon.write": "W",
   "sysmon.network": "Network",
+  "sysmon.interfaces": "{count} interfaces",
+  "sysmon.totalTraffic": "total ↓{down} ↑{up}",
   "sysmon.peak": "peak {percent}",
   "sysmon.scroll": "Scroll",
   "sysmon.processes": "Processes",

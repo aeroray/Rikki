@@ -117,6 +117,36 @@
   const networkRate = $derived(
     stats ? stats.network.reduce((sum, row) => sum + row.receivedPerSec + row.transmittedPerSec, 0) : 0,
   );
+
+  /**
+   * Which interface is carrying the traffic.
+   *
+   * Named when there is one, counted when there are several: a laptop with a VPN
+   * up has three or four adapters and the panel is not the place to tell them
+   * apart — the number above is the whole machine's, and this says what it came
+   * from without turning the column into a table.
+   */
+  const networkSubject = $derived.by(() => {
+    if (!stats || stats.network.length === 0) return "";
+    if (stats.network.length === 1) return stats.network[0].name;
+    return i18n.t("sysmon.interfaces", { count: stats.network.length });
+  });
+
+  /**
+   * Everything this machine has sent and received, since each interface came up.
+   *
+   * The second line of the column, and the reason it has one: the disk column
+   * carries a row per volume plus a throughput line, so without this the network
+   * side was half the height of the one beside it and the grid showed a hole. It
+   * is also the honest answer to "how much has this machine actually moved",
+   * which the instantaneous rate cannot give.
+   */
+  const networkTotals = $derived.by(() => {
+    if (!stats || stats.network.length === 0) return "";
+    const down = stats.network.reduce((sum, row) => sum + row.totalReceived, 0);
+    const up = stats.network.reduce((sum, row) => sum + row.totalTransmitted, 0);
+    return i18n.t("sysmon.totalTraffic", { down: bytes(down), up: bytes(up) });
+  });
 </script>
 
 {#snippet figure(
@@ -256,7 +286,15 @@
              each column holds its own figure *and* its own rows, so proximity says
              what the labels say. -->
         {#if stats.disks.length > 0 || stats.network.length > 0}
-          <div class="grid grid-cols-2 gap-4 border-t border-hairline pt-3">
+          <!-- One column when only one section has anything to show: a fixed
+               two-column grid would leave the survivor at half width with an empty
+               half beside it, which reads as something failing to load. -->
+          <div
+            class="grid gap-4 border-t border-hairline pt-3 {stats.disks.length > 0 &&
+            stats.network.length > 0
+              ? 'grid-cols-2'
+              : 'grid-cols-1'}"
+          >
             {#if stats.disks.length > 0}
               <div class="flex min-w-0 flex-col gap-1.5">
                 {@render figure(
@@ -312,27 +350,18 @@
                 {@render figure(
                   i18n.t("sysmon.network"),
                   rate(networkRate),
-                  "",
+                  // One number for the whole machine, not a row per adapter. The
+                  // question this column answers is "is anything moving", and a
+                  // list of five adapters — Wi-Fi, Ethernet, a VPN tunnel, a
+                  // virtual switch — is a table to study rather than a reading to
+                  // glance at. The name below says which interface is carrying it,
+                  // and the lifetime totals say how much has gone through.
+                  networkTotals,
                   sysmon.networkHistory,
                   false,
-                  "",
+                  networkSubject,
                   null,
                 )}
-                <div class="flex flex-col gap-1">
-                  {#each stats.network as row (row.name)}
-                    <div class="flex items-baseline gap-2">
-                      <span class="min-w-0 flex-1 truncate text-[12px] leading-[1.45] text-ink">
-                        {row.name}
-                      </span>
-                      <span class="shrink-0 text-[11px] leading-4 text-ink-tertiary tabular-nums">
-                        ↓ {rate(row.receivedPerSec)}
-                      </span>
-                      <span class="w-16 shrink-0 text-right text-[11px] leading-4 text-ink-subtle tabular-nums">
-                        ↑ {rate(row.transmittedPerSec)}
-                      </span>
-                    </div>
-                  {/each}
-                </div>
               </div>
             {/if}
           </div>

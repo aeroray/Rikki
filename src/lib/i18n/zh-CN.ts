@@ -36,6 +36,8 @@ export const zhCN = {
   "sysmon.read": "读",
   "sysmon.write": "写",
   "sysmon.network": "网络",
+  "sysmon.interfaces": "{count} 个网卡",
+  "sysmon.totalTraffic": "累计 ↓{down} ↑{up}",
   "sysmon.peak": "最高 {percent}",
   "sysmon.scroll": "滚动",
   "sysmon.processes": "进程",
