@@ -30,6 +30,15 @@ export function escapePalette(): void {
   // same way a settings sub-screen sits inside its list, and Escape should undo
   // one step of it rather than leave the whole command.
   if (closePicker()) return;
+  // The todo panel unwinds a layer at a time, and the label filter is a layer.
+  // Clearing the whole query instead takes the user out of the panel they are
+  // reading, which is not what "back" means while a list is on screen: `todo
+  // #Rikki` should become `todo ` and show everything, not the home list.
+  if (ui.view === "todo" && ui.commandRest.trim()) {
+    ui.searchText = "todo ";
+    ui.selectedIndex = 0;
+    return;
+  }
   if (closeSettingsDrill()) return;
   if (closeAnniversaryDrill()) return;
   if (closeEmojiDrill()) return;
