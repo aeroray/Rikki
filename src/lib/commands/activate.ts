@@ -34,5 +34,8 @@ export function activateCommand(command: Command): void {
   }
   ui.searchText = `${command.prefix} `;
   ui.todoPanelOpen = command.id === "todo";
-  ui.focusField = command.id === "todo" ? "todo-input" : "search";
+  // Always the search field, including for todo: the panel has no input row of
+  // its own any more, so sending the cursor anywhere else would leave the user
+  // with a list and nothing to type into.
+  ui.focusField = "search";
 }

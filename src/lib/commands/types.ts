@@ -24,6 +24,8 @@ export interface Todo {
   text: string;
   done: boolean;
   createdAt: number;
+  /** The single label this todo carries; empty means none. */
+  tag: string;
 }
 
 export interface CalcHistoryEntry {

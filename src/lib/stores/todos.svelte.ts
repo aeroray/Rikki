@@ -20,21 +20,52 @@ class TodoStore {
     this.ready = this.hydrate();
   }
 
-  get total() {
-    return this.todos.length;
+  /**
+   * Every label in use, in the order the `Tab` cycle walks them.
+   *
+   * Derived from the items rather than kept as its own list: a label nobody is
+   * using is a filter that can only ever show an empty panel, and a second list
+   * to maintain is a second list that can disagree with what is on screen.
+   */
+  readonly tags = $derived.by((): string[] => {
+    const seen = new Set<string>();
+    for (const todo of this.todos) {
+      if (todo.tag) seen.add(todo.tag);
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b, i18n.locale));
+  });
+
+  /** The items under one label, or all of them when the label is empty. */
+  filtered(tag: string): Todo[] {
+    if (!tag) return this.todos;
+    return this.todos.filter((todo) => todo.tag === tag);
   }
 
-  get completed() {
-    return this.todos.filter((todo) => todo.done).length;
+  /**
+   * The next label in the cycle: everything, then each label, then back.
+   *
+   * A cycle rather than a list to pick from, because the labels are the user's
+   * own words and reading them off a menu is slower than pressing Tab until the
+   * right one is on screen — which is also why the result is written back into
+   * the query instead of living in a field of its own.
+   */
+  nextTag(current: string): string {
+    const tags = this.tags;
+    if (tags.length === 0) return "";
+    const index = tags.indexOf(current);
+    if (index === -1) return tags[0];
+    if (index === tags.length - 1) return "";
+    return tags[index + 1];
   }
 
   async reload() {
     await this.hydrate();
   }
 
-  add(text: string) {
+  add(text: string, tag = "") {
     const value = text.trim();
     if (!value) return;
+    const label = tag.trim();
     void this.ready.then(() => {
       this.todos = [
         {
@@ -42,6 +73,7 @@ class TodoStore {
           text: value,
           done: false,
           createdAt: Date.now(),
+          tag: label,
         },
         ...this.todos,
       ];

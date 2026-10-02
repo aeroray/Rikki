@@ -31,6 +31,7 @@
   import { colorOptions, runColorOption } from "$lib/commands/color/selection";
   import { handleEmojiArrow, handleEmojiEnter } from "$lib/commands/emoji/actions";
   import { handleJsonEnter } from "$lib/commands/json/actions";
+  import { filterTagOf, parseTodoInput } from "$lib/commands/todo/parse";
   import { escapePalette } from "$lib/commands/escape";
   import { copyBase64Result, toggleBase64Mode } from "$lib/commands/base64/actions";
   import { copyTimestampResult } from "$lib/commands/timestamp/actions";
@@ -139,7 +140,7 @@
   const optionCount = $derived.by((): number => {
     if (ui.view === "empty") return ui.homeCommands.length;
     if (ui.view === "suggest") return ui.rootHits.length;
-    if (ui.view === "todo") return todos.todos.length;
+    if (ui.view === "todo") return todos.filtered(filterTagOf(ui.commandRest)).length;
     if (ui.view === "clip") return clipboard.filtered(ui.commandRest).length;
     if (ui.view === "snippet") {
       return snippets.draft ? 0 : snippets.filtered(ui.commandRest).length;
@@ -242,6 +243,17 @@
     }
   }
 
+  /**
+   * What the empty field says.
+   *
+   * The todo panel has no input row of its own any more — this field is where
+   * items are typed — so it has to say so, or the placeholder would be the last
+   * part of the screen still describing the old shape.
+   */
+  const placeholder = $derived(
+    i18n.t(ui.view === "todo" ? "todo.placeholder" : "search.placeholder"),
+  );
+
   function onInput() {
     ui.selectedIndex = 0;
     clipboard.selectedIndex = 0;
@@ -316,10 +328,11 @@
     }
 
     if (ui.view === "todo") {
-      // Every key here arrives through the input's own handler, so the panel's
-      // text field — a separate focus target — never sees them: the arrows cannot
-      // move the highlight while someone is typing a new item.
-      const items = todos.todos;
+      // Every key here arrives through the field's own handler, which is now the
+      // only text field in this view: the panel's separate input row is gone, so
+      // the arrows and Enter work while an item is being typed as well as after.
+      const draft = parseTodoInput(ui.commandRest);
+      const items = todos.filtered(filterTagOf(ui.commandRest));
       const selected = items[ui.selectedIndex];
       if (event.key === "ArrowDown" && items.length > 0) {
         event.preventDefault();
@@ -336,12 +349,26 @@
         todos.remove(selected.id);
         return;
       }
-      // `todo buy milk` + Enter adds that item, so Enter only takes the
-      // highlighted row when the rest of the line is empty. Intercepting it in
-      // both states would silently turn the inline add into a toggle, and with
-      // nothing selected the fall-through below is what puts the cursor in the
-      // new-item field.
-      if (event.key === "Enter" && selected && !ui.commandRest.trim()) {
+      // `Tab` walks the labels, and it only claims the key while the line is not
+      // being typed as an item: over `买牛奶 #购物` the user is writing a todo, and
+      // a Tab that replaced it with the next label would eat the sentence.
+      if (
+        event.key === "Tab" &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        (draft.kind === "empty" || draft.kind === "filter")
+      ) {
+        event.preventDefault();
+        const next = todos.nextTag(draft.kind === "filter" ? draft.tag : "");
+        ui.searchText = next ? `todo #${next} ` : "todo ";
+        ui.selectedIndex = 0;
+        return;
+      }
+      // Enter takes the highlighted row unless the line is a new item waiting to
+      // be created. A line that is only a label is not one: it filters the list,
+      // and the user reading that list expects Enter to act on what they see.
+      if (event.key === "Enter" && selected && draft.kind !== "create") {
         event.preventDefault();
         todos.toggle(selected.id);
         return;
@@ -785,7 +812,7 @@
     id="palette-search"
     bind:value={ui.searchText}
     class="w-full bg-transparent text-[16px] font-medium leading-[1.45] tracking-[-0.05px] text-ink outline-none placeholder:font-normal placeholder:text-ink-tertiary"
-    placeholder={i18n.t("search.placeholder")}
+    placeholder={placeholder}
     autocomplete="off"
     spellcheck="false"
     role="combobox"

@@ -39,7 +39,6 @@
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ResultList from "$lib/components/ResultList.svelte";
   import SearchBar from "$lib/components/SearchBar.svelte";
-  import TodoInput from "$lib/commands/todo/TodoInput.svelte";
   import TodoList from "$lib/commands/todo/TodoList.svelte";
   import TranslatePanel from "$lib/commands/translate/TranslatePanel.svelte";
   import TimestampPanel from "$lib/commands/timestamp/TimestampPanel.svelte";
@@ -200,7 +199,6 @@
     {#if ui.view === "empty"}
       <EmptyState />
     {:else if ui.view === "todo"}
-      <TodoInput />
       <TodoList />
     {:else if ui.view === "calc"}
       <CalcResult />

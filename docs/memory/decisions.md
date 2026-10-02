@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - Todo loses its second input, and gains one label
+Decision:
+`TodoInput` is gone. `todo 买牛奶` + Enter creates the item from the palette's own field, which is now the only text field in this view. `Todo` gained a `tag` string (`#[serde(default)]`), a trailing `#label` sets it, `Tab` cycles the filter through every label in use, and `TodoList` wears a `PanelFooter` and a relative age on each row.
+Reason:
+The panel had two ways to add an item and they did not agree. The inner row was the one that hurt: focusing it took the arrows away from the list, so "add one, then move to the next" cost a click or a Tab back to the field between every item — the panel that exists to make todos fast was the slowest way to add one. Deleting it fixes the arrow problem for free, because the field never loses focus and the arrows and Enter work while an item is being typed as well as after it. The label is what makes a list of twenty usable: without one, everything a user is working on is one undifferentiated column, and the only way to find an item is to read all of them. A cycle rather than a picker, and written back into the field rather than held beside it, so there is exactly one place the filter is written down. The age is the one thing a row cannot show by being read — it is what tells the user whether an item is still worth doing — and a list that only grows needs it more than one that gets cleared.
+Note:
+`#[serde(default)]` is load-bearing rather than tidy: `read_json` moves a file it cannot parse aside as corrupt, so a required `tag` would have destroyed the user's whole list on the first launch after the upgrade. A test pins that a todo without the field still reads. The label rule is "ends the line, starts at a word boundary", so `#1 修 bug` and `议题#3` stay ordinary text; a rule that grabbed any `#` would eat the text of anyone writing about issue numbers, and the escape hatch would be a syntax the user has to remember. `Tab` only claims the key while the line is not being typed as an item — over `买牛奶 #购物` a Tab that replaced the sentence with the next label would eat the user's text — and Enter takes the highlighted row unless the line is a new item waiting to be created, which a line that is only a label is not. Verified: `svelte-check` clean, 107 frontend tests (10 new — 6 for the parse, 4 for the age), 111 Rust tests. Not verified in the running app.
+
 ## 2026-10-02 - A settings row says what it is doing, and the login row says which way it goes
 Decision:
 `UpdateStore.checking` became public `$state`; the update row's value reads 正在检查更新… / 有新版本 x.y.z / 当前版本 x.y.z, its glyph is replaced by a spinner, and `SettingsPanel`'s footer withholds the Enter chip while a check runs. A finished check that found nothing keeps its answer in `UpdateStore.outcome` for six seconds and reports it in the footer. The 开机自启动 row gained its own chip, reading 开启自启动 or 关闭自启动 from the state it is in.
