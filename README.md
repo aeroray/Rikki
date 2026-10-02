@@ -18,11 +18,12 @@ On macOS it is a menu-bar app: no Dock icon, and the menu-bar icon opens its men
 - **Launch apps** — type any part of the name. Icons, pinyin (`wx` → 微信), ranked by how often you open it.
 - **Clipboard history** — text, images and copied files. Pin what you want to keep; `Tab` previews any of them.
 - **Snippets** — save text once, copy it with `sn`. `{{date}}`, `{{time}}` and `{{clipboard}}` expand on copy.
+- **Todos** — one line each, with an optional `#label` so a project's items stay together. `#` picks a label, `Ctrl+T` relabels, `Tab` reads a long one in full.
 - **Converters** — calc, color, JSON, Base64, timestamps, QR codes (make one, or read one from the clipboard).
 - **Translate** — no API key. A word gets a dictionary card; a sentence gets two translations.
 - **System** — lock, sleep, shutdown, reboot, logout, each of them now or after a delay; live CPU, memory and GPU readings with `sys`.
 - **Web search** with `gg`, `bd`, `bing`, `ddg`, `sogou`.
-- **中文 / English**, dark, light or following the system, and the hotkey is yours to rebind.
+- **中文 / English**, dark, light or following the system, and a hotkey and launch-at-login you control.
 
 ## Run it
 
@@ -46,7 +47,7 @@ pnpm tauri build    # package
 `Alt+Space` on Windows, `⌘K` on macOS. Rebind it in `settings`.
 
 - **Enter** does the thing: copy, paste, launch, run.
-- **Tab** does the second thing: preview a clipboard item, minify JSON, save a PNG, flip Base64.
+- **Tab** does the second thing: preview a clipboard item or a todo, minify JSON, save a PNG, flip Base64.
 - **Esc** backs out one step at a time, and hides the palette from an empty one.
 - **↑↓** walk whatever list is on screen — the commands, the apps, the calendar, a panel's options.
 - **Ctrl+Z** cancels a scheduled shutdown, restart, sleep, lock or log out, from anywhere.
