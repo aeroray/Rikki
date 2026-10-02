@@ -3,6 +3,7 @@
   import CommandItem from "$lib/components/CommandItem.svelte";
   import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import UpdateBar from "$lib/components/UpdateBar.svelte";
   import { i18n } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
 
@@ -36,6 +37,8 @@
   </ScrollArea>
   <!-- The empty state has no `PanelFooter`, so without this a scheduled action was
        invisible until something was typed — the panel a user opens first was the
-       one place it could not be seen. -->
+       one place it could not be seen. An update found at startup is the same
+       shape of problem, and it is answered the same way. -->
   <PendingPowerBar />
+  <UpdateBar />
 </div>

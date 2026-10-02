@@ -5,17 +5,43 @@ import { i18n } from "$lib/i18n";
 import { ui } from "$lib/stores/ui.svelte";
 
 /**
+ * How long after the process starts the launch check runs.
+ *
+ * Not at once: the first seconds of a launch belong to the window, the tray and
+ * the Start Menu scan, and a request competing with them buys nothing — the
+ * answer is not wanted until the palette comes up anyway.
+ */
+const STARTUP_DELAY = 3_000;
+
+/**
  * How long an answer is trusted before asking again.
  *
  * This app lives in the tray, which is what makes the schedule worth thinking
- * about. "Check on startup" would mean once a week for someone who never quits it,
- * and a timer would mean waking an idle machine to ask a question nobody is
- * waiting for. Instead the check is driven by the palette opening, throttled to
- * this interval: the moment the user is actually here is the only moment the
- * answer can be acted on, and opening the palette twenty times in a day still asks
- * once. Nothing runs while the app sits idle.
+ * about. "Check on startup" alone would mean once a week for someone who never
+ * quits it, and a timer would mean waking an idle machine to ask a question
+ * nobody is waiting for. So there are two triggers and this is the throttle on
+ * the second one: the launch check (`start`) runs once per process, and the
+ * palette opening asks again only once this much time has passed. Opening the
+ * palette twenty times in a day still asks once, and nothing runs while the app
+ * sits idle.
  */
 const CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+
+/**
+ * A one-line reason for a failed check, for the notice the settings row shows.
+ *
+ * An unreachable network, a release that is not there and a rejected signature
+ * all arrive as the same kind of value, so the text is all there is to go on.
+ * It is flattened and truncated because a `reqwest` error carries a URL and a
+ * source chain, and the notice is a two-line box in a 600px palette.
+ */
+function describeError(error: unknown): string {
+  const text = (error instanceof Error ? error.message : String(error))
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "unknown";
+  return text.length > 140 ? `${text.slice(0, 139)}…` : text;
+}
 
 /**
  * Checking for a release, installing it in place, and offering it in the footer.
@@ -53,6 +79,14 @@ class UpdateStore {
    * the only handle to the update the footer is about to offer.
    */
   private pending: Update | null = null;
+  /**
+   * True once the launch check has been armed.
+   *
+   * The palette is shown many times per process, but the launch check is one per
+   * process: `start()` is called from the one `onMount` that owns the window, and
+   * a second call would only schedule a second timer.
+   */
+  private started = false;
 
   constructor() {
     void getVersion()
@@ -63,6 +97,31 @@ class UpdateStore {
         // No Tauri runtime, or the command is not permitted: the row then shows
         // no version rather than a wrong one.
       });
+  }
+
+  /**
+   * The check nobody asked for: one per launch, in the background.
+   *
+   * This is what makes a release knowable without the user going looking for one.
+   * The palette opening used to be the only trigger, which meant an update could
+   * only be discovered by the act of searching for something else — and a
+   * launcher left in the tray for a week was never told at all. The answer is
+   * held on the store, and `UpdateBar` shows it the next time the palette comes
+   * up, below the countdown bar if a power action is pending.
+   *
+   * Deliberately outside `CHECK_INTERVAL`: that interval exists so that opening
+   * the palette twenty times in a day still asks once, and the first check of a
+   * process is not a repeat of anything. It does stamp `lastCheck`, so the
+   * palette opening just after a launch does not ask again.
+   */
+  start(): void {
+    if (this.started) return;
+    this.started = true;
+    setTimeout(() => {
+      if (this.pending || this.checking) return;
+      this.lastCheck = Date.now();
+      void this.run();
+    }, STARTUP_DELAY);
   }
 
   /**
@@ -78,14 +137,32 @@ class UpdateStore {
     // Stamped before the request, so a slow or failing one cannot make every open
     // try again.
     this.lastCheck = now;
+    await this.run();
+  }
+
+  /**
+   * The request itself, shared by both triggers.
+   *
+   * The `pending`/`checking` guard is repeated here rather than only in the two
+   * callers, because the launch check reaches this from a timer: a palette
+   * opening in the seconds before that timer fires would otherwise start a second
+   * request, and the loser's `Update` would be dropped without being closed.
+   */
+  private async run(): Promise<void> {
+    if (this.pending || this.checking) return;
     this.checking = true;
     try {
       const found = await check();
       if (!found) return;
       this.pending = found;
       this.available = found.version;
-    } catch {
-      // Offline, or no release published yet. Nothing to say.
+    } catch (error) {
+      // Offline, no release published yet, or an endpoint that answers 404 — the
+      // plugin reports all three as one error, and a background check that was
+      // never asked for must not interrupt with it. The console line is for
+      // whoever has to work out why nothing is ever offered; the settings row
+      // prints the same reason when the user asks on purpose.
+      console.warn("rikki: update check failed:", describeError(error));
     } finally {
       // Cleared in a `finally`, not after the `await`: two palette openings a
       // second apart while the first request is still in flight both passed the
@@ -124,8 +201,12 @@ class UpdateStore {
       }
       this.pending = found;
       this.confirmHeld();
-    } catch {
-      ui.flash(i18n.t("settings.update.failed"));
+    } catch (error) {
+      // The reason, not just "failed": this row is the one place the user asks on
+      // purpose, and a check that has never once succeeded is undiagnosable from
+      // a notice that says only that it did not.
+      console.warn("rikki: update check failed:", describeError(error));
+      ui.flash(i18n.t("settings.update.failedReason", { reason: describeError(error) }));
     } finally {
       this.checking = false;
     }

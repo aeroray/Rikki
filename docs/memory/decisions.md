@@ -2,6 +2,22 @@
 
 Entries are newest first.
 
+## 2026-10-02 - The update check runs at launch, and its bar stacks under the countdown
+Decision:
+`UpdateStore.start()` runs one check per process, three seconds into the launch and outside `CHECK_INTERVAL`; the palette opening still re-checks on the six-hour throttle, and both triggers now share one `run()`. The footer's update line became `UpdateBar`, a component of its own rendered by `EmptyState`, `ResultList` and `TodoList` as well as by `PanelFooter`, and it stacks *below* `PendingPowerBar` instead of being replaced by it. A failed check on the settings row prints the plugin's reason, not only "failed".
+Reason:
+Two faults with one symptom. The check only ever ran from `palette-shown`, so a release could be discovered only by the act of searching for something else. And the answer was drawn by `PanelFooter`, which the empty state and the root list do not render — so the panel a user opens first, with nothing typed, was the one place an update could not be seen. The priority question is real but the two bars are not alternatives: a pending shutdown outranks an update because the machine is about to close everything, yet hiding the update until the timer fires is the one case where the user cannot act on it in time. Stacking answers both — the countdown keeps the top row, the update stays visible and installable underneath it.
+Note:
+The launch check is deliberately not throttled: `CHECK_INTERVAL` exists so that opening the palette twenty times in a day still asks once, and the first check of a process is not a repeat of anything. It does stamp `lastCheck`, so a palette opening just after a launch does not ask again. Verified with `svelte-check` clean and 94 tests passing; the two bars stacking is reasoned from the markup, not yet seen in the running app.
+
+## 2026-10-02 - The update endpoint answers 404, and no code change can fix that
+Decision:
+No change yet. Recorded because it is the answer to "the update check has never once succeeded", and it is not in this repository: `https://github.com/aeroray/Rikki/releases/latest/download/latest.json` returns **404 to any client that is not signed in**, because `aeroray/Rikki` is a **private** repository. The two public projects beside it answer 200 on the same URL with the same shape of manifest.
+Reason:
+Measured three ways rather than inferred. Anonymous `GET` of the endpoint: 404 for Rikki, 200 for Museek and SkillSage. `gh api /repos/aeroray/Rikki` with an authenticated token for a *different* account: 404, while `/users/aeroray/repos` lists three public repositories and Rikki is not one of them. And `ssh -T git@github-aeroray` authenticates as `aeroray`, so the repository exists and the SSH remote works — it is the anonymous HTTPS asset URL the updater needs that does not.
+Note:
+The updater has no way to authenticate a release download: the endpoint is a plain HTTPS GET from the plugin, so a private repository can never serve it, and the failure is a bare 404 inside `check()` that the frontend swallowed. Two things are *not* the cause and were checked before blaming the network: the minisign public key in `tauri.conf.json` matches `~/.tauri/rikki-updater.key.pub` byte for byte, and `relaunch()` calls `plugin:process|restart`, which `process:allow-restart` in the capability already grants. Publishing the release is a second, independent gate — `tauri-action` writes it as a **draft**, and `/releases/latest` skips drafts — so a repository made public would still need the release published by hand.
+
 ## 2026-10-01 - The vocabulary test has to import every command
 Decision:
 `aliases.test.ts` imports `$lib/commands/sysmon`, and `COMMAND_ALIASES` gained a `sysmon` entry (`monitor`, 系统, 系统状态, 监控, 性能).

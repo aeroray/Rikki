@@ -137,6 +137,7 @@ export const en: Record<MessageKey, string> = {
   "settings.update.checking": "Checking for updates…",
   "settings.update.latest": "Up to date ({version})",
   "settings.update.failed": "Couldn’t update — try again later",
+  "settings.update.failedReason": "Update check failed: {reason}",
   "settings.update.action": "update to {version}",
   "settings.update.body": "Rikki will download and install {version}, then restart.",
   "settings.update.downloading": "Downloading {percent}%",

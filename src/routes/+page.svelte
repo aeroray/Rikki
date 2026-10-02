@@ -64,16 +64,21 @@
     }
     ui.focusField = "search";
     void clipboard.start();
+    // The one update check that is not triggered by the palette: it fires a few
+    // seconds into the launch, and the palette shows whatever it found the next
+    // time it comes up. See `UpdateStore.start` for why it is not at once.
+    update.start();
     // `apps.start()` and `ui.start()` were no-ops: both promises are kicked off
     // in their constructors, so the calls only looked like initialisation.
     const stops: Array<() => void> = [];
 
     void listen("palette-shown", () => {
       ui.beginShow();
-      // The two things worth asking about on a schedule, and both throttle
-      // themselves: a release, and whether the app list still matches the Start
-      // Menu. Opening the palette is the app's only regular moment, and the only
-      // one where either answer can be acted on.
+      // Both throttle themselves, and neither is the app's only trigger any
+      // more: the launch check already asked once, so these are the re-checks
+      // that keep a process left in the tray for days from going stale. Opening
+      // the palette is the app's only regular moment, and the only one where
+      // either answer can be acted on.
       void update.checkQuietly();
       void apps.refresh();
       // Picks up a timer set in an earlier session as well as one this app set:

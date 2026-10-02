@@ -5,6 +5,7 @@
   import CommandItem from "$lib/components/CommandItem.svelte";
   import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import UpdateBar from "$lib/components/UpdateBar.svelte";
   import { engineDisplayName } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
   import { apps } from "$lib/stores/apps.svelte";
@@ -70,4 +71,5 @@
   <!-- The root list has no `PanelFooter`, so a scheduled shutdown would otherwise
        be invisible from the view the user is most often looking at. -->
   <PendingPowerBar />
+  <UpdateBar />
 </div>

@@ -134,6 +134,7 @@ export const zhCN = {
   "settings.update.checking": "正在检查更新…",
   "settings.update.latest": "已是最新版本（{version}）",
   "settings.update.failed": "更新失败，请稍后再试",
+  "settings.update.failedReason": "更新检查失败：{reason}",
   "settings.update.action": "更新到 {version}",
   "settings.update.body": "将下载并安装 {version}，然后重启 Rikki。",
   "settings.update.downloading": "正在下载 {percent}%",

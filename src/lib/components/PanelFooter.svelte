@@ -1,11 +1,10 @@
 <script lang="ts">
   import KeyChip from "$lib/components/KeyChip.svelte";
   import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
-  import { primaryShortcut } from "$lib/commands/settings/engines";
+  import UpdateBar from "$lib/components/UpdateBar.svelte";
   import { i18n } from "$lib/i18n";
   import { power } from "$lib/stores/power.svelte";
   import { update } from "$lib/stores/update.svelte";
-  import { ArrowUpCircle } from "@lucide/svelte";
   import type { Snippet } from "svelte";
 
   /**
@@ -62,37 +61,18 @@
   const messageAlign = $derived(shortcuts.length > 0 ? "ml-auto" : "mx-auto");
 </script>
 
-<!-- A pending shutdown outranks everything else in this bar, including an update:
+<!-- A pending shutdown outranks an update, and the two bars stack in that order:
      the machine is about to close every program the user has open, and the only
-     useful thing to offer is a way to stop it. -->
-{#if power.pending}
-  <PendingPowerBar />
-{:else if update.available}
-  <div class="flex min-h-8 shrink-0 items-center gap-3 border-t border-hairline px-3">
-    <!-- Same shape as every other footer: what the keyboard can do on the left,
-         what the mouse can do on the right. -->
-    <ul class="flex min-w-0 shrink items-center gap-x-3 overflow-hidden">
-      <li class="flex min-w-0 items-center gap-1.5">
-        <ArrowUpCircle class="size-4 shrink-0 text-ink-subtle" strokeWidth={1.5} aria-hidden="true" />
-        <span class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle">
-          {i18n.t("update.available", { version: update.available })}
-        </span>
-      </li>
-      <li class="shrink-0">
-        <KeyChip keys={primaryShortcut("U")} label={i18n.t("update.install")} />
-      </li>
-    </ul>
-    <!-- The mouse's way in. A plain press, with no confirmation: reaching for
-         either the shortcut or this button is already the answer. -->
-    <button
-      type="button"
-      class="pressable ml-auto shrink-0 rounded px-1 text-[11px] leading-4 text-primary hover:text-primary-hover active:scale-[0.96]"
-      onclick={() => void update.installAvailable()}
-    >
-      {i18n.t("update.install")}
-    </button>
-  </div>
-{:else if shortcuts.length > 0 || message || children}
+     useful thing to offer is a way to stop it. The update is not dropped while
+     the countdown runs, though — see `UpdateBar` for why the two are not
+     alternatives.
+
+     Both bars replace the shortcuts rather than sharing the row with them: an
+     update and a countdown are the two things here that cannot be done later,
+     and three sets of chips in a 32px bar would leave room for none. -->
+<PendingPowerBar />
+<UpdateBar />
+{#if !power.pending && !update.available && (shortcuts.length > 0 || message || children)}
   <!-- With neither shortcuts nor a message there is nothing to say, and a bare
        hairline plus padding would just be a stray divider in the most cramped
        states (an empty or invalid panel). -->

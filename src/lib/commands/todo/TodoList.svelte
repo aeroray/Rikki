@@ -2,6 +2,7 @@
   import PanelEmpty from "$lib/components/PanelEmpty.svelte";
   import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
+  import UpdateBar from "$lib/components/UpdateBar.svelte";
   import { i18n } from "$lib/i18n";
   import { todos } from "$lib/stores/todos.svelte";
   import { ui } from "$lib/stores/ui.svelte";
@@ -125,4 +126,5 @@
        needs adding here as well: a scheduled shutdown has to be visible from every
        view, not only the ones that happen to share a footer. -->
   <PendingPowerBar />
+  <UpdateBar />
 </div>
