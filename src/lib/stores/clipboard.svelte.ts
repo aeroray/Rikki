@@ -177,7 +177,10 @@ class ClipboardStore {
         this.selectedIndex = 0;
         this.closeConfirm();
         const saved = await this.enqueueWrite();
-        ui.flash(saved ? i18n.t("clip.cleanupDone") : i18n.t("clip.saveFailed"));
+        ui.flash(
+          saved ? i18n.t("clip.cleanupDone") : i18n.t("clip.saveFailed"),
+          saved ? "success" : "info",
+        );
       });
       return;
     }
@@ -188,7 +191,10 @@ class ClipboardStore {
     // Report success only after the write lands, instead of claiming the
     // history was cleared while the file on disk is unchanged.
     void this.clear(true).then((saved) => {
-      ui.flash(saved ? i18n.t("clip.clearDone") : i18n.t("clip.saveFailed"));
+      ui.flash(
+        saved ? i18n.t("clip.clearDone") : i18n.t("clip.saveFailed"),
+        saved ? "success" : "info",
+      );
     });
   }
 

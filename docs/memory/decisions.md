@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - Success marks good news, and danger still means "cannot be undone"
+Decision:
+`NoticeTone` (`"info" | "success"`) joins the ui store. The notices the app flashes, and the footer lines the panels carry, can now say they are good news — a green check beside the sentence, with the sentence itself staying ink. The tone is set at the call site: `ui.flash(message, "success")`, `settings.flash(message, "success")`, `messageTone` on `PanelFooter`, and a `noticeTone` beside each store's own `notice`. About twenty call sites carry it, every one of them reporting something that worked.
+Reason:
+The app reports two very different things through one channel. 已切换到简体中文 and 无法保存设置 were the same grey, the same size, on the same 12px line, so the only way to tell a save from a failure was to read it — and the one place the app has good news to give looked exactly like the place it apologises. Green is the signal everyone already reads as "that worked", and it costs one glyph to say so.
+Note:
+Red for failures was considered and **rejected**: `danger` means "this cannot be undone" in this design, and it keeps that meaning only by not also meaning "that did not work". A failed copy and an irreversible shutdown are not the same kind of news. DESIGN.md now says so in as many words, beside the success rule, because that is the decision a later reader is most likely to reverse by accident. The glyph carries the colour rather than the text, which stays ink — a green sentence at 12px is harder to read for no more information than the check already gives. Verified by rendering the palette in headless Chrome with a notice forced to `success`: the check draws green beside 已切换到简体中文 and the sentence stays readable. Not every call site was exercised; the ones that were not are the same two-line pattern.
+
 ## 2026-10-02 - Success joins danger as a semantic colour, with one home
 Decision:
 `--color-success` (`#3dd68c` dark, `#218358` light) joins the tokens, and the arrow on the update bar is the only thing that paints it. `design/DESIGN.md` gains the row and the rule beside danger's.

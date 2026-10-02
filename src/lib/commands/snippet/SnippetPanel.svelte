@@ -123,6 +123,10 @@
       {/if}
     </div>
 
-    <PanelFooter shortcuts={footerShortcuts} message={footerMessage} />
+    <PanelFooter
+      shortcuts={footerShortcuts}
+      message={footerMessage}
+      messageTone={snippets.noticeTone}
+    />
   </div>
 {/if}

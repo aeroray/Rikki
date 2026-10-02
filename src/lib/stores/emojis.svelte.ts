@@ -4,11 +4,13 @@ import { emojisInCategory, loadEmojiData, searchEmojis, type EmojiCategoryPack, 
 import { parseEmojiScreen } from "$lib/commands/emoji/parse";
 import type { EmojiItem } from "$lib/commands/emoji/types";
 import { i18n } from "$lib/i18n";
-import { ui } from "$lib/stores/ui.svelte";
+import { ui, type NoticeTone } from "$lib/stores/ui.svelte";
 
 class EmojiStore {
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
+  /** Whether that notice is good news, which decides its glyph in the footer. */
+  noticeTone = $state<NoticeTone>("info");
   ready = $state(false);
   loading = $state(false);
   failed = $state(false);
@@ -53,7 +55,7 @@ class EmojiStore {
         ui.flash(i18n.t("copy.failed"));
         return false;
       }
-      this.flash(i18n.t("emoji.copied", { glyph: native }));
+      this.flash(i18n.t("emoji.copied", { glyph: native }), "success");
       const nonce = ui.showNonce;
       if (this.hideTimer) clearTimeout(this.hideTimer);
       this.hideTimer = setTimeout(() => {
@@ -86,11 +88,13 @@ class EmojiStore {
     }
   }
 
-  private flash(message: string) {
+  private flash(message: string, tone: NoticeTone = "info") {
     this.notice = message;
+    this.noticeTone = tone;
     if (this.noticeTimer) clearTimeout(this.noticeTimer);
     this.noticeTimer = setTimeout(() => {
       this.notice = null;
+      this.noticeTone = "info";
       this.noticeTimer = null;
     }, 1200);
   }

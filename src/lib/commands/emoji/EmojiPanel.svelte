@@ -180,5 +180,9 @@
     </div>
   {/if}
 
-  <PanelFooter shortcuts={footerShortcuts} message={footerMessage} />
+  <PanelFooter
+    shortcuts={footerShortcuts}
+    message={footerMessage}
+    messageTone={emojis.noticeTone}
+  />
 </div>

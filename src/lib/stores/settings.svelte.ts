@@ -19,7 +19,7 @@ import { parseSettingsScreen, type SettingsScreen } from "$lib/commands/settings
 import type { AppSettings, InstalledBrowser, PickedFile, ThemePref } from "$lib/commands/types";
 import { snippets } from "$lib/stores/snippets.svelte";
 import { todos } from "$lib/stores/todos.svelte";
-import { ui } from "$lib/stores/ui.svelte";
+import { ui, type NoticeTone } from "$lib/stores/ui.svelte";
 import { update } from "$lib/stores/update.svelte";
 
 export type SettingItem = {
@@ -99,6 +99,8 @@ class SettingsStore {
   customEngines = $state<SearchEngine[]>([]);
   selectedIndex = $state(0);
   notice = $state<string | null>(null);
+  /** Whether that notice is good news, which decides its glyph in the footer. */
+  noticeTone = $state<NoticeTone>("info");
   recording = $state(false);
   engineDraft = $state<EngineDraft | null>(null);
   private ready: Promise<void>;
@@ -399,7 +401,7 @@ class SettingsStore {
     try {
       const next = await invoke<AppSettings>("update_setting", { key: "locale", value: id });
       this.apply(next);
-      this.flash(i18n.t("settings.language.switched", { name: this.prefLabel(id) }));
+      this.flash(i18n.t("settings.language.switched", { name: this.prefLabel(id) }), "success");
       this.scheduleReturn();
       return true;
     } catch {
@@ -436,6 +438,7 @@ class SettingsStore {
       this.autostartEnabled = await isAutostartEnabled();
       this.flash(
         i18n.t(this.autostartEnabled ? "settings.autostart.on" : "settings.autostart.off"),
+        "success",
       );
       return true;
     } catch {
@@ -475,7 +478,7 @@ class SettingsStore {
       });
       this.apply(next);
       this.recording = false;
-      this.flash(i18n.t("hotkey.set", { value: formatHotkey(shortcut) }));
+      this.flash(i18n.t("hotkey.set", { value: formatHotkey(shortcut) }), "success");
       this.scheduleReturn();
       return true;
     } catch {
@@ -528,7 +531,7 @@ class SettingsStore {
       const next = await invoke<AppSettings>("add_custom_engine", { name, url });
       this.apply(next);
       this.closeEngineDraft();
-      this.flash(i18n.t("engine.added", { name }));
+      this.flash(i18n.t("engine.added", { name }), "success");
       return true;
     } catch {
       this.flash(i18n.t("engine.addFail"));
@@ -543,7 +546,7 @@ class SettingsStore {
     try {
       const next = await invoke<AppSettings>("delete_custom_engine", { id });
       this.apply(next);
-      this.flash(i18n.t("engine.removed", { name: current.name }));
+      this.flash(i18n.t("engine.removed", { name: current.name }), "success");
       return true;
     } catch {
       this.flash(i18n.t("settings.saveFail"));
@@ -564,7 +567,7 @@ class SettingsStore {
       const path = await invoke<string | null>("export_settings", {
         stamp: exportStamp(new Date()),
       });
-      if (path) this.flash(i18n.t("settings.export.saved", { path }));
+      if (path) this.flash(i18n.t("settings.export.saved", { path }), "success");
     } catch {
       this.flash(i18n.t("settings.export.fail"));
     }
@@ -617,7 +620,7 @@ class SettingsStore {
     await todos.reload();
     await snippets.reload();
     await this.reload();
-    this.flash(i18n.t("settings.import.restored", { name }));
+    this.flash(i18n.t("settings.import.restored", { name }), "success");
   }
 
   private async readBrowsers() {
@@ -638,7 +641,7 @@ class SettingsStore {
     try {
       const next = await invoke<AppSettings>("update_setting", { key, value });
       this.apply(next);
-      this.flash(message);
+      this.flash(message, "success");
       this.scheduleReturn();
       return true;
     } catch {
@@ -666,11 +669,13 @@ class SettingsStore {
     }, 1500);
   }
 
-  private flash(message: string) {
+  private flash(message: string, tone: NoticeTone = "info") {
     this.notice = message;
+    this.noticeTone = tone;
     if (this.noticeTimer) clearTimeout(this.noticeTimer);
     this.noticeTimer = setTimeout(() => {
       this.notice = null;
+      this.noticeTone = "info";
       this.noticeTimer = null;
     }, 1500);
   }

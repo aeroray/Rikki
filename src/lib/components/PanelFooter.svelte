@@ -4,7 +4,9 @@
   import UpdateBar from "$lib/components/UpdateBar.svelte";
   import { i18n } from "$lib/i18n";
   import { power } from "$lib/stores/power.svelte";
+  import type { NoticeTone } from "$lib/stores/ui.svelte";
   import { update } from "$lib/stores/update.svelte";
+  import { CircleCheck } from "@lucide/svelte";
   import type { Snippet } from "svelte";
 
   /**
@@ -34,6 +36,7 @@
   let {
     shortcuts = [],
     message = null,
+    messageTone = "info",
     children,
   }: {
     shortcuts?: FooterShortcut[];
@@ -43,6 +46,14 @@
      * hint and a remark about the current state.
      */
     message?: string | null;
+    /**
+     * Whether that remark is good news, which adds the success glyph.
+     *
+     * Only success. A failure is not painted red here: `danger` means "this
+     * cannot be undone" and nothing else in this app, so a failed save and an
+     * irreversible shutdown do not get to look alike.
+     */
+    messageTone?: NoticeTone;
     /**
      * Controls that belong in the chrome rather than the content — a mode
      * picker, say. Takes the space the message would have used, because the two
@@ -102,10 +113,13 @@
            against the last chip, where it read as one more shortcut instead of a
            remark about the panel. -->
       <p
-        class="min-w-0 truncate text-[11px] leading-4 text-ink-subtle tabular-nums {messageAlign}"
+        class="flex min-w-0 items-center gap-1 text-[11px] leading-4 text-ink-subtle tabular-nums {messageAlign}"
         aria-live="polite"
       >
-        {message}
+        {#if messageTone === "success"}
+          <CircleCheck class="size-3.5 shrink-0 text-success" strokeWidth={1.5} aria-hidden="true" />
+        {/if}
+        <span class="min-w-0 truncate">{message}</span>
       </p>
     {/if}
   </div>

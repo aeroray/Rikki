@@ -66,7 +66,7 @@ class PowerStore {
     this.generation += 1;
     try {
       await invoke("cancel_power");
-      ui.flash(i18n.t("power.cancelled"));
+      ui.flash(i18n.t("power.cancelled"), "success");
     } catch {
       // Nothing was scheduled, which is the state the caller wanted anyway.
     }

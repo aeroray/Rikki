@@ -24,6 +24,17 @@ export type ClipPreview =
   | { kind: "text"; body: string }
   | { kind: "color"; content: string };
 
+/**
+ * How a notice reads.
+ *
+ * Two tones, not three. The obvious third — red for "that failed" — is
+ * deliberately absent: `danger` in this design means "this cannot be undone",
+ * and it keeps that meaning by not also meaning "that did not work". A failed
+ * copy and an irreversible shutdown are not the same kind of news, and colouring
+ * them alike would spend the one colour the app reserves for the second.
+ */
+export type NoticeTone = "info" | "success";
+
 class UiStore {
   searchText = $state("");
   selectedIndex = $state(0);
@@ -49,6 +60,8 @@ class UiStore {
    */
   capsLock = $state(false);
   notice = $state<string | null>(null);
+  /** Whether the notice on screen is good news, which decides its glyph. */
+  noticeTone = $state<NoticeTone>("info");
   /**
    * A destructive action waiting for a second Enter. Held as state rather than
    * run straight away so `SearchBar` can route the next key to it.
@@ -213,8 +226,9 @@ class UiStore {
     oncancel?.();
   }
 
-  flash(message: string) {
+  flash(message: string, tone: NoticeTone = "info") {
     this.notice = message;
+    this.noticeTone = tone;
     if (this.noticeTimer) clearTimeout(this.noticeTimer);
     this.noticeTimer = setTimeout(() => {
       this.notice = null;
@@ -264,6 +278,7 @@ class UiStore {
     if (options?.reset) this.pendingReset = true;
     for (const flush of this.hideFlushers) flush();
     this.notice = null;
+    this.noticeTone = "info";
     this.cancelConfirm();
     if (this.noticeTimer) {
       clearTimeout(this.noticeTimer);

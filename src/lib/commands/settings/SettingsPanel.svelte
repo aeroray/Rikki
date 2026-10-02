@@ -19,7 +19,7 @@
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
-  import { ui } from "$lib/stores/ui.svelte";
+  import { ui, type NoticeTone } from "$lib/stores/ui.svelte";
   import { update } from "$lib/stores/update.svelte";
   import { i18n } from "$lib/i18n";
   import { Plus } from "@lucide/svelte";
@@ -195,6 +195,21 @@
     }
     return null;
   });
+
+  /**
+   * Whether the footer's remark is good news.
+   *
+   * Only two of the things that can land here are: a settings save that worked,
+   * and a check that found the app already up to date. Everything else — the
+   * empty-browser hint, the cleanup note, a failed check — is neutral, and a
+   * failed check stays neutral on purpose: `danger` is reserved for actions that
+   * cannot be undone, so it does not also mean "that did not work".
+   */
+  const footerTone = $derived.by((): NoticeTone => {
+    if (settings.notice) return settings.noticeTone;
+    if (selectedItemId === "update" && update.outcome?.kind === "latest") return "success";
+    return "info";
+  });
 </script>
 
 {#if settings.engineDraft}
@@ -312,6 +327,6 @@
       </ScrollArea>
     </div>
 
-    <PanelFooter shortcuts={footerShortcuts} message={footerMessage} />
+    <PanelFooter shortcuts={footerShortcuts} message={footerMessage} messageTone={footerTone} />
   </div>
 {/if}

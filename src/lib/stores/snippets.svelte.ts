@@ -5,7 +5,7 @@ import { snippetListQuery } from "$lib/commands/snippet/parse";
 import type { Snippet } from "$lib/commands/types";
 import { fuzzyScore } from "$lib/fuzzy";
 import { i18n } from "$lib/i18n";
-import { ui } from "$lib/stores/ui.svelte";
+import { ui, type NoticeTone } from "$lib/stores/ui.svelte";
 
 export type SnippetDraft = {
   id: string | null;
@@ -20,6 +20,8 @@ class SnippetStore {
   selectedIndex = $state(0);
   draft = $state<SnippetDraft | null>(null);
   notice = $state<string | null>(null);
+  /** Whether that notice is good news, which decides its glyph in the footer. */
+  noticeTone = $state<NoticeTone>("info");
   private ready: Promise<void>;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -120,7 +122,7 @@ class SnippetStore {
       });
       this.items = [snippet, ...this.items.filter((item) => item.id !== snippet.id)];
       this.selectedIndex = 0;
-      this.flash(i18n.t("snippet.created", { title: snippet.title }));
+      this.flash(i18n.t("snippet.created", { title: snippet.title }), "success");
       ui.searchText = "sn ";
       return true;
     } catch {
@@ -148,7 +150,7 @@ class SnippetStore {
         sensitive,
       });
       this.items = this.items.map((item) => (item.id === id ? snippet : item));
-      this.flash(i18n.t("snippet.updated", { title: snippet.title }));
+      this.flash(i18n.t("snippet.updated", { title: snippet.title }), "success");
       return true;
     } catch {
       this.flash(i18n.t("snippet.saveFailed"));
@@ -163,7 +165,10 @@ class SnippetStore {
       await invoke("delete_snippet", { id });
       this.items = this.items.filter((item) => item.id !== id);
       if (this.draft?.id === id) this.closeDraft();
-      this.flash(current ? i18n.t("snippet.deleted", { title: current.title }) : i18n.t("snippet.deletedGeneric"));
+      this.flash(
+        current ? i18n.t("snippet.deleted", { title: current.title }) : i18n.t("snippet.deletedGeneric"),
+        "success",
+      );
       return true;
     } catch {
       return false;
@@ -189,11 +194,13 @@ class SnippetStore {
     }
   }
 
-  private flash(message: string) {
+  private flash(message: string, tone: NoticeTone = "info") {
     this.notice = message;
+    this.noticeTone = tone;
     if (this.noticeTimer) clearTimeout(this.noticeTimer);
     this.noticeTimer = setTimeout(() => {
       this.notice = null;
+      this.noticeTone = "info";
       this.noticeTimer = null;
     }, 2000);
   }

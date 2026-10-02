@@ -35,7 +35,9 @@ Lavender is only for focus, glow, the wordmark, and completed checks. Selected r
 
 Danger is a semantic signal, not a second accent. It appears on the confirm button of a dialog whose action cannot be undone — and on the warning glyph beside that dialog's title — and nowhere else: never on a row, a section, a label, or a normal button.
 
-Success is the same kind of signal with exactly one home: the arrow on the update bar, where it says a release is waiting rather than that something went wrong. Like danger it is never decoration — a second use is a decision to write down, not a colour to reach for.
+Success is the same kind of signal, and it marks the app's good news: the arrow on the update bar, and the glyph on a notice or a footer line that reports something which worked — a snippet saved, a language switched, an export written. Like danger it is never decoration, and a third use is a decision to write down rather than a colour to reach for.
+
+Danger is deliberately *not* used for failures. A failed copy and an irreversible shutdown are not the same kind of news, and painting them alike would spend the one colour the app keeps for the second. A failure is reported in words, in the same ink as everything else.
 
 ## Type
 

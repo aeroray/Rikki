@@ -55,6 +55,7 @@
   import { update } from "$lib/stores/update.svelte";
   import { power } from "$lib/stores/power.svelte";
   import { listen } from "@tauri-apps/api/event";
+  import { CircleCheck } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   onMount(() => {
@@ -255,10 +256,22 @@
     role="status"
     aria-live="polite"
     class="pointer-events-none absolute inset-x-3 bottom-3 z-20 {ui.notice
-      ? 'rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty break-words text-ink outline outline-1 outline-hairline'
+      ? 'flex items-start gap-1.5 rounded-md bg-surface-2 px-3 py-2 text-[12px] leading-[1.45] text-pretty break-words text-ink outline outline-1 outline-hairline'
       : ''}"
   >
-    {ui.notice}
+    {#if ui.notice}
+      {#if ui.noticeTone === "success"}
+        <!-- The glyph carries the colour and the sentence stays ink: a green one
+             at 12px is harder to read for no more information than the check
+             already gives. -->
+        <CircleCheck
+          class="mt-0.5 size-3.5 shrink-0 text-success"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+      {/if}
+      <span class="min-w-0">{ui.notice}</span>
+    {/if}
   </div>
 </div>
 
