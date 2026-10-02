@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - A settings row says what it is doing, and the login row says which way it goes
+Decision:
+`UpdateStore.checking` became public `$state`; the update row's value reads 正在检查更新… / 有新版本 x.y.z / 当前版本 x.y.z, its glyph is replaced by a spinner, and `SettingsPanel`'s footer withholds the Enter chip while a check runs. A finished check that found nothing keeps its answer in `UpdateStore.outcome` for six seconds and reports it in the footer. The 开机自启动 row gained its own chip, reading 开启自启动 or 关闭自启动 from the state it is in.
+Reason:
+Both reports are one fault: a row that knew more than it said. 检查更新 did its work and reported it through the palette's floating notice — 2.2 seconds, drawn over the footer — so a check that ran and found nothing was indistinguishable from a key press that never landed, and the obvious response was to press Enter again. While the endpoint answers 404, *every* check ends that way, which is why the button read as dead. The login row had the mirror-image problem: it fell through to the shared 打开 chip, and Enter there opens nothing — it flips the setting, so the chip named an action the key does not perform. It now names the direction instead, because "开机自启动" over a row already reading 已开启 tells the user nothing about what Enter is about to do, and the two states need opposite words.
+Note:
+`outcome` is deliberately never set by the background checks: those are silent by design, and a notice about a check nobody asked for is the interruption this app avoids — only the row the user pressed reports itself. The six-second linger lives in `setOutcome` rather than in the caller, so a second check cancels the first one's clock instead of letting the older timer wipe the newer answer a moment after it appeared. The spinner replaces the row's glyph rather than sitting beside it, since a spinner next to a refresh arrow is two glyphs saying the same thing at different speeds, and it carries `motion-reduce:animate-none`. Verified: `svelte-check` clean, 94 frontend tests, i18n catalogs in step. The three behaviours are unverified in the running app.
+
 ## 2026-10-02 - Launch at login is a login item, not a setting this app owns
 Decision:
 `tauri-plugin-autostart` joins the plugin list — `MacosLauncher::LaunchAgent`, no arguments — and a 开机自启动 row sits under 快捷键. The row is a toggle, not a screen: Enter or a click flips it, and its label reads 已开启 / 已关闭 from whatever `isEnabled()` last answered. Nothing about it is written to `settings.json`, and `SETTINGS_VERSION` is untouched.

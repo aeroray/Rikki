@@ -89,6 +89,8 @@ export const zhCN = {
   "settings.autostart.on": "已开启",
   "settings.autostart.off": "已关闭",
   "settings.autostart.failed": "无法修改开机自启动，请再试一次",
+  "settings.keyAutostartOn": "开启自启动",
+  "settings.keyAutostartOff": "关闭自启动",
   "settings.language": "语言",
   "settings.current": "当前: {value}",
   "settings.saveFail": "无法保存设置，请再试一次",

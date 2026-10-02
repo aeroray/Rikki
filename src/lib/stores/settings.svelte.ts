@@ -264,11 +264,17 @@ class SettingsStore {
     {
       id: "update",
       title: i18n.t("settings.update"),
-      // The version is read from the running binary, so an empty one means the
-      // read has not answered yet rather than that there is no version.
-      value: update.version
-        ? i18n.t("settings.update.value", { version: update.version })
-        : "",
+      // Three states, in the order the user cares about them: what is happening
+      // right now, what is waiting to be installed, and what they already have.
+      // The running version comes from the binary, so an empty one means the read
+      // has not answered yet rather than that there is no version.
+      value: update.checking
+        ? i18n.t("settings.update.checking")
+        : update.available
+          ? i18n.t("update.available", { version: update.available })
+          : update.version
+            ? i18n.t("settings.update.value", { version: update.version })
+            : "",
       icon: "RefreshCw",
       current: false,
     },

@@ -29,6 +29,27 @@ const STARTUP_DELAY = 3_000;
 const CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 
 /**
+ * How long the answer to a check the user asked for stays on the settings row.
+ *
+ * Long enough to read a failure reason, short enough that the row goes back to
+ * naming the version the user has. A result nobody asked for — the background
+ * checks — never sets this at all.
+ */
+const OUTCOME_LINGER = 6_000;
+
+/**
+ * What the check the user asked for decided.
+ *
+ * `latest` and `failed` are the two endings with no dialog to show for
+ * themselves. Without something to say afterwards, the only evidence a working
+ * check ever ran is that nothing happened — which is exactly how a dead button
+ * and a working one look the same.
+ */
+export type UpdateOutcome =
+  | { kind: "latest"; version: string }
+  | { kind: "failed"; reason: string };
+
+/**
  * A one-line reason for a failed check, for the notice the settings row shows.
  *
  * An unreachable network, a release that is not there and a rejected signature
@@ -66,13 +87,25 @@ class UpdateStore {
 
   private lastCheck = 0;
   /**
-   * True while a background check is in flight.
+   * True while a check is in flight — either one.
    *
-   * `lastCheck` alone is not enough to keep two overlapping checks apart, and a
+   * Public because the settings row says so while it waits. A check that reports
+   * nothing until it is over is a check the user cannot tell from a key press
+   * that never registered, and that is how this one read before the row learned
+   * to show it. It also keeps two checks apart: `lastCheck` alone cannot, and a
    * second `Update` that nobody installs holds a Rust-side resource until it is
    * closed.
    */
-  private checking = false;
+  checking = $state(false);
+  /**
+   * How the last check the user asked for ended, cleared a few seconds later.
+   *
+   * Only the manual check sets it: a background check that found nothing has to
+   * stay silent, because announcing one nobody asked for is the interruption
+   * this app exists to avoid. The row the user pressed is a different thing.
+   */
+  outcome = $state<UpdateOutcome | null>(null);
+  private outcomeTimer: ReturnType<typeof setTimeout> | null = null;
   /**
    * The `check()` result, held rather than closed.
    *
@@ -264,11 +297,14 @@ class UpdateStore {
     }
 
     this.checking = true;
-    ui.flash(i18n.t("settings.update.checking"));
+    // Cleared before the request: a stale "up to date" left standing while the
+    // next check runs would be the row answering the question it was just asked
+    // again.
+    this.setOutcome(null);
     try {
       const found = await check();
       if (!found) {
-        ui.flash(i18n.t("settings.update.latest", { version: this.version }));
+        this.setOutcome({ kind: "latest", version: this.version });
         return;
       }
       this.pending = found;
@@ -277,11 +313,32 @@ class UpdateStore {
       // The reason, not just "failed": this row is the one place the user asks on
       // purpose, and a check that has never once succeeded is undiagnosable from
       // a notice that says only that it did not.
-      console.warn("rikki: update check failed:", describeError(error));
-      ui.flash(i18n.t("settings.update.failedReason", { reason: describeError(error) }));
+      const reason = describeError(error);
+      console.warn("rikki: update check failed:", reason);
+      this.setOutcome({ kind: "failed", reason });
     } finally {
       this.checking = false;
     }
+  }
+
+  /**
+   * Sets the outcome, and arranges for it to go away again.
+   *
+   * The timer belongs to this method rather than to the caller so that a second
+   * check cancels the first one's clock — otherwise the older timer would fire
+   * and wipe the newer answer a moment after it appeared.
+   */
+  private setOutcome(outcome: UpdateOutcome | null): void {
+    if (this.outcomeTimer) {
+      clearTimeout(this.outcomeTimer);
+      this.outcomeTimer = null;
+    }
+    this.outcome = outcome;
+    if (!outcome) return;
+    this.outcomeTimer = setTimeout(() => {
+      this.outcome = null;
+      this.outcomeTimer = null;
+    }, OUTCOME_LINGER);
   }
 
   /**

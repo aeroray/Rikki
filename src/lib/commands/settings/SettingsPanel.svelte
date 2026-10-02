@@ -19,6 +19,7 @@
   import { settings } from "$lib/stores/settings.svelte";
   import { clipboard } from "$lib/stores/clipboard.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { update } from "$lib/stores/update.svelte";
   import { i18n } from "$lib/i18n";
   import { Plus } from "@lucide/svelte";
   import { onDestroy, onMount, untrack } from "svelte";
@@ -147,6 +148,20 @@
         ? [{ keys: "Enter", label: i18n.t("settings.keyClean") }]
         : [];
     }
+    if (selectedItemId === "autostart") {
+      // The label names the direction the key would take the setting, not what the
+      // row already says: "开机自启动" over a row reading 已开启 tells the user
+      // nothing about what Enter is about to do, and the two states need opposite
+      // words.
+      return [
+        {
+          keys: "Enter",
+          label: i18n.t(
+            settings.autostartEnabled ? "settings.keyAutostartOff" : "settings.keyAutostartOn",
+          ),
+        },
+      ];
+    }
     // The rows that act rather than open name their own action, the way the
     // cleanup row does: "打开" would be a lie about what Enter does here.
     if (selectedItemId === "export") {
@@ -156,6 +171,10 @@
       return [{ keys: "Enter", label: i18n.t("settings.keyImport") }];
     }
     if (selectedItemId === "update") {
+      // While a check runs the key does nothing — `checkNow` refuses a second one
+      // — so the chip goes away and the message below says why. Offering "检查"
+      // over a check already in flight is an invitation to press it again.
+      if (update.checking) return [];
       return [{ keys: "Enter", label: i18n.t("settings.keyCheck") }];
     }
     return [{ keys: "Enter", label: i18n.t("key.open") }];
@@ -177,6 +196,20 @@
       return settings.clipTextRetentionDays > 0
         ? i18n.t("settings.notePinnedKept")
         : i18n.t("clip.cleanupDisabledHint");
+    }
+    // The update row reports itself here as well as in its own value, because the
+    // footer is where the eye already is after pressing Enter — and because a
+    // check that ends in "up to date" or in a failure has no dialog to show for
+    // itself. A found update does: it opens the confirmation.
+    if (selectedItemId === "update") {
+      if (update.checking) return i18n.t("settings.update.checking");
+      if (update.outcome?.kind === "latest") {
+        return i18n.t("settings.update.latest", { version: update.outcome.version });
+      }
+      if (update.outcome?.kind === "failed") {
+        return i18n.t("settings.update.failedReason", { reason: update.outcome.reason });
+      }
+      return null;
     }
     return null;
   });
@@ -285,6 +318,7 @@
               value={item.value}
               icon={item.icon}
               current={item.current !== false}
+              busy={item.id === "update" && update.checking}
               selected={index === settings.selectedIndex}
               onselect={() => {
                 settings.selectedIndex = index;

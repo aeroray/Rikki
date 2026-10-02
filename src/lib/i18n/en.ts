@@ -91,6 +91,8 @@ export const en: Record<MessageKey, string> = {
   "settings.autostart.on": "On",
   "settings.autostart.off": "Off",
   "settings.autostart.failed": "Couldn’t change the login item — try again",
+  "settings.keyAutostartOn": "Turn on",
+  "settings.keyAutostartOff": "Turn off",
   "settings.language": "Language",
   "settings.current": "Current: {value}",
   "settings.saveFail": "Couldn’t save the setting. Try again",

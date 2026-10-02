@@ -2,6 +2,7 @@
   import { i18n } from "$lib/i18n";
   import type { SettingItem as SettingItemModel } from "$lib/stores/settings.svelte";
   import { commandIcon } from "$lib/components/icons";
+  import { LoaderCircle } from "@lucide/svelte";
 
   let {
     id,
@@ -11,6 +12,7 @@
     selected,
     onselect,
     current = true,
+    busy = false,
   }: {
     /** The `aria-activedescendant` target, built from the item id. */
     id: string;
@@ -22,6 +24,13 @@
     selected: boolean;
     onselect: () => void;
     current?: boolean;
+    /**
+     * True while the row's own action is still running.
+     *
+     * The glyph becomes a spinner, because a row whose only sign of life is its
+     * text is a row the user cannot tell from one whose key press never landed.
+     */
+    busy?: boolean;
   } = $props();
 
   const Icon = $derived(commandIcon(icon));
@@ -45,7 +54,17 @@
   onclick={onselect}
 >
   <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-1 text-ink-muted">
-    <Icon class="size-4" strokeWidth={1.5} aria-hidden="true" />
+    {#if busy}
+      <!-- Replaced rather than decorated: a spinner beside a refresh arrow is two
+           glyphs saying the same thing at different speeds. -->
+      <LoaderCircle
+        class="size-4 animate-spin motion-reduce:animate-none"
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+    {:else}
+      <Icon class="size-4" strokeWidth={1.5} aria-hidden="true" />
+    {/if}
   </span>
   <span class="min-w-0 flex-1">
     <span class="block truncate text-[14px] font-medium leading-[1.45] text-ink">{title}</span>
