@@ -3,7 +3,7 @@
   import { primaryShortcut } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
   import { update } from "$lib/stores/update.svelte";
-  import { ArrowUpCircle } from "@lucide/svelte";
+  import { ArrowUpCircle, X } from "@lucide/svelte";
 
   /**
    * The "a new version is waiting" bar.
@@ -46,6 +46,19 @@
       onclick={() => void update.installAvailable()}
     >
       {i18n.t("update.install")}
+    </button>
+    <!-- Closing is not refusing. The release is still held, so the settings row
+         finds it on purpose and offers it through the usual confirmation; all
+         that stops is this bar announcing this one version. A newer release is
+         a different string and is announced as usual. -->
+    <button
+      type="button"
+      class="pressable grid size-6 shrink-0 place-items-center rounded text-ink-subtle hover:text-ink active:scale-[0.96]"
+      aria-label={i18n.t("update.dismiss")}
+      title={i18n.t("update.dismiss")}
+      onclick={() => void update.dismiss()}
+    >
+      <X class="size-3.5" strokeWidth={1.5} aria-hidden="true" />
     </button>
   </div>
 {/if}

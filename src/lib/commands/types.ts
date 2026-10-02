@@ -56,6 +56,8 @@ export interface AppSettings {
   browser: string;
   customSearchEngines: CustomSearchEngine[];
   clipTextRetentionDays: number | null;
+  /** The release closed from the palette's update bar; empty means none. */
+  dismissedUpdateVersion: string;
   version: number;
 }
 

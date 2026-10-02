@@ -10,7 +10,7 @@ use crate::storage::json_file;
 
 const SETTINGS_FILE: &str = "settings.json";
 const DEFAULT_ENGINE: &str = "bing";
-const SETTINGS_VERSION: u32 = 7;
+const SETTINGS_VERSION: u32 = 8;
 const ENGINE_IDS: &[&str] = &["bing", "google", "baidu", "duckduckgo", "sogou"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +45,14 @@ pub struct Settings {
     pub custom_search_engines: Vec<CustomSearchEngine>,
     #[serde(default = "default_clip_text_retention_days")]
     pub clip_text_retention_days: Option<u32>,
+    /// The release the user closed from the palette's update bar.
+    ///
+    /// Only that bar reads it. The settings row's own "check for updates" still
+    /// finds the release and offers it, because that is the user asking on
+    /// purpose — closing a notice means "stop telling me", not "never install
+    /// this". Empty means nothing has been closed.
+    #[serde(default)]
+    pub dismissed_update_version: String,
     #[serde(default = "default_version")]
     pub version: u32,
 }
@@ -135,6 +143,7 @@ fn default_settings() -> Settings {
         browser: String::new(),
         custom_search_engines: Vec::new(),
         clip_text_retention_days: default_clip_text_retention_days(),
+        dismissed_update_version: String::new(),
         version: default_version(),
     }
 }
@@ -274,6 +283,7 @@ fn normalize(mut settings: Settings) -> Settings {
         Some(7) | Some(30) => settings.clip_text_retention_days,
         Some(_) => Some(7),
     };
+    settings.dismissed_update_version = settings.dismissed_update_version.trim().to_string();
     if settings.version < SETTINGS_VERSION {
         settings.version = default_version();
     }
@@ -366,6 +376,14 @@ pub fn update_setting(app: &AppHandle, key: &str, value: &str) -> Result<Setting
                 _ => return Err(format!("unknown clip retention: {value}")),
             };
         }
+        "dismissedUpdateVersion" | "dismissed_update_version" => {
+            // Deliberately unvalidated. This is whatever version string the
+            // updater reported, and the only thing ever done with it is an
+            // equality check against the next string the updater reports — a
+            // shape check here would only be a second opinion about a format
+            // this app does not own.
+            settings.dismissed_update_version = value.trim().to_string();
+        }
         other => return Err(format!("unknown setting: {other}")),
     }
     save_settings(app, &settings)?;
@@ -446,6 +464,7 @@ mod tests {
         assert!(json.contains("customSearchEngines"));
         assert!(json.contains("translateTarget"));
         assert!(json.contains("clipTextRetentionDays"));
+        assert!(json.contains("dismissedUpdateVersion"));
         assert!(!json.contains("default_search_engine"));
         let parsed: Settings = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(parsed.default_search_engine, "google");
@@ -571,6 +590,23 @@ mod tests {
     fn missing_browser_defaults_to_the_system_default() {
         let parsed: Settings = serde_json::from_str(r#"{"version":7}"#).expect("deserialize");
         assert!(parsed.browser.is_empty());
+    }
+
+    /// A file written before the update bar had a close button reads as "nothing
+    /// dismissed", which is what it meant at the time.
+    #[test]
+    fn missing_dismissed_update_version_defaults_to_empty() {
+        let parsed: Settings = serde_json::from_str(r#"{"version":7}"#).expect("deserialize");
+        assert!(parsed.dismissed_update_version.is_empty());
+    }
+
+    #[test]
+    fn a_dismissed_update_version_is_trimmed_and_kept() {
+        let settings = normalize(Settings {
+            dismissed_update_version: "  1.1.0  ".into(),
+            ..default_settings()
+        });
+        assert_eq!(settings.dismissed_update_version, "1.1.0");
     }
 
     #[test]

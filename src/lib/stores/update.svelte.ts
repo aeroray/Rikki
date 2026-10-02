@@ -1,4 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { i18n } from "$lib/i18n";
@@ -87,6 +88,16 @@ class UpdateStore {
    * a second call would only schedule a second timer.
    */
   private started = false;
+  /**
+   * The release the user closed from the bar, read from `settings.json`.
+   *
+   * Held here rather than on the settings store because this is the only thing
+   * that reads it, and the settings store already imports this one — reaching
+   * back the other way would be a cycle.
+   */
+  private dismissed = "";
+  /** The one in-flight read of `dismissed`, shared by both triggers. */
+  private dismissedLoad: Promise<void> | null = null;
 
   constructor() {
     void getVersion()
@@ -117,11 +128,47 @@ class UpdateStore {
   start(): void {
     if (this.started) return;
     this.started = true;
-    setTimeout(() => {
-      if (this.pending || this.checking) return;
-      this.lastCheck = Date.now();
-      void this.run();
-    }, STARTUP_DELAY);
+    setTimeout(() => void this.launchCheck(), STARTUP_DELAY);
+  }
+
+  /**
+   * The launch check, and the one place the dismissal has to be read first.
+   *
+   * The palette's own checks run long after the store was hydrated, but this one
+   * fires into a process that may not have read `settings.json` yet — and a
+   * release the user closed last week must not reappear in the seconds after a
+   * launch, which is exactly the "it keeps coming back" complaint the close
+   * button exists to answer.
+   */
+  private async launchCheck(): Promise<void> {
+    await this.ensureDismissed();
+    if (this.pending || this.checking) return;
+    this.lastCheck = Date.now();
+    await this.run();
+  }
+
+  /**
+   * Reads the dismissal once, whichever trigger gets there first.
+   *
+   * Both triggers have to wait for it, not just the launch one: the palette can
+   * be opened inside the three seconds before the launch timer fires, and that
+   * check would otherwise compare against an empty string and announce a release
+   * the user had already closed.
+   */
+  private ensureDismissed(): Promise<void> {
+    this.dismissedLoad ??= this.loadDismissed();
+    return this.dismissedLoad;
+  }
+
+  private async loadDismissed(): Promise<void> {
+    try {
+      const settings = await invoke<{ dismissedUpdateVersion?: string }>("get_settings");
+      this.dismissed = settings.dismissedUpdateVersion?.trim() ?? "";
+    } catch {
+      // No runtime, or the command is not permitted. Nothing is dismissed, which
+      // is the same answer as a fresh install.
+      this.dismissed = "";
+    }
   }
 
   /**
@@ -137,6 +184,7 @@ class UpdateStore {
     // Stamped before the request, so a slow or failing one cannot make every open
     // try again.
     this.lastCheck = now;
+    await this.ensureDismissed();
     await this.run();
   }
 
@@ -155,7 +203,9 @@ class UpdateStore {
       const found = await check();
       if (!found) return;
       this.pending = found;
-      this.available = found.version;
+      // Held either way, so the settings row can still offer it: closing the
+      // notice means "stop telling me", not "never install this".
+      if (found.version !== this.dismissed) this.available = found.version;
     } catch (error) {
       // Offline, no release published yet, or an endpoint that answers 404 — the
       // plugin reports all three as one error, and a background check that was
@@ -178,6 +228,28 @@ class UpdateStore {
     this.pending = null;
     this.available = null;
     await this.install(found);
+  }
+
+  /**
+   * Closes the bar, and remembers which release it was about.
+   *
+   * The held `Update` is kept rather than closed: the user said "not now", not
+   * "not ever", and the settings row's own check still has to be able to offer
+   * it — that path goes through the confirmation dialog and never touches
+   * `available`. Only the version is written down, so the next release is
+   * announced as usual.
+   */
+  async dismiss(): Promise<void> {
+    const version = this.available;
+    this.available = null;
+    if (!version) return;
+    this.dismissed = version;
+    try {
+      await invoke("update_setting", { key: "dismissedUpdateVersion", value: version });
+    } catch {
+      // A write that failed only means the bar comes back on the next launch;
+      // the one the user just closed stays closed for this session either way.
+    }
   }
 
   /** The settings row: asks, then confirms through the dialog. */

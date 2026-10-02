@@ -143,6 +143,7 @@ export const zhCN = {
   // 底栏的更新提示：常驻后台时唯一会主动说话的地方。
   "update.available": "有新版本 {version}",
   "update.install": "安装",
+  "update.dismiss": "关闭更新提示",
 
   "theme.system": "跟随系统",
   "theme.dark": "暗色",

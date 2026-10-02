@@ -147,6 +147,7 @@ export const en: Record<MessageKey, string> = {
   // it sits in the tray.
   "update.available": "Version {version} is available",
   "update.install": "Install",
+  "update.dismiss": "Dismiss the update notice",
 
   "theme.system": "System",
   "theme.dark": "Dark",

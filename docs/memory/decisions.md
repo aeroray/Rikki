@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-02 - The update bar can be closed, and closing is remembered per version
+Decision:
+`UpdateBar` carries an `×` at the far right. `UpdateStore.dismiss()` clears `available`, **keeps** the held `Update`, and writes the version to `settings.json` as `dismissedUpdateVersion` — a new field, with `SETTINGS_VERSION` moved from 7 to 8. A release whose version equals that string is still held and still installable from the settings row, but is not announced again.
+Reason:
+"关闭掉这一条提示" has to survive a restart to mean anything. The check runs once per launch, so a dismissal held only in memory would put the same bar back within seconds of the next start, and the button would read as broken — the exact complaint it exists to answer. Keeping the handle rather than closing it is what separates "not now" from "not ever": the settings row's own check goes through the confirmation dialog and never touches `available`, so a closed notice does not take the install away with it. Per version rather than a boolean, so the next release is announced without anything having to clear the flag first.
+Note:
+The field rides along in the export/import file, because it lives on `Settings` like every other preference — importing a configuration therefore imports which release that configuration had closed, which is the same rule the other three sections follow and not worth a special case. `update.dismiss` is both the `aria-label` and the `title`, since an icon-only button has no text to read. Verified: `svelte-check` clean, 94 frontend tests and the Rust suite passing; the button itself is unverified in the running app.
+
 ## 2026-10-02 - The update check runs at launch, and its bar stacks under the countdown
 Decision:
 `UpdateStore.start()` runs one check per process, three seconds into the launch and outside `CHECK_INTERVAL`; the palette opening still re-checks on the six-hour throttle, and both triggers now share one `run()`. The footer's update line became `UpdateBar`, a component of its own rendered by `EmptyState`, `ResultList` and `TodoList` as well as by `PanelFooter`, and it stacks *below* `PendingPowerBar` instead of being replaced by it. A failed check on the settings row prints the plugin's reason, not only "failed".

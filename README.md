@@ -90,7 +90,7 @@ The empty palette lists commands by how often you open them, with clipboard and 
 
 Export writes todos, snippets and settings to a JSON file wherever you point it; import reads one back and asks before replacing anything. Clipboard history is not part of it.
 
-Rikki updates itself, and checks in the background rather than only when asked: the launch looks for a release a few seconds in, and opening the palette re-checks, throttled to once every six hours — so a launcher left running in the tray still finds one. When there is a new version the bottom bar says so, below a pending shutdown or restart if there is one, with `Ctrl+U` to install. The download is verified against a key baked into the app, and the app restarts into the new version. Neither package is code signed yet, so Windows shows SmartScreen's "unknown publisher" and macOS needs the quarantine flag cleared by hand: `xattr -cr /Applications/Rikki.app`.
+Rikki updates itself, and checks in the background rather than only when asked: the launch looks for a release a few seconds in, and opening the palette re-checks, throttled to once every six hours — so a launcher left running in the tray still finds one. When there is a new version the bottom bar says so, below a pending shutdown or restart if there is one, with `Ctrl+U` to install or an `×` at its right to stop that version being announced again — the settings row still finds it if you change your mind. The download is verified against a key baked into the app, and the app restarts into the new version. Neither package is code signed yet, so Windows shows SmartScreen's "unknown publisher" and macOS needs the quarantine flag cleared by hand: `xattr -cr /Applications/Rikki.app`.
 
 ## Stack
 
