@@ -3,6 +3,7 @@
   import EngineCreate from "$lib/commands/settings/EngineCreate.svelte";
   import EngineSelector from "$lib/commands/settings/EngineSelector.svelte";
   import HotkeyRecorder from "$lib/commands/settings/HotkeyRecorder.svelte";
+  import { listRowKey } from "$lib/commands/settings/footer";
   import { parseSettingsScreen, type SettingsScreen } from "$lib/commands/settings/parse";
   import { primaryShortcut } from "$lib/commands/settings/engines";
   import SettingItem from "$lib/commands/settings/SettingItem.svelte";
@@ -142,47 +143,20 @@
         { keys: "Esc", label: i18n.t("key.back") },
       ];
     }
-    // The settings list. Each row names what Enter does to it, and `Esc` is added
-    // to all of them: it is the same key on every row of this screen — it leaves
-    // the settings command and puts the search back — and a list the user cannot
-    // see how to leave is the one thing a footer is there to prevent. The
-    // sub-screens above say so for the same reason.
+    // The settings list. `listRowKey` owns which action each row's Enter performs,
+    // and a test pins it — this list has twice shipped a row whose label did not
+    // describe what the key does. `Esc` is added to every row: it is the same key
+    // on every row of this screen (it leaves the settings command and puts the
+    // search back), and a list the user cannot see how to leave is the one thing a
+    // footer is there to prevent. The sub-screens above say so for the same reason.
     const chips: FooterShortcut[] = [];
-    if (selectedItemId === "cleanup") {
-      // Cleaning is off, so Enter would do nothing: say why instead of offering it.
-      if (settings.clipTextRetentionDays > 0) {
-        chips.push({ keys: "Enter", label: i18n.t("settings.keyClean") });
-      }
-    } else if (selectedItemId === "autostart") {
-      // The label names the direction the key would take the setting, not what the
-      // row already says: "开机自启动" over a row reading 已开启 tells the user
-      // nothing about what Enter is about to do, and the two states need opposite
-      // words.
-      chips.push({
-        keys: "Enter",
-        label: i18n.t(
-          settings.autostartEnabled ? "settings.keyAutostartOff" : "settings.keyAutostartOn",
-        ),
+    if (selectedItemId) {
+      const key = listRowKey(selectedItemId, {
+        autostartEnabled: settings.autostartEnabled,
+        clipTextRetentionDays: settings.clipTextRetentionDays,
+        updateChecking: update.checking,
       });
-    } else if (selectedItemId === "hotkey") {
-      // Not "打开": Enter opens no list here. It puts the recorder on screen and
-      // waits for a key, which is a different thing to be told about.
-      chips.push({ keys: "Enter", label: i18n.t("settings.keyHotkey") });
-    } else if (selectedItemId === "export") {
-      // The rows that act rather than open name their own action, the way the
-      // cleanup row does: "打开" would be a lie about what Enter does here.
-      chips.push({ keys: "Enter", label: i18n.t("settings.keyExport") });
-    } else if (selectedItemId === "import") {
-      chips.push({ keys: "Enter", label: i18n.t("settings.keyImport") });
-    } else if (selectedItemId === "update") {
-      // While a check runs the key does nothing — `checkNow` refuses a second one
-      // — so the chip goes away and the message below says why. Offering "检查"
-      // over a check already in flight is an invitation to press it again.
-      if (!update.checking) {
-        chips.push({ keys: "Enter", label: i18n.t("settings.keyCheck") });
-      }
-    } else {
-      chips.push({ keys: "Enter", label: i18n.t("key.open") });
+      if (key) chips.push({ keys: "Enter", label: i18n.t(key) });
     }
     chips.push({ keys: "Esc", label: i18n.t("key.back") });
     return chips;
