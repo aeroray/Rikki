@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { logout, reboot, shutdown, sleep } from "tauri-plugin-power-manager-api";
+import { logout, sleep } from "tauri-plugin-power-manager-api";
 import { register } from "$lib/commands/registry";
 import type { Command } from "$lib/commands/types";
 import { i18n } from "$lib/i18n";
@@ -45,32 +45,41 @@ const commands: Command[] = [
     },
     () => sleep(),
   ),
-  action(
-    {
-      id: "shutdown",
-      prefix: "shutdown",
-      title: "Shutdown",
-      titleZh: "关机",
-      description: "Shut down the computer",
-      descriptionZh: "关闭电脑",
-      icon: "Power",
-      confirm: true,
+  // Shutdown and reboot open a panel rather than running at once: both take a
+  // delay, and the panel is where the delay is chosen. Enter on the row opens it,
+  // and every key inside belongs to the panel.
+  {
+    id: "shutdown",
+    prefix: "shutdown",
+    title: "Shutdown",
+    titleZh: "关机",
+    description: "Shut down now, or after a delay",
+    descriptionZh: "立即关机，或指定时间后关机",
+    icon: "Power",
+    aliases: ["off"],
+    run(input) {
+      const rest = input.trim();
+      // `shutdown 30` from the root list goes straight to the panel with the
+      // delay already typed, so the mouse-free path is two keystrokes shorter.
+      ui.searchText = rest ? `shutdown ${rest}` : "shutdown ";
+      ui.focusField = "search";
     },
-    () => shutdown(),
-  ),
-  action(
-    {
-      id: "reboot",
-      prefix: "reboot",
-      title: "Reboot",
-      titleZh: "重启",
-      description: "Restart the computer",
-      descriptionZh: "重新启动电脑",
-      icon: "RotateCw",
-      confirm: true,
+  },
+  {
+    id: "reboot",
+    prefix: "reboot",
+    title: "Reboot",
+    titleZh: "重启",
+    description: "Restart now, or after a delay",
+    descriptionZh: "立即重启，或指定时间后重启",
+    icon: "RotateCw",
+    aliases: ["restart"],
+    run(input) {
+      const rest = input.trim();
+      ui.searchText = rest ? `reboot ${rest}` : "reboot ";
+      ui.focusField = "search";
     },
-    () => reboot(),
-  ),
+  },
   action(
     {
       id: "logout",

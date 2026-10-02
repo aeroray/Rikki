@@ -37,7 +37,7 @@ use commands::translate::{lookup_word, pronounce, pronounce_sentence, translate,
 use commands::web::{list_browsers, open_web_url};
 use storage::settings_store;
 use commands::snippet::{create_snippet, delete_snippet, get_snippets, update_snippet};
-use commands::system::lock_screen;
+use commands::system::{cancel_power, lock_screen, pending_power, schedule_power, ScheduledPower};
 use commands::clipboard::{
     discard_clipboard_image, get_clipboard_history, get_clipboard_images_dir,
     read_clipboard_image, save_clipboard_history,
@@ -423,6 +423,8 @@ pub fn run() {
         .manage(AppIndex::default())
         // Built once, because its readings are deltas between calls.
         .manage(sysmon::Monitor::new())
+        // Remembers what this app scheduled, since the OS does not report it.
+        .manage(ScheduledPower::default())
         .manage(PaletteState {
             last_shown_at: Mutex::new(None),
             hide: Mutex::new(HideGate {
@@ -560,6 +562,9 @@ pub fn run() {
             get_usage_counts,
             bump_usage,
             lock_screen,
+            schedule_power,
+            cancel_power,
+            pending_power,
             get_snippets,
             create_snippet,
             update_snippet,

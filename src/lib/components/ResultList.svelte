@@ -3,6 +3,7 @@
   import { canFallbackSearch } from "$lib/commands/fallback";
   import AppItem from "$lib/components/AppItem.svelte";
   import CommandItem from "$lib/components/CommandItem.svelte";
+  import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import ScrollArea from "$lib/components/ScrollArea.svelte";
   import { engineDisplayName } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
@@ -66,4 +67,7 @@
       {i18n.t("result.fallback", { engine: engineDisplayName(settings.engine) })}
     </p>
   {/if}
+  <!-- The root list has no `PanelFooter`, so a scheduled shutdown would otherwise
+       be invisible from the view the user is most often looking at. -->
+  <PendingPowerBar />
 </div>

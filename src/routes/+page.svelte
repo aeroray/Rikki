@@ -30,6 +30,7 @@
   import SettingsPanel from "$lib/commands/settings/SettingsPanel.svelte";
   import SnippetPanel from "$lib/commands/snippet/SnippetPanel.svelte";
   import SysmonPanel from "$lib/commands/sysmon/SysmonPanel.svelte";
+  import PowerPanel from "$lib/commands/sys/PowerPanel.svelte";
   import { toggleSelectedPreview } from "$lib/commands/clip/preview";
   import { escapePalette } from "$lib/commands/escape";
   import { toggleBase64Mode } from "$lib/commands/base64/actions";
@@ -50,6 +51,7 @@
   import { translate } from "$lib/stores/translate.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { update } from "$lib/stores/update.svelte";
+  import { power } from "$lib/stores/power.svelte";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
 
@@ -73,6 +75,9 @@
       // one where either answer can be acted on.
       void update.checkQuietly();
       void apps.refresh();
+      // Picks up a timer set in an earlier session as well as one this app set:
+      // the footer has to say a shutdown is coming even after a restart.
+      power.watch();
     })
       .then((stop) => stops.push(stop))
       .catch(() => {});
@@ -209,6 +214,8 @@
       <TranslatePanel />
     {:else if ui.view === "sysmon"}
       <SysmonPanel />
+    {:else if ui.view === "power"}
+      <PowerPanel action={ui.matchedCommand?.id === "reboot" ? "restart" : "shutdown"} />
     {:else if ui.view === "color"}
       <ColorPanel />
     {:else if ui.view === "json"}

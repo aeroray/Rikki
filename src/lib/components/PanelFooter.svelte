@@ -1,7 +1,9 @@
 <script lang="ts">
   import KeyChip from "$lib/components/KeyChip.svelte";
+  import PendingPowerBar from "$lib/components/PendingPowerBar.svelte";
   import { primaryShortcut } from "$lib/commands/settings/engines";
   import { i18n } from "$lib/i18n";
+  import { power } from "$lib/stores/power.svelte";
   import { update } from "$lib/stores/update.svelte";
   import { ArrowUpCircle } from "@lucide/svelte";
   import type { Snippet } from "svelte";
@@ -60,11 +62,12 @@
   const messageAlign = $derived(shortcuts.length > 0 ? "ml-auto" : "mx-auto");
 </script>
 
-<!-- An available update replaces the bar rather than joining it. It is the one
-     thing here the user cannot do later — a release is missed by not acting, while
-     every panel shortcut still works once this is gone — and the two of them
-     sharing a 32px row would leave room for neither. -->
-{#if update.available}
+<!-- A pending shutdown outranks everything else in this bar, including an update:
+     the machine is about to close every program the user has open, and the only
+     useful thing to offer is a way to stop it. -->
+{#if power.pending}
+  <PendingPowerBar />
+{:else if update.available}
   <div class="flex min-h-8 shrink-0 items-center gap-3 border-t border-hairline px-3">
     <!-- Same shape as every other footer: what the keyboard can do on the left,
          what the mouse can do on the right. -->

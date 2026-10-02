@@ -2,6 +2,14 @@
 
 Entries are newest first.
 
+## 2026-10-01 - Shutdown and restart take a delay, chosen from a panel
+Decision:
+`shutdown` and `reboot` open a panel instead of running at once. It lists `立即` first and then 15m / 30m / 1h / 2h / 4h, each with the wall-clock time it lands on; typing adds a `自定义时间` row at the top, which Enter takes. `30` reads as minutes, `1h30m` as a duration, `23:00` as the next time that clock occurs. A pending timer shows a countdown bar with `Ctrl+Z` to cancel.
+Reason:
+The immediate action was the only behaviour before, so it leads rather than being dropped. A delay is cancellable and so needs no dialog, while `立即` keeps the confirmation the command always had — the distinction is exactly "can this be taken back". The wall-clock column is the point of the list: `2 小时` is harder to place than `14:00`, and it is what the user checks before agreeing to lose their session. A typed value leads because the user who typed it is the one who wants it, and Enter takes the first row.
+Note:
+Two findings worth keeping. The OS does not publish a pending schedule: the registry key this first tried does not exist, and `shutdown.exe` reveals one only by *refusing* a second with exit 1190 — so the app remembers what it set, and `cancel_power` still asks the OS, which is why it also stops a timer set from a terminal. And `PanelFooter` only renders inside panels, so the root list had no footer at all: a shutdown scheduled an hour ago would have been invisible from the view the user is most often in. The countdown is its own component, rendered by both. Verified end to end: Enter scheduled a real shutdown (`shutdown /a` returned 0), the bar read `关机将在 15 分钟 后执行`, and `Ctrl+Z` cancelled it (`/a` then returned 1116).
+
 ## 2026-10-01 - The loading effect belongs on the chart, not on the page
 Decision:
 `figure` draws a pulsing placeholder in the chart's own `h-8` box while `values.length < 2`, and the panel renders nothing at all before the first reading. The page-level skeleton is gone.

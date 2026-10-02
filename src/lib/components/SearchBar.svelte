@@ -8,6 +8,9 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { update } from "$lib/stores/update.svelte";
   import { sysmon } from "$lib/stores/sysmon.svelte";
+  import { delayOptions } from "$lib/commands/sys/schedule";
+  import { commitPower, currentPowerAction } from "$lib/commands/sys/actions";
+  import { power } from "$lib/stores/power.svelte";
   import { i18n } from "$lib/i18n";
   import FieldMark from "$lib/components/FieldMark.svelte";
   import { activateCommand } from "$lib/commands/activate";
@@ -304,6 +307,14 @@
       return;
     }
 
+    // Same reasoning, and it outranks the update: a shutdown timer is the one
+    // thing in the footer that will close the user's work if it is not stopped.
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && power.pending) {
+      event.preventDefault();
+      void power.cancel();
+      return;
+    }
+
     if (ui.view === "todo") {
       // Every key here arrives through the input's own handler, so the panel's
       // text field — a separate focus target — never sees them: the arrows cannot
@@ -463,6 +474,28 @@
       if (event.key === "Enter") {
         event.preventDefault();
         void copyCalendarDate();
+        return;
+      }
+    }
+
+    if (ui.view === "power") {
+      // A short list of delays, walked like any other: the arrows move the
+      // highlight and Enter takes it. `commitPower` is the same function the
+      // panel's click calls, so the two cannot disagree about confirmation.
+      const options = delayOptions(ui.commandRest);
+      if (event.key === "ArrowDown" && options.length > 0) {
+        event.preventDefault();
+        ui.selectedIndex = Math.min(options.length - 1, ui.selectedIndex + 1);
+        return;
+      }
+      if (event.key === "ArrowUp" && options.length > 0) {
+        event.preventDefault();
+        ui.selectedIndex = Math.max(0, ui.selectedIndex - 1);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitPower(currentPowerAction(), ui.selectedIndex);
         return;
       }
     }
